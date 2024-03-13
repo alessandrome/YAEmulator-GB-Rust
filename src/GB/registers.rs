@@ -24,7 +24,7 @@ macro_rules! get_set_dual {
 }
 
 #[derive(Debug, Clone, Copy)]
-enum FlagBits {
+pub enum FlagBits {
     Z,
     N,
     H,
@@ -67,7 +67,7 @@ impl Registers {
     get_set!(c, get_c, set_c, u8);
     get_set!(d, get_d, set_d, u8);
     get_set!(e, get_e, set_e, u8);
-    get_set!(h, get_f, set_h, u8);
+    get_set!(h, get_h, set_h, u8);
     get_set!(sp, get_sp, set_sp, u16);
     get_set!(pc, get_pc, set_pc, u16);
     get_set_dual!(b, c, get_bc, set_bc);

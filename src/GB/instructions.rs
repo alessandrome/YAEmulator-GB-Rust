@@ -1,88 +1,69 @@
-#[derive(Debug, Clone, Copy)]
-pub enum Flags {
-    None,
-    Zero,
-    Negative,
-    HalfCarry,
-    Carry,
-}
+use crate::GB::registers::{FlagBits, Flags};
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct Instruction {
     pub opcode: u8,
     pub name: &'static str,
     pub cycles: u8,
     pub size: u8,
-    pub flags: Flags,
+    pub flags: &'static [FlagBits],
 }
 
 impl Instruction {
-    pub fn new(opcode: u8) -> Self {
-        OPCODES[opcode]
+    pub fn new(opcode: u8) -> Option<&'static Self> {
+        OPCODES[opcode as usize]
     }
 }
 
 const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
     let mut opcodes = [None; 256];
-    for i in 0..256 {
-        opcodes[i] = match i {
-            0x00 => Some(&Instruction {
-                opcode: 0x00,
-                name: "NOP",
-                cycles: 1,
-                size: 1,
-                flags: Flags::None,
-            }),
-            0x01 => Some(&Instruction {
-                opcode: 0x01,
-                name: "LD BC, d16",
-                cycles: 3,
-                size: 3,
-                flags: Flags::None,
-            }),
-            0xCB => Some(&Instruction {
-                opcode: 0xCB,
-                name: "0xCB SUB-SET",
-                cycles: 1,
-                size: 1,
-                flags: Flags::None,
-            }),
-            // ... Define instructions for other opcodes based on information
-            _ => None,
-        }
-    }
+    opcodes[0x00] = Some(&Instruction {
+        opcode: 0x00,
+        name: "NOP",
+        cycles: 1,
+        size: 1,
+        flags: &[],
+    });
+    opcodes[0x01] = Some(&Instruction {
+        opcode: 0x01,
+        name: "LD BC, d16",
+        cycles: 3,
+        size: 3,
+        flags: &[],
+    });
+    opcodes[0xCB] = Some(&Instruction {
+        opcode: 0xCB,
+        name: "LD BC, d16",
+        cycles: 3,
+        size: 3,
+        flags: &[],
+    });
     opcodes
 }
 
 const fn create_cb_opcodes() -> [Option<&'static Instruction>; 256] {
     let mut opcodes = [None; 256];
-    for i in 0..256 {
-        opcodes[i] = match i {
-            0x00 => Some(&Instruction {
-                opcode: 0x00,
-                name: "NOP",
-                cycles: 1,
-                size: 1,
-                flags: Flags::None,
-            }),
-            0x01 => Some(&Instruction {
-                opcode: 0x01,
-                name: "LD BC, d16",
-                cycles: 3,
-                size: 3,
-                flags: Flags::None,
-            }),
-            0xCB => Some(&Instruction {
-                opcode: 0xCB,
-                name: "0xCB SUB-SET",
-                cycles: 1,
-                size: 1,
-                flags: Flags::None,
-            }),
-            // ... Define instructions for other opcodes based on information
-            _ => None,
-        }
-    }
+    opcodes[0x00] = Some(&Instruction {
+        opcode: 0x00,
+        name: "NOP",
+        cycles: 1,
+        size: 1,
+        flags: &[],
+    });
+    opcodes[0x01] = Some(&Instruction {
+        opcode: 0x01,
+        name: "LD BC, d16",
+        cycles: 3,
+        size: 3,
+        flags: &[],
+    });
+    opcodes[0xCB] = Some(&Instruction {
+        opcode: 0xCB,
+        name: "LD BC, d16",
+        cycles: 3,
+        size: 3,
+        flags: &[],
+    });
     opcodes
 }
 
