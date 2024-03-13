@@ -1,22 +1,22 @@
 macro_rules! get_set {
-    ($reg:ident, $size:ty) => {
-        pub fn get_$reg(&self) -> $size {
+    ($reg:ident, $get_name:ident, $set_name:ident, $size:ty) => {
+        pub fn $get_name(&self) -> $size {
             self.$reg
         }
 
-        pub fn set_$reg(&mut self, val: $size) {
+        pub fn $set_name(&mut self, val: $size) {
             self.$reg = val;
         }
     };
 }
 
 macro_rules! get_set_dual {
-    ($reg1:ident, $reg2:ident) => {
-        pub fn get_$reg1$reg2(&self) -> u16 {
+    ($reg1:ident, $reg2:ident, $get_name:ident, $set_name:ident) => {
+        pub fn $get_name(&self) -> u16 {
             (self.$reg1 as u16) << 8 | self.$reg2 as u16
         }
 
-        pub fn set_$reg1$reg2(&mut self, val: u16) {
+        pub fn $set_name(&mut self, val: u16) {
             self.$reg1 = (val >> 8) as u8;
             self.$reg2 = val as u8;
         }
@@ -24,11 +24,24 @@ macro_rules! get_set_dual {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub enum Flags {
+enum FlagBits {
     Z,
     N,
     H,
     C,
+}
+
+pub struct Flags{
+    z: bool,
+    n: bool,
+    h: bool,
+    c: bool,
+}
+
+impl Flags {
+    pub fn new(z:bool, n:bool, h:bool, c:bool) -> Self {
+        Self { z, n, h, c }
+    }
 }
 
 pub struct Registers {
@@ -49,17 +62,17 @@ pub struct Registers {
 // }
 
 impl Registers {
-    get_set!(a, u8);
-    get_set!(b, u8);
-    get_set!(c, u8);
-    get_set!(d, u8);
-    get_set!(e, u8);
-    get_set!(h, u8);
-    get_set!(sp, u16);
-    get_set!(pc, u16);
-    get_set_dual!(b, c);
-    get_set_dual!(d, e);
-    get_set_dual!(h, l);
+    get_set!(a, get_a, set_a, u8);
+    get_set!(b, get_b, set_b, u8);
+    get_set!(c, get_c, set_c, u8);
+    get_set!(d, get_d, set_d, u8);
+    get_set!(e, get_e, set_e, u8);
+    get_set!(h, get_f, set_h, u8);
+    get_set!(sp, get_sp, set_sp, u16);
+    get_set!(pc, get_pc, set_pc, u16);
+    get_set_dual!(b, c, get_bc, set_bc);
+    get_set_dual!(d, e, get_de, set_de);
+    get_set_dual!(h, l, get_hl, set_hl);
 
     fn get_f(&self) -> u8 {
         self.f
@@ -77,11 +90,11 @@ impl Registers {
     }
 
     fn get_flags(&self) -> Flags {
-        Flags {
-            z: (self.f & 0b10000000) != 0,
-            n: (self.f & 0b01000000) != 0,
-            h: (self.f & 0b00100000) != 0,
-            c: (self.f & 0b00010000) != 0,
-        }
+        Flags::new(
+            (self.f & 0b10000000) != 0,
+            (self.f & 0b01000000) != 0,
+            (self.f & 0b00100000) != 0,
+            (self.f & 0b00010000) != 0,
+        )
     }
 }
