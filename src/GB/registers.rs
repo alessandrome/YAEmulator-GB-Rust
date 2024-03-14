@@ -75,6 +75,11 @@ impl Registers {
         self.pc += 1;
         ret_pc
     }
+
+    pub fn inc_pc(&mut self) -> u16 {
+        self.pc += 1;
+        self.pc
+    }
     get_set_dual!(b, c, get_bc, set_bc);
     get_set_dual!(d, e, get_de, set_de);
     get_set_dual!(h, l, get_hl, set_hl);

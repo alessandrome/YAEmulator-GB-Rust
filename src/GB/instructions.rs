@@ -8,7 +8,7 @@ pub struct Instruction {
     pub cycles: u8,
     pub size: u8,
     pub flags: &'static [FlagBits],
-    pub execute: fn(&Instruction, &CPU) -> u8,
+    pub execute: fn(&Instruction, &mut CPU) -> u8,
 }
 
 impl Instruction {
@@ -25,7 +25,7 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &CPU| -> u8 {
+        execute: |opcode: &Instruction, cpu: &mut CPU| -> u8 {
             // NOP Do nothing
             opcode.cycles
         },
@@ -36,8 +36,12 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 3,
         size: 3,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &CPU| -> u8 {
-            cpu.set
+        execute: |opcode: &Instruction, cpu: &mut CPU| -> u8 {
+            let byte_1 = cpu.fetch_next();
+            let byte_2 = cpu.fetch_next();
+            let mut dual_byte = byte_1 as u16 & 0xFF;
+            dual_byte = dual_byte | (byte_2 as u16) << 8;
+            cpu.registers.set_bc(dual_byte);
             opcode.cycles
         },
     });
