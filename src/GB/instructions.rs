@@ -32,7 +32,7 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
     });
     opcodes[0x01] = Some(&Instruction {
         opcode: 0x01,
-        name: "LD BC, d16",
+        name: "LD BC, imm16",
         cycles: 3,
         size: 3,
         flags: &[],
@@ -51,7 +51,10 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 2,
         size: 1,
         flags: &[],
-        execute: fn a(cpu: &CPU) -> u8,
+        execute: |opcode: &Instruction, cpu: &mut CPU| -> u8 {
+            cpu.ram.write(cpu.registers.get_bc(), cpu.registers.get_a());
+            opcode.cycles
+        },
     });
     opcodes[0xCB] = Some(&Instruction {
         opcode: 0xCB,
