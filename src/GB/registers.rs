@@ -70,26 +70,31 @@ impl Registers {
     get_set!(h, get_h, set_h, u8);
     get_set!(sp, get_sp, set_sp, u16);
     get_set!(pc, get_pc, set_pc, u16);
+    pub fn get_and_inc_pc(&mut self) -> u16 {
+        let ret_pc = self.pc;
+        self.pc += 1;
+        ret_pc
+    }
     get_set_dual!(b, c, get_bc, set_bc);
     get_set_dual!(d, e, get_de, set_de);
     get_set_dual!(h, l, get_hl, set_hl);
 
-    fn get_f(&self) -> u8 {
+    pub fn get_f(&self) -> u8 {
         self.f
     }
-    fn set_f(&mut self, val: u8) {
+    pub fn set_f(&mut self, val: u8) {
         self.f = val & 0xF0
     }
 
-    fn get_af(&self) -> u16 {
+    pub fn get_af(&self) -> u16 {
         (self.a as u16) << 8 | self.f as u16
     }
-    fn set_af(&mut self, val: u16) {
+    pub fn set_af(&mut self, val: u16) {
         self.a = (val >> 8) as u8;
         self.f = (val & 0xF0) as u8
     }
 
-    fn get_flags(&self) -> Flags {
+    pub fn get_flags(&self) -> Flags {
         Flags::new(
             (self.f & 0b10000000) != 0,
             (self.f & 0b01000000) != 0,

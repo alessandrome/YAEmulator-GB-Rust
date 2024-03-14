@@ -1,8 +1,20 @@
-use crate::GB::RAM as RAM;
-use crate::GB::registers as registers;
-use crate::GB::instructions as instructions;
+use crate::GB::instructions;
+use crate::GB::registers;
+use crate::GB::RAM;
 
 pub struct CPU {
-    registers: registers::Registers,
-    ram: RAM::RAM,
+    pub registers: registers::Registers,
+    pub ram: RAM::RAM,
+}
+
+impl CPU {
+    pub fn fetch_next(&mut self) -> u8 {
+        self.ram.read(self.registers.get_and_inc_pc())
+    }
+    pub fn decode(opcode: &u8, cb_opcode: bool) -> Option<&'static instructions::Instruction> {
+        if cb_opcode {
+            instructions::OPCODES_CB[opcode]
+        }
+        instructions::OPCODES[opcode]
+    }
 }
