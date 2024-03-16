@@ -62,6 +62,21 @@ pub struct Registers {
 // }
 
 impl Registers {
+    pub fn new() -> Registers{
+        Registers {
+            a: 0,
+            b: 0,
+            c: 0,
+            d: 0,
+            e: 0,
+            f: 0xF0,
+            h: 0,
+            l: 0,
+            sp: 0,
+            pc: 0,
+        }
+    }
+
     get_set!(a, get_a, set_a, u8);
     get_set!(b, get_b, set_b, u8);
     get_set!(c, get_c, set_c, u8);
