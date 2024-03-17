@@ -8,7 +8,7 @@ pub struct Instruction {
     pub cycles: u8,
     pub size: u8,
     pub flags: &'static [FlagBits],
-    pub execute: fn(&Instruction, &mut CPU) -> u8,
+    pub execute: fn(&Instruction, &mut CPU) -> u64, // Return number on M-Cycles needed to execute
 }
 
 impl Instruction {
@@ -25,9 +25,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u8 {
+        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
             // NOP Do nothing
-            opcode.cycles
+            opcode.cycles as u64
         },
     });
     opcodes[0x01] = Some(&Instruction {
@@ -36,13 +36,13 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 3,
         size: 3,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u8 {
+        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
             let byte_1 = cpu.fetch_next();
             let byte_2 = cpu.fetch_next();
             let mut dual_byte = byte_1 as u16 & 0xFF;
             dual_byte = dual_byte | (byte_2 as u16) << 8;
             cpu.registers.set_bc(dual_byte);
-            opcode.cycles
+            opcode.cycles as u64
         },
     });
     opcodes[0x02] = Some(&Instruction {
@@ -51,9 +51,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 2,
         size: 1,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u8 {
+        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
             cpu.ram.write(cpu.registers.get_bc(), cpu.registers.get_a());
-            opcode.cycles
+            opcode.cycles as u64
         },
     });
     opcodes[0xCB] = Some(&Instruction {
@@ -62,37 +62,41 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[],
-        execute: fn a(cpu: &CPU) -> u8,
+        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
+            // TODO: Implement CB subset fetching
+
+            opcode.cycles as u64
+        },
     });
     opcodes
 }
 
 const fn create_cb_opcodes() -> [Option<&'static Instruction>; 256] {
     let mut opcodes = [None; 256];
-    opcodes[0x00] = Some(&Instruction {
-        opcode: 0x00,
-        name: "NOP",
-        cycles: 1,
-        size: 1,
-        flags: &[],
-        execute: fn a(cpu: &CPU) -> u8,
-    });
-    opcodes[0x01] = Some(&Instruction {
-        opcode: 0x01,
-        name: "LD BC, d16",
-        cycles: 3,
-        size: 3,
-        flags: &[],
-        execute: fn a(cpu: &CPU) -> u8,
-    });
-    opcodes[0xCB] = Some(&Instruction {
-        opcode: 0xCB,
-        name: "LD BC, d16",
-        cycles: 3,
-        size: 3,
-        flags: &[],
-        execute: fn a(cpu: &CPU) -> u8{},
-    });
+    // opcodes[0x00] = Some(&Instruction {
+    //     opcode: 0x00,
+    //     name: "NOP",
+    //     cycles: 1,
+    //     size: 1,
+    //     flags: &[],
+    //     execute: fn a(cpu: &CPU) -> u8,
+    // });
+    // opcodes[0x01] = Some(&Instruction {
+    //     opcode: 0x01,
+    //     name: "LD BC, d16",
+    //     cycles: 3,
+    //     size: 3,
+    //     flags: &[],
+    //     execute: fn a(cpu: &CPU) -> u8,
+    // });
+    // opcodes[0xCB] = Some(&Instruction {
+    //     opcode: 0xCB,
+    //     name: "LD BC, d16",
+    //     cycles: 3,
+    //     size: 3,
+    //     flags: &[],
+    //     execute: fn a(cpu: &CPU) -> u8{},
+    // });
     opcodes
 }
 

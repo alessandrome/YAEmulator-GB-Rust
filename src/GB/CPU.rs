@@ -43,4 +43,13 @@ impl CPU {
             }
         }
     }
+
+    pub fn load(&mut self, data: &Vec<u8>) {
+        let mut addr: u16 = RAM::USER_PROGRAM_ADDRESS as u16;
+        for byte in data {
+            self.ram.write(addr, *byte);
+            addr += 1;
+        }
+        self.registers.set_pc(RAM::USER_PROGRAM_ADDRESS as u16);
+    }
 }
