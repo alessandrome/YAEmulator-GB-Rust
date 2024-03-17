@@ -1,3 +1,5 @@
+use std::fmt;
+
 macro_rules! get_set {
     ($reg:ident, $get_name:ident, $set_name:ident, $size:ty) => {
         pub fn $get_name(&self) -> $size {
@@ -31,7 +33,7 @@ pub enum FlagBits {
     C,
 }
 
-pub struct Flags{
+pub struct Flags {
     z: bool,
     n: bool,
     h: bool,
@@ -39,11 +41,12 @@ pub struct Flags{
 }
 
 impl Flags {
-    pub fn new(z:bool, n:bool, h:bool, c:bool) -> Self {
+    pub fn new(z: bool, n: bool, h: bool, c: bool) -> Self {
         Self { z, n, h, c }
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct Registers {
     a: u8,
     b: u8,
@@ -62,7 +65,7 @@ pub struct Registers {
 // }
 
 impl Registers {
-    pub fn new() -> Registers{
+    pub fn new() -> Registers {
         Registers {
             a: 0,
             b: 0,
@@ -120,6 +123,16 @@ impl Registers {
             (self.f & 0b01000000) != 0,
             (self.f & 0b00100000) != 0,
             (self.f & 0b00010000) != 0,
+        )
+    }
+}
+
+impl fmt::Display for Registers {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "Regiters {{ A: {:#04x}, B: {:#04x}, C: {:#04x}, D: {:#04x}, E: {:#04x}, F: {:#04x}, H: {:#04x}, L: {:#04x}, PC: {:#06x}, SP: {:#06x} }}",
+            self.a, self.b, self.c, self.d, self.e, self.f, self.h, self.l, self.pc, self.sp
         )
     }
 }
