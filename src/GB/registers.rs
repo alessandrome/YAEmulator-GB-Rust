@@ -129,6 +129,7 @@ impl Registers {
     get_set!(d, get_d, set_d, u8);
     get_set!(e, get_e, set_e, u8);
     get_set!(h, get_h, set_h, u8);
+    get_set!(l, get_l, set_l, u8);
     get_set!(sp, get_sp, set_sp, u16);
     get_set!(pc, get_pc, set_pc, u16);
     pub fn get_and_inc_pc(&mut self) -> u16 {
