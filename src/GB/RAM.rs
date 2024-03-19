@@ -8,6 +8,21 @@ pub const OAM_RAM_ADDRESS: usize = 0xFE00; // Up to 40 Display Object Data (512B
 pub const INTERNAL_RAM_ADDRESS: usize = 0xFF00; // Instruction Registers & Flags
 pub const HRAM_ADDRESS: usize = 0xFF80; // High RAM 127B (Memory w/ direct access from CPU)
 
+macro_rules! read_ram_space {
+    ($function:ident, $space_address:ident) => {
+        pub fn $function(&self, address: u16) -> u8 {
+            self.memory[address as usize + $space_address]
+        }
+    };
+}
+macro_rules! write_ram_space {
+    ($function:ident, $space_address:ident) => {
+        pub fn $function(&self, address: u16, byte: u8) {
+            self.memory[address as usize + $space_address] = byte;
+        }
+    };
+}
+
 pub struct RAM {
     memory: [u8; 65536],
 }
@@ -28,4 +43,14 @@ impl RAM {
     pub fn read_vec(&self, start_address: usize, length: usize) -> &[u8] {
         &self.memory[start_address..(start_address + length)]
     }
+
+    read_ram_space!(read_wram, WRAM_ADDRESS);
+    read_ram_space!(read_vram, VRAM_ADDRESS);
+    read_ram_space!(read_hram, HRAM_ADDRESS);
+    read_ram_space!(read_user_program, USER_PROGRAM_ADDRESS);
+
+    write_ram_space!(write_wram, WRAM_ADDRESS);
+    write_ram_space!(write_vram, VRAM_ADDRESS);
+    write_ram_space!(write_hram, HRAM_ADDRESS);
+    write_ram_space!(write_user_program, USER_PROGRAM_ADDRESS);
 }
