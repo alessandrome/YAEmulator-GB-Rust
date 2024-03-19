@@ -26,11 +26,54 @@ macro_rules! get_set_dual {
 }
 
 #[derive(Debug, Clone, Copy)]
+#[repr(u8)]
 pub enum FlagBits {
-    Z,
-    N,
-    H,
-    C,
+    Z = 0b10000000,
+    N = 0b01000000,
+    H = 0b00100000,
+    C = 0b00010000,
+}
+
+impl std::ops::BitAnd<u8> for FlagBits {
+    type Output = u8;
+
+    fn bitand(self, rhs: u8) -> Self::Output {
+        self as u8 & rhs
+    }
+}
+
+impl std::ops::BitOr<u8> for FlagBits {
+    type Output = u8;
+
+    fn bitor(self, rhs: u8) -> Self::Output {
+        self as u8 | rhs
+    }
+}
+
+impl std::ops::BitXor<u8> for FlagBits {
+    type Output = u8;
+
+    fn bitxor(self, rhs: u8) -> Self::Output {
+        self as u8 ^ rhs
+    }
+}
+
+impl std::ops::BitAndAssign<FlagBits> for u8 {
+    fn bitand_assign(&mut self, rhs: FlagBits){
+        *self &= rhs as u8
+    }
+}
+
+impl std::ops::BitOrAssign<FlagBits> for u8 {
+    fn bitor_assign(&mut self, rhs: FlagBits){
+        *self |= rhs as u8
+    }
+}
+
+impl std::ops::BitXorAssign<FlagBits> for u8 {
+    fn bitxor_assign(&mut self, rhs: FlagBits){
+        *self ^= rhs as u8
+    }
 }
 
 pub struct Flags {
@@ -124,6 +167,38 @@ impl Registers {
             (self.f & 0b00100000) != 0,
             (self.f & 0b00010000) != 0,
         )
+    }
+
+    pub fn set_zero_flag(&mut self, on: bool) {
+        if on {
+            self.f |= FlagBits::Z;
+        } else {
+            self.f &= FlagBits::Z ^ 0xFF;
+        }
+    }
+
+    pub fn set_negative_flag(&mut self, on: bool) {
+        if on {
+            self.f |= FlagBits::N;
+        } else {
+            self.f &= FlagBits::N ^ 0xFF;
+        }
+    }
+
+    pub fn set_half_carry_flag(&mut self, on: bool) {
+        if on {
+            self.f |= FlagBits::H;
+        } else {
+            self.f &= FlagBits::H ^ 0xFF;
+        }
+    }
+
+    pub fn set_carry_flag(&mut self, on: bool) {
+        if on {
+            self.f |= FlagBits::C;
+        } else {
+            self.f &= FlagBits::C ^ 0xFF;
+        }
     }
 }
 
