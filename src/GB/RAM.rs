@@ -17,7 +17,7 @@ macro_rules! read_ram_space {
 }
 macro_rules! write_ram_space {
     ($function:ident, $space_address:ident) => {
-        pub fn $function(&self, address: u16, byte: u8) {
+        pub fn $function(&mut self, address: u16, byte: u8) {
             self.memory[address as usize + $space_address] = byte;
         }
     };
