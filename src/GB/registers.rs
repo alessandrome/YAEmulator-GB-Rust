@@ -25,6 +25,22 @@ macro_rules! get_set_dual {
     };
 }
 
+macro_rules! get_set_flag {
+    ($get_name:ident, $set_name:ident, $flag:ident) => {
+        pub fn $get_name(&self) -> bool {
+            (FlagBits::$flag & self.f) != 0
+        }
+
+        pub fn $set_name(&mut self, on: bool) {
+            if on {
+                self.f |= FlagBits::$flag;
+            } else {
+                self.f &= FlagBits::$flag;
+            }
+        }
+    };
+}
+
 #[derive(Debug, Clone, Copy)]
 #[repr(u8)]
 pub enum FlagBits {
@@ -161,6 +177,10 @@ impl Registers {
         self.f = (val & 0xF0) as u8
     }
 
+    get_set_flag!(get_zero_flag, set_zero_flag, Z);
+    get_set_flag!(get_negative_flag, set_negative_flag, N);
+    get_set_flag!(get_half_carry_flag, set_half_carry_flag, H);
+    get_set_flag!(get_carry_flag, set_carry_flag, C);
     pub fn get_flags(&self) -> Flags {
         Flags::new(
             (self.f & 0b10000000) != 0,
@@ -170,37 +190,37 @@ impl Registers {
         )
     }
 
-    pub fn set_zero_flag(&mut self, on: bool) {
-        if on {
-            self.f |= FlagBits::Z;
-        } else {
-            self.f &= FlagBits::Z ^ 0xFF;
-        }
-    }
-
-    pub fn set_negative_flag(&mut self, on: bool) {
-        if on {
-            self.f |= FlagBits::N;
-        } else {
-            self.f &= FlagBits::N ^ 0xFF;
-        }
-    }
-
-    pub fn set_half_carry_flag(&mut self, on: bool) {
-        if on {
-            self.f |= FlagBits::H;
-        } else {
-            self.f &= FlagBits::H ^ 0xFF;
-        }
-    }
-
-    pub fn set_carry_flag(&mut self, on: bool) {
-        if on {
-            self.f |= FlagBits::C;
-        } else {
-            self.f &= FlagBits::C ^ 0xFF;
-        }
-    }
+    // pub fn set_zero_flag(&mut self, on: bool) {
+    //     if on {
+    //         self.f |= FlagBits::Z;
+    //     } else {
+    //         self.f &= FlagBits::Z ^ 0xFF;
+    //     }
+    // }
+    //
+    // pub fn set_negative_flag(&mut self, on: bool) {
+    //     if on {
+    //         self.f |= FlagBits::N;
+    //     } else {
+    //         self.f &= FlagBits::N ^ 0xFF;
+    //     }
+    // }
+    //
+    // pub fn set_half_carry_flag(&mut self, on: bool) {
+    //     if on {
+    //         self.f |= FlagBits::H;
+    //     } else {
+    //         self.f &= FlagBits::H ^ 0xFF;
+    //     }
+    // }
+    //
+    // pub fn set_carry_flag(&mut self, on: bool) {
+    //     if on {
+    //         self.f |= FlagBits::C;
+    //     } else {
+    //         self.f &= FlagBits::C ^ 0xFF;
+    //     }
+    // }
 }
 
 impl fmt::Display for Registers {
