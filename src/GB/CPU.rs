@@ -31,17 +31,21 @@ impl CPU {
         instructions::OPCODES[opcode_usize]
     }
 
-    pub fn execute_next(&mut self) {
+    pub fn execute_next(&mut self) -> u64{
+        let cb_subset = self.opcode == 0xCB;
         self.opcode = self.fetch_next();
-        let instruction = Self::decode(&self.opcode, false);
+        let instruction = Self::decode(&self.opcode, cb_subset);
+        let mut cycles: u64 = 1;
         match (instruction) {
             Some(ins) => {
-                self.cycles += (ins.execute)(&ins, self);
+                cycles = (ins.execute)(&ins, self);
             },
             None => {
                 println!("UNKNOWN Opcode '{:#04x}'", self.opcode);
             }
         }
+        self.cycles += cycles;
+        cycles
     }
 
     pub fn load(&mut self, data: &Vec<u8>) {
