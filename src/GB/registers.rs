@@ -92,6 +92,7 @@ impl std::ops::BitXorAssign<FlagBits> for u8 {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
 pub struct Flags {
     z: bool,
     n: bool,
@@ -105,7 +106,7 @@ impl Flags {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct Registers {
     a: u8,
     b: u8,
@@ -131,7 +132,7 @@ impl Registers {
             c: 0,
             d: 0,
             e: 0,
-            f: 0xF0,
+            f: 0,
             h: 0,
             l: 0,
             sp: 0,
@@ -227,7 +228,7 @@ impl fmt::Display for Registers {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "Regiters {{ A: {:#04x}, B: {:#04x}, C: {:#04x}, D: {:#04x}, E: {:#04x}, F: {:#04x}, H: {:#04x}, L: {:#04x}, PC: {:#06x}, SP: {:#06x} }}",
+            "Registers {{ A: {:#04x}, B: {:#04x}, C: {:#04x}, D: {:#04x}, E: {:#04x}, F: {:#04x}, H: {:#04x}, L: {:#04x}, PC: {:#06x}, SP: {:#06x} }}",
             self.a, self.b, self.c, self.d, self.e, self.f, self.h, self.l, self.pc, self.sp
         )
     }

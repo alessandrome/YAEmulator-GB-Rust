@@ -1,4 +1,5 @@
 use crate::GB::CPU::CPU;
+use crate::GB::debug_print;
 use crate::GB::registers::{FlagBits, Flags};
 
 #[derive(Debug, Clone)]
@@ -77,6 +78,7 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
             let original_b = cpu.registers.get_b();
             cpu.registers.set_b(cpu.registers.get_b().wrapping_add(1));
             // Write flags (This could be calculated and place and just made a single functions call to set Flag register)
+            debug_print(format_args!("b {}, Z {}, ", cpu.registers.get_b(), cpu.registers.get_b() == 0));
             cpu.registers.set_half_carry_flag(cpu.registers.get_b() < original_b);
             cpu.registers.set_zero_flag(cpu.registers.get_b() == 0);
             cpu.registers.set_negative_flag(false);
@@ -600,3 +602,98 @@ const fn create_cb_opcodes() -> [Option<&'static Instruction>; 256] {
 pub const OPCODES: [Option<&'static Instruction>; 256] = create_opcodes();
 
 pub const OPCODES_CB: [Option<&'static Instruction>; 256] = create_cb_opcodes();
+
+
+#[cfg(test)]
+mod test {
+    use crate::GB::CPU::CPU;
+    use crate::GB::RAM;
+
+    #[test]
+    fn test_0x00_nop() {
+        let mut cpu = CPU::new();
+        let registers_copy = cpu.registers;
+        let program: Vec<u8> = vec![0x00, 0x00];
+        cpu.load(&program);
+        cpu.execute_next();
+        cpu.execute_next();
+        // NOP should not alter any register
+        assert_eq!(registers_copy.get_a(), cpu.registers.get_a());
+        assert_eq!(registers_copy.get_b(), cpu.registers.get_b());
+        assert_eq!(registers_copy.get_c(), cpu.registers.get_c());
+        assert_eq!(registers_copy.get_d(), cpu.registers.get_d());
+        assert_eq!(registers_copy.get_e(), cpu.registers.get_e());
+        assert_eq!(registers_copy.get_f(), cpu.registers.get_f());
+        assert_eq!(registers_copy.get_h(), cpu.registers.get_h());
+        assert_eq!(registers_copy.get_l(), cpu.registers.get_l());
+    }
+
+    #[test]
+    fn test_0x01_ld_bc_imm16() {
+        let test_value: u16 = 0xC05A;
+        let mut cpu = CPU::new();
+        let program: Vec<u8> = vec![0x01, 0x5A, 0xC0];
+        cpu.load(&program);
+        cpu.execute_next();
+        // NOP should not alter any register
+        assert_eq!(cpu.registers.get_b(), 0xC0);
+        assert_eq!(cpu.registers.get_c(), 0x5A);
+        assert_eq!(cpu.registers.get_bc(), test_value);
+    }
+
+    #[test]
+    fn test_0x02_ld__bc__a() {
+        let test_value: u8 = 0xF4;
+        let test_address: u16 = RAM::WRAM_ADDRESS as u16 + 0x0500;
+        let mut cpu = CPU::new();
+        let program: Vec<u8> = vec![0x02];
+        cpu.load(&program);
+        cpu.registers.set_a(test_value);
+        cpu.registers.set_bc(test_address);
+        cpu.execute_next();
+        // NOP should not alter any register
+        assert_eq!(cpu.registers.get_a(), test_value);
+        assert_eq!(cpu.ram.read(test_address), test_value);
+    }
+
+    #[test]
+    fn test_0x03_inc_bc() {
+        let test_value: u16 = 0xC0F4;
+        let mut cpu = CPU::new();
+        let program: Vec<u8> = vec![0x03];
+        cpu.load(&program);
+        cpu.registers.set_bc(test_value - 1);
+        cpu.execute_next();
+        // NOP should not alter any register
+        assert_eq!(cpu.registers.get_b(), 0xC0);
+        assert_eq!(cpu.registers.get_c(), 0xF4);
+        assert_eq!(cpu.registers.get_bc(), test_value);
+    }
+
+    #[test]
+    fn test_0x04_inc_b() {
+        //No Flags
+        let test_value_1: u8 = 0xF4;
+        let mut cpu_1 = CPU::new();
+        let program_1: Vec<u8> = vec![0x04];
+        cpu_1.load(&program_1);
+        cpu_1.registers.set_b(test_value_1 - 1);
+        cpu_1.execute_next();
+        assert_eq!(cpu_1.registers.get_b(), test_value_1);
+        assert_eq!(cpu_1.registers.get_zero_flag(), false);
+        assert_eq!(cpu_1.registers.get_negative_flag(), false);
+        assert_eq!(cpu_1.registers.get_half_carry_flag(), false);
+
+        // Flags Z/H
+        let test_value_2: u8 = 0xFF;
+        let mut cpu_2 = CPU::new();
+        let program_2: Vec<u8> = vec![0x04];
+        cpu_2.load(&program_2);
+        cpu_2.registers.set_b(test_value_2);
+        cpu_2.execute_next();
+        assert_eq!(cpu_2.registers.get_b(), 0);
+        assert_eq!(cpu_2.registers.get_zero_flag(), true);
+        assert_eq!(cpu_2.registers.get_negative_flag(), false);
+        assert_eq!(cpu_2.registers.get_half_carry_flag(), true);
+    }
+}
