@@ -1,4 +1,6 @@
 use std::fmt;
+use crate::GB;
+use crate::GB::debug_print;
 
 macro_rules! get_set {
     ($reg:ident, $get_name:ident, $set_name:ident, $size:ty) => {
@@ -35,7 +37,7 @@ macro_rules! get_set_flag {
             if on {
                 self.f |= FlagBits::$flag;
             } else {
-                self.f &= FlagBits::$flag;
+                self.f &= FlagBits::$flag ^ 0xFF;
             }
         }
     };
