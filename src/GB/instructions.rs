@@ -930,7 +930,8 @@ mod test {
         let program_1: Vec<u8> = vec![0x0C];
         cpu_1.load(&program_1);
         cpu_1.registers.set_c(test_value_1 - 1);
-        cpu_1.execute_next();
+        let mut cycles = cpu_1.execute_next();
+        assert_eq!(cycles, 1);
         assert_eq!(cpu_1.registers.get_c(), test_value_1);
         assert_eq!(cpu_1.registers.get_zero_flag(), false);
         assert_eq!(cpu_1.registers.get_negative_flag(), false);
@@ -941,7 +942,8 @@ mod test {
         let mut cpu_2 = CPU::new();
         cpu_2.load(&program_1);
         cpu_2.registers.set_c(test_value_2);
-        cpu_2.execute_next();
+        cycles = cpu_2.execute_next();
+        assert_eq!(cycles, 1);
         assert_eq!(cpu_2.registers.get_c(), 0);
         assert_eq!(cpu_2.registers.get_zero_flag(), true);
         assert_eq!(cpu_2.registers.get_negative_flag(), false);
@@ -952,7 +954,8 @@ mod test {
         cpu_2 = CPU::new();
         cpu_2.load(&program_1);
         cpu_2.registers.set_c(test_value_2);
-        cpu_2.execute_next();
+        cycles = cpu_2.execute_next();
+        assert_eq!(cycles, 1);
         assert_eq!(cpu_2.registers.get_c(), 0x10);
         assert_eq!(cpu_2.registers.get_zero_flag(), false);
         assert_eq!(cpu_2.registers.get_negative_flag(), false);
@@ -967,7 +970,8 @@ mod test {
         let program_1: Vec<u8> = vec![0x0D];
         cpu_1.load(&program_1);
         cpu_1.registers.set_c(test_value_1 + 1);
-        cpu_1.execute_next();
+        let mut cycles = cpu_1.execute_next();
+        assert_eq!(cycles, 1);
         assert_eq!(cpu_1.registers.get_c(), test_value_1);
         assert_eq!(cpu_1.registers.get_zero_flag(), false);
         assert_eq!(cpu_1.registers.get_negative_flag(), true);
@@ -978,7 +982,8 @@ mod test {
         let mut cpu_2 = CPU::new();
         cpu_2.load(&program_1);
         cpu_2.registers.set_c(test_value_2);
-        cpu_2.execute_next();
+        cycles = cpu_2.execute_next();
+        assert_eq!(cycles, 1);
         assert_eq!(cpu_2.registers.get_c(), 0xFF);
         assert_eq!(cpu_2.registers.get_zero_flag(), false);
         assert_eq!(cpu_2.registers.get_negative_flag(), true);
@@ -989,7 +994,8 @@ mod test {
         let mut cpu_3 = CPU::new();
         cpu_3.load(&program_1);
         cpu_3.registers.set_c(test_value_3 + 1);
-        cpu_3.execute_next();
+        cycles = cpu_3.execute_next();
+        assert_eq!(cycles, 1);
         assert_eq!(cpu_3.registers.get_c(), test_value_3);
         assert_eq!(cpu_3.registers.get_zero_flag(), true);
         assert_eq!(cpu_3.registers.get_negative_flag(), true);
@@ -1000,10 +1006,30 @@ mod test {
         cpu_3 = CPU::new();
         cpu_3.load(&program_1);
         cpu_3.registers.set_c(test_value_4);
-        cpu_3.execute_next();
+        cycles = cpu_3.execute_next();
+        assert_eq!(cycles, 1);
         assert_eq!(cpu_3.registers.get_c(), test_value_4 - 1);
         assert_eq!(cpu_3.registers.get_zero_flag(), false);
         assert_eq!(cpu_3.registers.get_negative_flag(), true);
         assert_eq!(cpu_3.registers.get_half_carry_flag(), true);
+    }
+
+    #[test]
+    fn test_0x0e_ld_c_imm8() {
+        //No Flags
+        let test_value_1: u8 = 0xD4;
+        let mut cpu_1 = CPU::new();
+        let program_1: Vec<u8> = vec![0x0E, test_value_1];
+        cpu_1.load(&program_1);
+        let register_copy = cpu_1.registers;
+        cpu_1.registers.set_c(0xAA);
+        let mut cycles = cpu_1.execute_next();
+        assert_eq!(cycles, 2);
+        assert_eq!(cpu_1.registers.get_c(), test_value_1);
+        // Flags untouched
+        assert_eq!(cpu_1.registers.get_zero_flag(), register_copy.get_zero_flag());
+        assert_eq!(cpu_1.registers.get_negative_flag(), register_copy.get_negative_flag());
+        assert_eq!(cpu_1.registers.get_half_carry_flag(), register_copy.get_half_carry_flag());
+        assert_eq!(cpu_1.registers.get_carry_flag(), register_copy.get_carry_flag());
     }
 }
