@@ -303,7 +303,7 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
             let original_d = cpu.registers.get_d();
             cpu.registers.set_b(cpu.registers.get_d().wrapping_add(1));
             // Write flags (This could be calculated and place and just made a single functions call to set Flag register)
-            cpu.registers.set_half_carry_flag(cpu.registers.get_d() < original_d);
+            cpu.registers.set_half_carry_flag((cpu.registers.get_d() & 0x0F) < (original_d & 0x0F));
             cpu.registers.set_zero_flag(cpu.registers.get_d() == 0);
             cpu.registers.set_negative_flag(false);
             opcode.cycles as u64
@@ -322,6 +322,18 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
             cpu.registers.set_half_carry_flag(cpu.registers.get_d() > original_d);
             cpu.registers.set_zero_flag(cpu.registers.get_d() == 0);
             cpu.registers.set_negative_flag(true);
+            opcode.cycles as u64
+        },
+    });
+    opcodes[0x16] = Some(&Instruction {
+        opcode: 0x16,
+        name: "LD D, imm8",
+        cycles: 2,
+        size: 2,
+        flags: &[],
+        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
+            let byte = cpu.fetch_next();
+            cpu.registers.set_d(byte);
             opcode.cycles as u64
         },
     });
@@ -503,6 +515,21 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         flags: &[],
         execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
             cpu.registers.set_hl(cpu.registers.get_hl() + 1);
+            opcode.cycles as u64
+        },
+    });
+    opcodes[0x24] = Some(&Instruction {
+        opcode: 0x24,
+        name: "INC H",
+        cycles: 1,
+        size: 1,
+        flags: &[FlagBits::Z, FlagBits::N, FlagBits::H],
+        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
+            let original_h = cpu.registers.get_h();
+            cpu.registers.set_b(cpu.registers.get_h().wrapping_add(1));
+            cpu.registers.set_half_carry_flag((cpu.registers.get_h() & 0x0F) < (original_h & 0x0F));
+            cpu.registers.set_zero_flag(cpu.registers.get_h() == 0);
+            cpu.registers.set_negative_flag(false);
             opcode.cycles as u64
         },
     });
