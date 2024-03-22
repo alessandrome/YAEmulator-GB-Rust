@@ -587,6 +587,36 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
             opcode.cycles as u64
         },
     });
+    opcodes[0x34] = Some(&Instruction {
+        opcode: 0x34,
+        name: "INC [HL]",
+        cycles: 3,
+        size: 1,
+        flags: &[FlagBits::Z, FlagBits::N, FlagBits::H],
+        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
+            let original_hl_ram = cpu.ram.read(cpu.registers.get_hl());
+            cpu.ram.write(cpu.registers.get_hl(), original_hl_ram + 1);
+            cpu.registers.set_half_carry_flag((cpu.ram.read(cpu.registers.get_hl()) & 0x0F) < (original_hl_ram & 0x0F));
+            cpu.registers.set_zero_flag(cpu.ram.read(cpu.registers.get_hl()) == 0);
+            cpu.registers.set_negative_flag(false);
+            opcode.cycles as u64
+        },
+    });
+    opcodes[0x35] = Some(&Instruction {
+        opcode: 0x35,
+        name: "DEC [HL]",
+        cycles: 3,
+        size: 1,
+        flags: &[FlagBits::Z, FlagBits::N, FlagBits::H],
+        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
+            let original_byte = cpu.ram.read(cpu.registers.get_hl());
+            cpu.ram.write(cpu.registers.get_hl(), original_byte - 1);
+            cpu.registers.set_half_carry_flag((cpu.ram.read(cpu.registers.get_hl()) & 0x0F) > (original_byte & 0x0F));
+            cpu.registers.set_zero_flag(cpu.ram.read(cpu.registers.get_hl()) == 0);
+            cpu.registers.set_negative_flag(true);
+            opcode.cycles as u64
+        },
+    });
     opcodes[0xCB] = Some(&Instruction {
         opcode: 0xCB,
         name: "CB SUBSET",
