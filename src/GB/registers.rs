@@ -46,10 +46,10 @@ macro_rules! get_set_flag {
 #[derive(Debug, Clone, Copy)]
 #[repr(u8)]
 pub enum FlagBits {
-    Z = 0b10000000,
-    N = 0b01000000,
-    H = 0b00100000,
-    C = 0b00010000,
+    Z = 0b1000_0000,
+    N = 0b0100_0000,
+    H = 0b0010_0000,
+    C = 0b0001_0000,
 }
 
 impl std::ops::BitAnd<u8> for FlagBits {
