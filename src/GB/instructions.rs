@@ -533,7 +533,6 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
             opcode.cycles as u64
         },
     });
-
     opcodes[0x25] = Some(&Instruction {
         opcode: 0x25,
         name: "DEC H",
@@ -547,6 +546,18 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
             cpu.registers.set_half_carry_flag((original_h & 0x0F) == 0);
             cpu.registers.set_zero_flag(cpu.registers.get_h() == 0);
             cpu.registers.set_negative_flag(true);
+            opcode.cycles as u64
+        },
+    });
+    opcodes[0x26] = Some(&Instruction {
+        opcode: 0x26,
+        name: "LD H, imm8",
+        cycles: 2,
+        size: 2,
+        flags: &[],
+        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
+            let byte = cpu.fetch_next();
+            cpu.registers.set_h(byte);
             opcode.cycles as u64
         },
     });
@@ -631,6 +642,18 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
             cpu.registers.set_half_carry_flag((cpu.ram.read(cpu.registers.get_hl()) & 0x0F) > (original_byte & 0x0F));
             cpu.registers.set_zero_flag(cpu.ram.read(cpu.registers.get_hl()) == 0);
             cpu.registers.set_negative_flag(true);
+            opcode.cycles as u64
+        },
+    });
+    opcodes[0x36] = Some(&Instruction {
+        opcode: 0x36,
+        name: "LD [HL], imm8",
+        cycles: 3,
+        size: 2,
+        flags: &[],
+        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
+            let byte = cpu.fetch_next();
+            cpu.ram.write(cpu.registers.get_hl(), byte);
             opcode.cycles as u64
         },
     });
