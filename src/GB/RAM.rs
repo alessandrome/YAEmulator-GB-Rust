@@ -24,6 +24,9 @@ macro_rules! write_ram_space {
 }
 
 pub struct RAM {
+    #[cfg(test)]
+    pub memory: [u8; 65536],
+    #[cfg(not(test))]
     memory: [u8; 65536],
 }
 
@@ -40,8 +43,8 @@ impl RAM {
         self.memory[address as usize] = byte;
     }
 
-    pub fn read_vec(&self, start_address: usize, length: usize) -> &[u8] {
-        &self.memory[start_address..(start_address + length)]
+    pub fn read_vec(&self, start_address: u16, length: u16) -> &[u8] {
+        &self.memory[start_address as usize..(start_address + length) as usize]
     }
 
     read_ram_space!(read_wram, WRAM_ADDRESS);
@@ -53,4 +56,40 @@ impl RAM {
     write_ram_space!(write_vram, VRAM_ADDRESS);
     write_ram_space!(write_hram, HRAM_ADDRESS);
     write_ram_space!(write_user_program, USER_PROGRAM_ADDRESS);
+}
+
+#[cfg(test)]
+mod test {
+    use crate::GB::RAM::RAM;
+
+    #[test]
+    fn test_memory_read() {
+        let mut ram = RAM::new();
+        let address: usize = 0xC0D0;
+        let data: u8 = 0x44;
+        ram.memory[address] = data;
+        assert_eq!(ram.read(address as u16), data);
+    }
+
+    #[test]
+    fn test_memory_write() {
+        let mut ram = RAM::new();
+        let address: usize = 0xC0D0;
+        let data: u8 = 0x45;
+        ram.memory[address] = 0xFF;
+        ram.write(address as u16, data);
+        assert_eq!(ram.memory[address], data);
+    }
+
+
+    #[test]
+    fn test_memory_read_vec() {
+        let mut ram = RAM::new();
+        let start_address: usize = 0xC000;
+        let data: Vec<u8> = vec![0x44, 0x55, 0xF0, 0x0F, 0x75, 0x1A, 0xA1, 0x92];
+        for i in 0..data.len() {
+            ram.memory[start_address + i] = data[i];
+        }
+        assert_eq!(ram.read_vec(start_address as u16, data.len() as u16), data);
+    }
 }
