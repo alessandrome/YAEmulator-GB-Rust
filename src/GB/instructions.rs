@@ -149,12 +149,18 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         size: 1,
         flags: &[FlagBits::N, FlagBits::H, FlagBits::C],
         execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
+            // Half carry is checked on bit 11 of HL (or bit 3 of H)
             let pre_h = cpu.registers.get_h();
             let pre_l = cpu.registers.get_l();
-            cpu.registers.set_hl(cpu.registers.get_hl().wrapping_add(cpu.registers.get_bc()));
             cpu.registers.set_negative_flag(false);
-            cpu.registers.set_half_carry_flag(cpu.registers.get_l() < pre_l);
-            cpu.registers.set_carry_flag(cpu.registers.get_h() < pre_h);
+            if (cpu.registers.get_bc() != 0) {
+                cpu.registers.set_hl(cpu.registers.get_hl().wrapping_add(cpu.registers.get_bc()));
+                cpu.registers.set_half_carry_flag((cpu.registers.get_h() & 0x0F) < (pre_h & 0x0F));
+                cpu.registers.set_carry_flag(cpu.registers.get_h() < pre_h);
+            } else {
+                cpu.registers.set_half_carry_flag(false);
+                cpu.registers.set_carry_flag(false);
+            }
             opcode.cycles as u64
         },
     });
@@ -845,8 +851,22 @@ mod test {
         assert_eq!(cpu_1.registers.get_half_carry_flag(), false);
         assert_eq!(cpu_1.registers.get_carry_flag(), true);
 
+        // H flags on ADD HL, rr should be on only carrying from bit 11 (check is made on H of HL)
         test_value_1 = 0x1070;
         test_value_2 = 0x1090;
+        cpu_1.load(&program);
+        cpu_1.registers.set_hl(test_value_1);
+        cpu_1.registers.set_bc(test_value_2);
+        let cycles = cpu_1.execute_next();
+        assert_eq!(cycles, 2);
+        assert_eq!(cpu_1.registers.get_bc(), test_value_2);
+        assert_eq!(cpu_1.registers.get_hl(), test_value_1 + test_value_2);
+        assert_eq!(cpu_1.registers.get_negative_flag(), false);
+        assert_eq!(cpu_1.registers.get_half_carry_flag(), false);
+        assert_eq!(cpu_1.registers.get_carry_flag(), false);
+
+        test_value_1 = 0x1700;
+        test_value_2 = 0x1900;
         cpu_1.load(&program);
         cpu_1.registers.set_hl(test_value_1);
         cpu_1.registers.set_bc(test_value_2);
@@ -858,8 +878,8 @@ mod test {
         assert_eq!(cpu_1.registers.get_half_carry_flag(), true);
         assert_eq!(cpu_1.registers.get_carry_flag(), false);
 
-        test_value_1 = 0x9070;
-        test_value_2 = 0x7090;
+        test_value_1 = 0x9700;
+        test_value_2 = 0x7900;
         cpu_1.load(&program);
         cpu_1.registers.set_hl(test_value_1);
         cpu_1.registers.set_bc(test_value_2);
