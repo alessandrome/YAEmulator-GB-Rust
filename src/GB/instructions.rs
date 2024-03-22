@@ -526,10 +526,27 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H],
         execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
             let original_h = cpu.registers.get_h();
-            cpu.registers.set_b(cpu.registers.get_h().wrapping_add(1));
+            cpu.registers.set_h(cpu.registers.get_h().wrapping_add(1));
             cpu.registers.set_half_carry_flag((cpu.registers.get_h() & 0x0F) < (original_h & 0x0F));
             cpu.registers.set_zero_flag(cpu.registers.get_h() == 0);
             cpu.registers.set_negative_flag(false);
+            opcode.cycles as u64
+        },
+    });
+
+    opcodes[0x25] = Some(&Instruction {
+        opcode: 0x25,
+        name: "DEC H",
+        cycles: 1,
+        size: 1,
+        flags: &[FlagBits::Z, FlagBits::N, FlagBits::H],
+        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
+            let original_h = cpu.registers.get_h();
+            cpu.registers.set_h(cpu.registers.get_h().wrapping_sub(1));
+            // Write flags
+            cpu.registers.set_half_carry_flag((original_h & 0x0F) == 0);
+            cpu.registers.set_zero_flag(cpu.registers.get_h() == 0);
+            cpu.registers.set_negative_flag(true);
             opcode.cycles as u64
         },
     });
