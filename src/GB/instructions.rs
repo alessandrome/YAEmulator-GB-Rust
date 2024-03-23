@@ -1485,6 +1485,182 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
             opcode.cycles as u64
         },
     });
+    opcodes[0x70] = Some(&Instruction {
+        opcode: 0x70,
+        name: "LD [HL], B",
+        cycles: 2,
+        size: 1,
+        flags: &[],
+        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
+            cpu.ram.write(cpu.registers.get_hl(), cpu.registers.get_b());
+            opcode.cycles as u64
+        },
+    });
+    opcodes[0x71] = Some(&Instruction {
+        opcode: 0x71,
+        name: "LD [HL], C",
+        cycles: 2,
+        size: 1,
+        flags: &[],
+        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
+            cpu.ram.write(cpu.registers.get_hl(), cpu.registers.get_c());
+            opcode.cycles as u64
+        },
+    });
+    opcodes[0x72] = Some(&Instruction {
+        opcode: 0x72,
+        name: "LD [HL], D",
+        cycles: 2,
+        size: 1,
+        flags: &[],
+        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
+            cpu.ram.write(cpu.registers.get_hl(), cpu.registers.get_d());
+            opcode.cycles as u64
+        },
+    });
+    opcodes[0x73] = Some(&Instruction {
+        opcode: 0x73,
+        name: "LD [HL], E",
+        cycles: 2,
+        size: 1,
+        flags: &[],
+        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
+            cpu.ram.write(cpu.registers.get_hl(), cpu.registers.get_e());
+            opcode.cycles as u64
+        },
+    });
+    opcodes[0x74] = Some(&Instruction {
+        opcode: 0x74,
+        name: "LD [HL], H",
+        cycles: 2,
+        size: 1,
+        flags: &[],
+        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
+            cpu.ram.write(cpu.registers.get_hl(), cpu.registers.get_h());
+            opcode.cycles as u64
+        },
+    });
+    opcodes[0x75] = Some(&Instruction {
+        opcode: 0x75,
+        name: "LD [HL], L",
+        cycles: 2,
+        size: 1,
+        flags: &[],
+        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
+            cpu.ram.write(cpu.registers.get_hl(), cpu.registers.get_l());
+            opcode.cycles as u64
+        },
+    });
+    opcodes[0x76] = Some(&Instruction {
+        opcode: 0x76,
+        name: "HALT",  // LD [HL], [HL] Decode as HALT instruction on DMG/GBC
+        cycles: 1,
+        size: 1,
+        flags: &[],
+        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
+            // TODO: implement
+            opcode.cycles as u64
+        },
+    });
+    opcodes[0x77] = Some(&Instruction {
+        opcode: 0x77,
+        name: "LD [HL], A",
+        cycles: 2,
+        size: 1,
+        flags: &[],
+        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
+            cpu.ram.write(cpu.registers.get_hl(), cpu.registers.get_a());
+            opcode.cycles as u64
+        },
+    });
+    opcodes[0x78] = Some(&Instruction {
+        opcode: 0x78,
+        name: "LD A, B",
+        cycles: 1,
+        size: 1,
+        flags: &[],
+        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
+            cpu.registers.set_a(cpu.registers.get_b());
+            opcode.cycles as u64
+        },
+    });
+    opcodes[0x79] = Some(&Instruction {
+        opcode: 0x79,
+        name: "LD A, C",
+        cycles: 1,
+        size: 1,
+        flags: &[],
+        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
+            cpu.registers.set_a(cpu.registers.get_c());
+            opcode.cycles as u64
+        },
+    });
+    opcodes[0x7A] = Some(&Instruction {
+        opcode: 0x7A,
+        name: "LD A, D",
+        cycles: 1,
+        size: 1,
+        flags: &[],
+        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
+            cpu.registers.set_a(cpu.registers.get_d());
+            opcode.cycles as u64
+        },
+    });
+    opcodes[0x7B] = Some(&Instruction {
+        opcode: 0x7B,
+        name: "LD A, E",
+        cycles: 1,
+        size: 1,
+        flags: &[],
+        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
+            cpu.registers.set_a(cpu.registers.get_e());
+            opcode.cycles as u64
+        },
+    });
+    opcodes[0x7C] = Some(&Instruction {
+        opcode: 0x7C,
+        name: "LD A, H",
+        cycles: 1,
+        size: 1,
+        flags: &[],
+        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
+            cpu.registers.set_a(cpu.registers.get_h());
+            opcode.cycles as u64
+        },
+    });
+    opcodes[0x7D] = Some(&Instruction {
+        opcode: 0x7D,
+        name: "LD A, L",
+        cycles: 1,
+        size: 1,
+        flags: &[],
+        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
+            cpu.registers.set_a(cpu.registers.get_l());
+            opcode.cycles as u64
+        },
+    });
+    opcodes[0x7E] = Some(&Instruction {
+        opcode: 0x7E,
+        name: "LD A, [HL]",
+        cycles: 2,
+        size: 1,
+        flags: &[],
+        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
+            cpu.registers.set_a(cpu.ram.read(cpu.registers.get_hl()));
+            opcode.cycles as u64
+        },
+    });
+    opcodes[0x7F] = Some(&Instruction {
+        opcode: 0x7F,
+        name: "LD A, A",
+        cycles: 1,
+        size: 1,
+        flags: &[],
+        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
+            cpu.registers.set_a(cpu.registers.get_a());
+            opcode.cycles as u64
+        },
+    });
     opcodes[0xCB] = Some(&Instruction {
         opcode: 0xCB,
         name: "CB SUBSET",
