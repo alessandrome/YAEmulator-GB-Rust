@@ -2341,7 +2341,7 @@ mod test {
         cpu_1.registers.set_h(test_value_1 - 1);
         let mut cycle = cpu_1.execute_next();
         assert_eq!(cycle, 1);
-        assert_eq!(cpu_1.registers.get_d(), test_value_1);
+        assert_eq!(cpu_1.registers.get_h(), test_value_1);
         assert_eq!(cpu_1.registers.get_zero_flag(), false);
         assert_eq!(cpu_1.registers.get_negative_flag(), false);
         assert_eq!(cpu_1.registers.get_half_carry_flag(), false);
@@ -2352,7 +2352,7 @@ mod test {
         cpu_2.load(&program_1);
         cpu_2.registers.set_h(test_value_2);
         cpu_2.execute_next();
-        assert_eq!(cpu_2.registers.get_d(), 0);
+        assert_eq!(cpu_2.registers.get_h(), 0);
         assert_eq!(cpu_2.registers.get_zero_flag(), true);
         assert_eq!(cpu_2.registers.get_negative_flag(), false);
         assert_eq!(cpu_2.registers.get_half_carry_flag(), true);
@@ -2363,7 +2363,7 @@ mod test {
         cpu_2.load(&program_1);
         cpu_2.registers.set_h(test_value_2);
         cpu_2.execute_next();
-        assert_eq!(cpu_2.registers.get_d(), 0x10);
+        assert_eq!(cpu_2.registers.get_h(), 0x10);
         assert_eq!(cpu_2.registers.get_zero_flag(), false);
         assert_eq!(cpu_2.registers.get_negative_flag(), false);
         assert_eq!(cpu_2.registers.get_half_carry_flag(), true);
@@ -2376,10 +2376,10 @@ mod test {
         let mut cpu_1 = CPU::new();
         let program_1: Vec<u8> = vec![0x25];
         cpu_1.load(&program_1);
-        cpu_1.registers.set_d(test_value_1 + 1);
+        cpu_1.registers.set_h(test_value_1 + 1);
         let mut cycle = cpu_1.execute_next();
         assert_eq!(cycle, 1);
-        assert_eq!(cpu_1.registers.get_d(), test_value_1);
+        assert_eq!(cpu_1.registers.get_h(), test_value_1);
         assert_eq!(cpu_1.registers.get_zero_flag(), false);
         assert_eq!(cpu_1.registers.get_negative_flag(), true);
         assert_eq!(cpu_1.registers.get_half_carry_flag(), false);
@@ -2388,9 +2388,9 @@ mod test {
         let test_value_2: u8 = 0x00;
         let mut cpu_2 = CPU::new();
         cpu_2.load(&program_1);
-        cpu_2.registers.set_d(test_value_2);
+        cpu_2.registers.set_h(test_value_2);
         cycle = cpu_2.execute_next();
-        assert_eq!(cpu_2.registers.get_d(), 0xFF);
+        assert_eq!(cpu_2.registers.get_h(), 0xFF);
         assert_eq!(cpu_2.registers.get_zero_flag(), false);
         assert_eq!(cpu_2.registers.get_negative_flag(), true);
         assert_eq!(cpu_2.registers.get_half_carry_flag(), true);
@@ -2399,9 +2399,9 @@ mod test {
         let test_value_3: u8 = 0x00;
         let mut cpu_3 = CPU::new();
         cpu_3.load(&program_1);
-        cpu_3.registers.set_d(test_value_3 + 1);
+        cpu_3.registers.set_h(test_value_3 + 1);
         cycle = cpu_3.execute_next();
-        assert_eq!(cpu_3.registers.get_d(), test_value_3);
+        assert_eq!(cpu_3.registers.get_h(), test_value_3);
         assert_eq!(cpu_3.registers.get_zero_flag(), true);
         assert_eq!(cpu_3.registers.get_negative_flag(), true);
         assert_eq!(cpu_3.registers.get_half_carry_flag(), false);
@@ -2410,9 +2410,9 @@ mod test {
         let test_value_4: u8 = 0xF0;
         cpu_3 = CPU::new();
         cpu_3.load(&program_1);
-        cpu_3.registers.set_d(test_value_4);
+        cpu_3.registers.set_h(test_value_4);
         cycle = cpu_3.execute_next();
-        assert_eq!(cpu_3.registers.get_d(), test_value_4 - 1);
+        assert_eq!(cpu_3.registers.get_h(), test_value_4 - 1);
         assert_eq!(cpu_3.registers.get_zero_flag(), false);
         assert_eq!(cpu_3.registers.get_negative_flag(), true);
         assert_eq!(cpu_3.registers.get_half_carry_flag(), true);
