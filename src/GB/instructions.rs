@@ -353,7 +353,7 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H],
         execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
             let original_d = cpu.registers.get_d();
-            cpu.registers.set_b(cpu.registers.get_d().wrapping_add(1));
+            cpu.registers.set_d(cpu.registers.get_d().wrapping_add(1));
             // Write flags (This could be calculated and place and just made a single functions call to set Flag register)
             cpu.registers.set_half_carry_flag((cpu.registers.get_d() & 0x0F) < (original_d & 0x0F));
             cpu.registers.set_zero_flag(cpu.registers.get_d() == 0);
@@ -371,7 +371,7 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
             let original_d = cpu.registers.get_d();
             cpu.registers.set_d(cpu.registers.get_d().wrapping_sub(1));
             // Write flags
-            cpu.registers.set_half_carry_flag(cpu.registers.get_d() > original_d);
+            cpu.registers.set_half_carry_flag((cpu.registers.get_d() & 0x0F) > (original_d & 0x0F));
             cpu.registers.set_zero_flag(cpu.registers.get_d() == 0);
             cpu.registers.set_negative_flag(true);
             opcode.cycles as u64
