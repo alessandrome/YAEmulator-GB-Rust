@@ -799,7 +799,7 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H],
         execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
             let original_hl_ram = cpu.ram.read(cpu.registers.get_hl());
-            cpu.ram.write(cpu.registers.get_hl(), original_hl_ram + 1);
+            cpu.ram.write(cpu.registers.get_hl(), original_hl_ram.wrapping_add(1));
             cpu.registers.set_half_carry_flag((cpu.ram.read(cpu.registers.get_hl()) & 0x0F) < (original_hl_ram & 0x0F));
             cpu.registers.set_zero_flag(cpu.ram.read(cpu.registers.get_hl()) == 0);
             cpu.registers.set_negative_flag(false);
@@ -814,7 +814,7 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H],
         execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
             let original_byte = cpu.ram.read(cpu.registers.get_hl());
-            cpu.ram.write(cpu.registers.get_hl(), original_byte - 1);
+            cpu.ram.write(cpu.registers.get_hl(), original_byte.wrapping_sub(1));
             cpu.registers.set_half_carry_flag((cpu.ram.read(cpu.registers.get_hl()) & 0x0F) > (original_byte & 0x0F));
             cpu.registers.set_zero_flag(cpu.ram.read(cpu.registers.get_hl()) == 0);
             cpu.registers.set_negative_flag(true);
@@ -2531,7 +2531,7 @@ mod test {
         assert_eq!(cycle, 3);
         assert_eq!(cpu_1.ram.read(test_address), test_value_1 - 1);
         assert_eq!(cpu_1.registers.get_zero_flag(), false);
-        assert_eq!(cpu_1.registers.get_negative_flag(), false);
+        assert_eq!(cpu_1.registers.get_negative_flag(), true);
         assert_eq!(cpu_1.registers.get_half_carry_flag(), false);
 
         // Flags Z
@@ -2543,7 +2543,7 @@ mod test {
         cycle = cpu_2.execute_next();
         assert_eq!(cpu_2.ram.read(test_address), 0);
         assert_eq!(cpu_2.registers.get_zero_flag(), true);
-        assert_eq!(cpu_2.registers.get_negative_flag(), false);
+        assert_eq!(cpu_2.registers.get_negative_flag(), true);
         assert_eq!(cpu_2.registers.get_half_carry_flag(), false);
 
         // Flags H
@@ -2555,7 +2555,7 @@ mod test {
         cycle = cpu_2.execute_next();
         assert_eq!(cpu_2.ram.read(test_address), test_value_3 - 1);
         assert_eq!(cpu_2.registers.get_zero_flag(), false);
-        assert_eq!(cpu_2.registers.get_negative_flag(), false);
+        assert_eq!(cpu_2.registers.get_negative_flag(), true);
         assert_eq!(cpu_2.registers.get_half_carry_flag(), true);
 
         // Test Underflow
@@ -2563,11 +2563,11 @@ mod test {
         cpu_2 = CPU::new();
         cpu_2.load(&program_1);
         cpu_2.registers.set_hl(test_address);
-        cpu_2.ram.write(test_address, test_value_3);
+        cpu_2.ram.write(test_address, test_value_4);
         cycle = cpu_2.execute_next();
         assert_eq!(cpu_2.ram.read(test_address), 0xFF);
         assert_eq!(cpu_2.registers.get_zero_flag(), false);
-        assert_eq!(cpu_2.registers.get_negative_flag(), false);
+        assert_eq!(cpu_2.registers.get_negative_flag(), true);
         assert_eq!(cpu_2.registers.get_half_carry_flag(), true);
     }
 
