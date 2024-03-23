@@ -400,9 +400,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
             let original_carry_flag: u8 = cpu.registers.get_carry_flag() as u8;
             cpu.registers.set_carry_flag((cpu.registers.get_a() & 0b1000_0000) != 0);
             cpu.registers.set_a(cpu.registers.get_a().wrapping_shl(1) | original_carry_flag);
-            cpu.registers.set_zero_flag(true);
-            cpu.registers.set_half_carry_flag(true);
-            cpu.registers.set_negative_flag(true);
+            cpu.registers.set_zero_flag(false);
+            cpu.registers.set_half_carry_flag(false);
+            cpu.registers.set_negative_flag(false);
             opcode.cycles as u64
         },
     });
@@ -841,8 +841,8 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         flags: &[FlagBits::N, FlagBits::H, FlagBits::C],
         execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
             cpu.registers.set_carry_flag(true);
-            cpu.registers.set_half_carry_flag(true);
-            cpu.registers.set_negative_flag(true);
+            cpu.registers.set_half_carry_flag(false);
+            cpu.registers.set_negative_flag(false);
             opcode.cycles as u64
         },
     });
@@ -2289,6 +2289,30 @@ mod test {
     }
 
     #[test]
+    fn test_0x17_rla() {
+        //No Flags
+        let test_value_1: u8 = 0b1000_1000;
+        let mut cpu_1 = CPU::new();
+        let program_1: Vec<u8> = vec![0x17, 0x17];
+        cpu_1.load(&program_1);
+        cpu_1.registers.set_a(test_value_1);
+        cpu_1.registers.set_carry_flag(false);
+        cpu_1.execute_next();
+        // The re-entrance Bit is given by the previous content of C Flag
+        assert_eq!(cpu_1.registers.get_a(), 0b0001_0000);
+        assert_eq!(cpu_1.registers.get_zero_flag(), false);
+        assert_eq!(cpu_1.registers.get_negative_flag(), false);
+        assert_eq!(cpu_1.registers.get_half_carry_flag(), false);
+        assert_eq!(cpu_1.registers.get_carry_flag(), true);
+        cpu_1.execute_next();
+        assert_eq!(cpu_1.registers.get_a(), 0b0010_0001);
+        assert_eq!(cpu_1.registers.get_zero_flag(), false);
+        assert_eq!(cpu_1.registers.get_negative_flag(), false);
+        assert_eq!(cpu_1.registers.get_half_carry_flag(), false);
+        assert_eq!(cpu_1.registers.get_carry_flag(), false);
+    }
+
+    #[test]
     fn test_0x21_ld_hl_imm16() {
         let test_value: u16 = 0xC05A;
         let mut cpu = CPU::new();
@@ -2434,6 +2458,11 @@ mod test {
         assert_eq!(cpu_1.registers.get_negative_flag(), register_copy.get_negative_flag());
         assert_eq!(cpu_1.registers.get_half_carry_flag(), register_copy.get_half_carry_flag());
         assert_eq!(cpu_1.registers.get_carry_flag(), register_copy.get_carry_flag());
+    }
+
+    #[test]
+    fn test_0x27_daa() {
+        // TODO: Implement test for DAA and CBD values
     }
 
     #[test]
@@ -2591,5 +2620,21 @@ mod test {
         assert_eq!(cpu_1.registers.get_negative_flag(), register_copy.get_negative_flag());
         assert_eq!(cpu_1.registers.get_half_carry_flag(), register_copy.get_half_carry_flag());
         assert_eq!(cpu_1.registers.get_carry_flag(), register_copy.get_carry_flag());
+    }
+
+    #[test]
+    // SCF = Set Carry Flag
+    fn test_0x37_scf() {
+        //No Flags
+        let mut cpu_1 = CPU::new();
+        let program_1: Vec<u8> = vec![0x37];
+        cpu_1.load(&program_1);
+        cpu_1.registers.set_carry_flag(false);
+        let cycles = cpu_1.execute_next();
+        // Check load data and FLAGs should be untouched
+        assert_eq!(cycles, 1);
+        assert_eq!(cpu_1.registers.get_negative_flag(), false);
+        assert_eq!(cpu_1.registers.get_half_carry_flag(), false);
+        assert_eq!(cpu_1.registers.get_carry_flag(), true);
     }
 }
