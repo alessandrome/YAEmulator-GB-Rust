@@ -76,6 +76,13 @@ impl std::ops::BitXor<u8> for FlagBits {
     }
 }
 
+impl std::ops::Not for FlagBits {
+    type Output = u8;
+
+    fn not(self) -> Self::Output {
+        !(self as u8)
+    }
+}
 impl std::ops::BitAndAssign<FlagBits> for u8 {
     fn bitand_assign(&mut self, rhs: FlagBits){
         *self &= rhs as u8

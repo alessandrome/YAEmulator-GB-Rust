@@ -21,8 +21,8 @@ impl Instruction {
 const fn daa(mut a: u8, mut flags: u8) -> (u8, u8) {
     // Code recovered inspired by other gits, but not sure if precise as expected from GB Docs
     let mut adjust = 0;
-    let mut carry_flag = FlagBits::C & flags != 0;
-    let mut half_carry_flag = FlagBits::H & flags != 0;
+    let mut carry_flag = (FlagBits::C as u8) & flags != 0;
+    let mut half_carry_flag = (FlagBits::H as u8) & flags != 0;
 
     if half_carry_flag {
         adjust |= 0x06;
@@ -32,7 +32,7 @@ const fn daa(mut a: u8, mut flags: u8) -> (u8, u8) {
     }
 
     // Edit register A for CDB representation
-    if FlagBits::N & flags == 0 {
+    if (FlagBits::N as u8) & flags == 0 {
         if (a & 0x0F )> 9 {
             adjust |= 0x06;
         }
@@ -51,18 +51,18 @@ const fn daa(mut a: u8, mut flags: u8) -> (u8, u8) {
 
     // Impostare i flag appropriati
     if carry_flag {
-        flags |= FlagBits::C;
+        flags |= (FlagBits::C as u8);
     } else {
-        flags &= !FlagBits::C;
+        flags &= !(FlagBits::C as u8);
     }
 
     if zero_flag {
-        flags |= FlagBits::Z;
+        flags |= (FlagBits::Z as u8);
     } else {
-        flags &= !FlagBits::Z;
+        flags &= !(FlagBits::Z as u8);
     }
 
-    flags &= !FlagBits::H;
+    flags &= !(FlagBits::H as u8);
 
     // Settare i nuovi valori dei flag
     // flags può essere un riferimento mutabile a un altro registro che contiene i flags
