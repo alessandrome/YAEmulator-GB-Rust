@@ -430,7 +430,7 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
             let pre_l = cpu.registers.get_l();
             cpu.registers.set_hl(cpu.registers.get_hl().wrapping_add(cpu.registers.get_de()));
             cpu.registers.set_negative_flag(false);
-            cpu.registers.set_half_carry_flag(cpu.registers.get_l() < pre_l);
+            cpu.registers.set_half_carry_flag((cpu.registers.get_h() & 0x0F) < (pre_h & 0x0F));
             cpu.registers.set_carry_flag(cpu.registers.get_h() < pre_h);
             opcode.cycles as u64
         },
@@ -653,7 +653,7 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
             let pre_l = cpu.registers.get_l();
             cpu.registers.set_hl(cpu.registers.get_hl().wrapping_add(cpu.registers.get_hl()));
             cpu.registers.set_negative_flag(false);
-            cpu.registers.set_half_carry_flag(cpu.registers.get_l() < pre_l);
+            cpu.registers.set_half_carry_flag((cpu.registers.get_h() & 0x0F) < (pre_h & 0x0F));
             cpu.registers.set_carry_flag(cpu.registers.get_h() < pre_h);
             opcode.cycles as u64
         },
@@ -666,7 +666,7 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         flags: &[],
         execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
             cpu.registers.set_a(cpu.ram.read(cpu.registers.get_hl()));
-            cpu.registers.set_hl(cpu.registers.get_hl() + 1);
+            cpu.registers.set_hl(cpu.registers.get_hl().wrapping_add(1));
             opcode.cycles as u64
         },
     });
@@ -739,7 +739,7 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
     });
     opcodes[0x30] = Some(&Instruction {
         opcode: 0x20,
-        name: "JR NZ, e8",
+        name: "JR NC, e8",
         cycles: 3, // 2 Cycles if condition doesn't match
         size: 1,
         flags: &[],
@@ -830,6 +830,130 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
             let byte = cpu.fetch_next();
             cpu.ram.write(cpu.registers.get_hl(), byte);
+            opcode.cycles as u64
+        },
+    });
+    opcodes[0x37] = Some(&Instruction {
+        opcode: 0x37,
+        name: "SCF",
+        cycles: 1,
+        size: 1,
+        flags: &[FlagBits::N, FlagBits::H, FlagBits::C],
+        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
+            cpu.registers.set_carry_flag(true);
+            cpu.registers.set_half_carry_flag(true);
+            cpu.registers.set_negative_flag(true);
+            opcode.cycles as u64
+        },
+    });
+    opcodes[0x38] = Some(&Instruction {
+        opcode: 0x38,
+        name: "JR C, e8",
+        cycles: 3, // 2 Cycles if condition doesn't match
+        size: 1,
+        flags: &[],
+        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
+            // TODO: Test
+            let byte = cpu.fetch_next() as i16;
+            if cpu.registers.get_carry_flag() {
+                cpu.registers.set_pc(cpu.registers.get_pc() - if byte < 0 { byte.abs() } else { byte } as u16);
+                return opcode.cycles as u64;
+            }
+            2
+        },
+    });
+    opcodes[0x39] = Some(&Instruction {
+        opcode: 0x39,
+        name: "ADD HL, SP",
+        cycles: 2,
+        size: 1,
+        flags: &[FlagBits::N, FlagBits::H, FlagBits::C],
+        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
+            let pre_h = cpu.registers.get_h();
+            let pre_l = cpu.registers.get_l();
+            cpu.registers.set_hl(cpu.registers.get_hl().wrapping_add(cpu.registers.get_sp()));
+            cpu.registers.set_negative_flag(false);
+            cpu.registers.set_half_carry_flag((cpu.registers.get_h() & 0x0F) < (pre_h & 0x0F));
+            cpu.registers.set_carry_flag(cpu.registers.get_h() < pre_h);
+            opcode.cycles as u64
+        },
+    });
+    opcodes[0x3A] = Some(&Instruction {
+        opcode: 0x3A,
+        name: "LD A, [HL-]",
+        cycles: 2,
+        size: 1,
+        flags: &[],
+        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
+            cpu.registers.set_a(cpu.ram.read(cpu.registers.get_hl()));
+            cpu.registers.set_hl(cpu.registers.get_hl().wrapping_sub(1));
+            opcode.cycles as u64
+        },
+    });
+    opcodes[0x3B] = Some(&Instruction {
+        opcode: 0x3B,
+        name: "DEC SP",
+        cycles: 2,
+        size: 1,
+        flags: &[],
+        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
+            cpu.registers.set_sp(cpu.registers.get_sp().wrapping_sub(1));
+            opcode.cycles as u64
+        },
+    });
+    opcodes[0x3C] = Some(&Instruction {
+        opcode: 0x3C,
+        name: "INC A",
+        cycles: 1,
+        size: 1,
+        flags: &[FlagBits::Z, FlagBits::N, FlagBits::H],
+        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
+            let original_a = cpu.registers.get_a();
+            cpu.registers.set_a(cpu.registers.get_a().wrapping_add(1));
+            cpu.registers.set_half_carry_flag((cpu.registers.get_a() & 0x0F) < (original_a & 0x0F));
+            cpu.registers.set_zero_flag(cpu.registers.get_a() == 0);
+            cpu.registers.set_negative_flag(false);
+            opcode.cycles as u64
+        },
+    });
+    opcodes[0x3D] = Some(&Instruction {
+        opcode: 0x3D,
+        name: "DEC A",
+        cycles: 1,
+        size: 1,
+        flags: &[FlagBits::Z, FlagBits::N, FlagBits::H],
+        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
+            let original_a = cpu.registers.get_a();
+            cpu.registers.set_a(cpu.registers.get_a().wrapping_sub(1));
+            // Write flags
+            cpu.registers.set_half_carry_flag((original_a & 0x0F) == 0);
+            cpu.registers.set_zero_flag(cpu.registers.get_a() == 0);
+            cpu.registers.set_negative_flag(true);
+            opcode.cycles as u64
+        },
+    });
+    opcodes[0x3E] = Some(&Instruction {
+        opcode: 0x3E,
+        name: "LD A, imm8",
+        cycles: 2,
+        size: 2,
+        flags: &[],
+        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
+            let byte = cpu.fetch_next();
+            cpu.registers.set_a(byte);
+            opcode.cycles as u64
+        },
+    });
+    opcodes[0x3F] = Some(&Instruction {
+        opcode: 0x3F,
+        name: "CCF",
+        cycles: 1,
+        size: 1,
+        flags: &[FlagBits::N, FlagBits::H, FlagBits::C],
+        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
+            cpu.registers.set_negative_flag(false);
+            cpu.registers.set_half_carry_flag(false);
+            cpu.registers.set_carry_flag(!cpu.registers.get_carry_flag());
             opcode.cycles as u64
         },
     });
