@@ -2966,6 +2966,25 @@ mod test {
     }
 
     #[test]
+    fn test_0x2e_ld_l_imm8() {
+        //No Flags
+        let test_value_1: u8 = 0xD4;
+        let mut cpu_1 = CPU::new();
+        let program_1: Vec<u8> = vec![0x2E, test_value_1];
+        cpu_1.load(&program_1);
+        let register_copy = cpu_1.registers;
+        cpu_1.registers.set_l(0xAA);
+        let mut cycles = cpu_1.execute_next();
+        assert_eq!(cycles, 2);
+        assert_eq!(cpu_1.registers.get_l(), test_value_1);
+        // Flags untouched
+        assert_eq!(cpu_1.registers.get_zero_flag(), register_copy.get_zero_flag());
+        assert_eq!(cpu_1.registers.get_negative_flag(), register_copy.get_negative_flag());
+        assert_eq!(cpu_1.registers.get_half_carry_flag(), register_copy.get_half_carry_flag());
+        assert_eq!(cpu_1.registers.get_carry_flag(), register_copy.get_carry_flag());
+    }
+
+    #[test]
     fn test_0x30_jr_nc_e8() {
         let mut test_value: i8 = -50;
         let mut start_address: i16 = 0x0350;
@@ -3379,5 +3398,24 @@ mod test {
         assert_eq!(cpu_3.registers.get_zero_flag(), false);
         assert_eq!(cpu_3.registers.get_negative_flag(), true);
         assert_eq!(cpu_3.registers.get_half_carry_flag(), true);
+    }
+
+    #[test]
+    fn test_0x3e_ld_a_imm8() {
+        //No Flags
+        let test_value_1: u8 = 0xD4;
+        let mut cpu_1 = CPU::new();
+        let program_1: Vec<u8> = vec![0x3E, test_value_1];
+        cpu_1.load(&program_1);
+        let register_copy = cpu_1.registers;
+        cpu_1.registers.set_a(0xAA);
+        let mut cycles = cpu_1.execute_next();
+        assert_eq!(cycles, 2);
+        assert_eq!(cpu_1.registers.get_a(), test_value_1);
+        // Flags untouched
+        assert_eq!(cpu_1.registers.get_zero_flag(), register_copy.get_zero_flag());
+        assert_eq!(cpu_1.registers.get_negative_flag(), register_copy.get_negative_flag());
+        assert_eq!(cpu_1.registers.get_half_carry_flag(), register_copy.get_half_carry_flag());
+        assert_eq!(cpu_1.registers.get_carry_flag(), register_copy.get_carry_flag());
     }
 }
