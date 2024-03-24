@@ -4443,4 +4443,305 @@ mod test {
         assert_eq!(cpu_1.registers.get_half_carry_flag(), register_copy.get_half_carry_flag());
         assert_eq!(cpu_1.registers.get_carry_flag(), register_copy.get_carry_flag());
     }
+
+    #[test]
+    fn test_0x71_ld__hl__c() {
+        let test_value_1: u8 = 0xC4;
+        let test_address_1: u16 = WRAM_ADDRESS as u16 + 0x99;
+        let mut cpu_1 = CPU::new();
+        let program_1: Vec<u8> = vec![0x71];
+        cpu_1.load(&program_1);
+        let register_copy = cpu_1.registers;
+        cpu_1.registers.set_c(test_value_1);
+        cpu_1.registers.set_hl(test_address_1);
+        cpu_1.ram.write(test_address_1, 0x00);
+        let cycles = cpu_1.execute_next();
+        assert_eq!(cycles, 2);
+        assert_eq!(cpu_1.registers.get_c(), test_value_1);
+        assert_eq!(cpu_1.registers.get_hl(), test_address_1);
+        assert_eq!(cpu_1.ram.read(test_address_1), test_value_1);
+        // Flags untouched
+        assert_eq!(cpu_1.registers.get_zero_flag(), register_copy.get_zero_flag());
+        assert_eq!(cpu_1.registers.get_negative_flag(), register_copy.get_negative_flag());
+        assert_eq!(cpu_1.registers.get_half_carry_flag(), register_copy.get_half_carry_flag());
+        assert_eq!(cpu_1.registers.get_carry_flag(), register_copy.get_carry_flag());
+    }
+
+    #[test]
+    fn test_0x72_ld__hl__d() {
+        let test_value_1: u8 = 0xC4;
+        let test_address_1: u16 = WRAM_ADDRESS as u16 + 0x99;
+        let mut cpu_1 = CPU::new();
+        let program_1: Vec<u8> = vec![0x72];
+        cpu_1.load(&program_1);
+        let register_copy = cpu_1.registers;
+        cpu_1.registers.set_d(test_value_1);
+        cpu_1.registers.set_hl(test_address_1);
+        cpu_1.ram.write(test_address_1, 0x00);
+        let cycles = cpu_1.execute_next();
+        assert_eq!(cycles, 2);
+        assert_eq!(cpu_1.registers.get_d(), test_value_1);
+        assert_eq!(cpu_1.registers.get_hl(), test_address_1);
+        assert_eq!(cpu_1.ram.read(test_address_1), test_value_1);
+        // Flags untouched
+        assert_eq!(cpu_1.registers.get_zero_flag(), register_copy.get_zero_flag());
+        assert_eq!(cpu_1.registers.get_negative_flag(), register_copy.get_negative_flag());
+        assert_eq!(cpu_1.registers.get_half_carry_flag(), register_copy.get_half_carry_flag());
+        assert_eq!(cpu_1.registers.get_carry_flag(), register_copy.get_carry_flag());
+    }
+
+    #[test]
+    fn test_0x73_ld__hl__e() {
+        let test_value_1: u8 = 0xC4;
+        let test_address_1: u16 = WRAM_ADDRESS as u16 + 0x99;
+        let mut cpu_1 = CPU::new();
+        let program_1: Vec<u8> = vec![0x73];
+        cpu_1.load(&program_1);
+        let register_copy = cpu_1.registers;
+        cpu_1.registers.set_e(test_value_1);
+        cpu_1.registers.set_hl(test_address_1);
+        cpu_1.ram.write(test_address_1, 0x00);
+        let cycles = cpu_1.execute_next();
+        assert_eq!(cycles, 2);
+        assert_eq!(cpu_1.registers.get_e(), test_value_1);
+        assert_eq!(cpu_1.registers.get_hl(), test_address_1);
+        assert_eq!(cpu_1.ram.read(test_address_1), test_value_1);
+        // Flags untouched
+        assert_eq!(cpu_1.registers.get_zero_flag(), register_copy.get_zero_flag());
+        assert_eq!(cpu_1.registers.get_negative_flag(), register_copy.get_negative_flag());
+        assert_eq!(cpu_1.registers.get_half_carry_flag(), register_copy.get_half_carry_flag());
+        assert_eq!(cpu_1.registers.get_carry_flag(), register_copy.get_carry_flag());
+    }
+
+    #[test]
+    fn test_0x74_ld__hl__h() {
+        let test_address_1: u16 = WRAM_ADDRESS as u16 + 0x99;
+        let expected_value = test_address_1.wrapping_shr(8) as u8;
+        let mut cpu_1 = CPU::new();
+        let program_1: Vec<u8> = vec![0x74];
+        cpu_1.load(&program_1);
+        let register_copy = cpu_1.registers;
+        cpu_1.registers.set_hl(test_address_1);
+        cpu_1.ram.write(test_address_1, 0x00);
+        let cycles = cpu_1.execute_next();
+        assert_eq!(cycles, 2);
+        assert_eq!(cpu_1.registers.get_h(), expected_value);
+        assert_eq!(cpu_1.registers.get_hl(), test_address_1);
+        assert_eq!(cpu_1.ram.read(test_address_1), expected_value);
+        // Flags untouched
+        assert_eq!(cpu_1.registers.get_zero_flag(), register_copy.get_zero_flag());
+        assert_eq!(cpu_1.registers.get_negative_flag(), register_copy.get_negative_flag());
+        assert_eq!(cpu_1.registers.get_half_carry_flag(), register_copy.get_half_carry_flag());
+        assert_eq!(cpu_1.registers.get_carry_flag(), register_copy.get_carry_flag());
+    }
+
+    #[test]
+    fn test_0x75_ld__hl__l() {
+        let test_address_1: u16 = WRAM_ADDRESS as u16 + 0x99;
+        let expected_value = (test_address_1 & 0xFF) as u8;
+        let mut cpu_1 = CPU::new();
+        let program_1: Vec<u8> = vec![0x75];
+        cpu_1.load(&program_1);
+        let register_copy = cpu_1.registers;
+        cpu_1.registers.set_hl(test_address_1);
+        cpu_1.ram.write(test_address_1, 0x00);
+        let cycles = cpu_1.execute_next();
+        assert_eq!(cycles, 2);
+        assert_eq!(cpu_1.registers.get_l(), expected_value);
+        assert_eq!(cpu_1.registers.get_hl(), test_address_1);
+        assert_eq!(cpu_1.ram.read(test_address_1), expected_value);
+        // Flags untouched
+        assert_eq!(cpu_1.registers.get_zero_flag(), register_copy.get_zero_flag());
+        assert_eq!(cpu_1.registers.get_negative_flag(), register_copy.get_negative_flag());
+        assert_eq!(cpu_1.registers.get_half_carry_flag(), register_copy.get_half_carry_flag());
+        assert_eq!(cpu_1.registers.get_carry_flag(), register_copy.get_carry_flag());
+    }
+
+    #[test]
+    fn test_0x76_halt() {
+        // TODO: Study and then implement HALT
+    }
+
+    #[test]
+    fn test_0x77_ld__hl__a() {
+        let test_value_1: u8 = 0xC4;
+        let test_address_1: u16 = WRAM_ADDRESS as u16 + 0x99;
+        let mut cpu_1 = CPU::new();
+        let program_1: Vec<u8> = vec![0x77];
+        cpu_1.load(&program_1);
+        let register_copy = cpu_1.registers;
+        cpu_1.registers.set_a(test_value_1);
+        cpu_1.registers.set_hl(test_address_1);
+        cpu_1.ram.write(test_address_1, 0x00);
+        let cycles = cpu_1.execute_next();
+        assert_eq!(cycles, 2);
+        assert_eq!(cpu_1.registers.get_a(), test_value_1);
+        assert_eq!(cpu_1.registers.get_hl(), test_address_1);
+        assert_eq!(cpu_1.ram.read(test_address_1), test_value_1);
+        // Flags untouched
+        assert_eq!(cpu_1.registers.get_zero_flag(), register_copy.get_zero_flag());
+        assert_eq!(cpu_1.registers.get_negative_flag(), register_copy.get_negative_flag());
+        assert_eq!(cpu_1.registers.get_half_carry_flag(), register_copy.get_half_carry_flag());
+        assert_eq!(cpu_1.registers.get_carry_flag(), register_copy.get_carry_flag());
+    }
+
+    #[test]
+    fn test_0x78_ld_a_b() {
+        let test_value_1: u8 = 0xC4;
+        let mut cpu_1 = CPU::new();
+        let program_1: Vec<u8> = vec![0x78];
+        cpu_1.load(&program_1);
+        let register_copy = cpu_1.registers;
+        cpu_1.registers.set_a(0x00);
+        cpu_1.registers.set_b(test_value_1);
+        let cycles = cpu_1.execute_next();
+        assert_eq!(cycles, 1);
+        assert_eq!(cpu_1.registers.get_a(), test_value_1);
+        assert_eq!(cpu_1.registers.get_b(), test_value_1);
+        // Flags untouched
+        assert_eq!(cpu_1.registers.get_zero_flag(), register_copy.get_zero_flag());
+        assert_eq!(cpu_1.registers.get_negative_flag(), register_copy.get_negative_flag());
+        assert_eq!(cpu_1.registers.get_half_carry_flag(), register_copy.get_half_carry_flag());
+        assert_eq!(cpu_1.registers.get_carry_flag(), register_copy.get_carry_flag());
+    }
+
+    #[test]
+    fn test_0x79_ld_a_c() {
+        let test_value_1: u8 = 0xC4;
+        let mut cpu_1 = CPU::new();
+        let program_1: Vec<u8> = vec![0x79];
+        cpu_1.load(&program_1);
+        let register_copy = cpu_1.registers;
+        cpu_1.registers.set_a(0x00);
+        cpu_1.registers.set_c(test_value_1);
+        let cycles = cpu_1.execute_next();
+        assert_eq!(cycles, 1);
+        assert_eq!(cpu_1.registers.get_a(), test_value_1);
+        assert_eq!(cpu_1.registers.get_c(), test_value_1);
+        // Flags untouched
+        assert_eq!(cpu_1.registers.get_zero_flag(), register_copy.get_zero_flag());
+        assert_eq!(cpu_1.registers.get_negative_flag(), register_copy.get_negative_flag());
+        assert_eq!(cpu_1.registers.get_half_carry_flag(), register_copy.get_half_carry_flag());
+        assert_eq!(cpu_1.registers.get_carry_flag(), register_copy.get_carry_flag());
+    }
+
+    #[test]
+    fn test_0x7a_ld_a_d() {
+        let test_value_1: u8 = 0xC4;
+        let mut cpu_1 = CPU::new();
+        let program_1: Vec<u8> = vec![0x7A];
+        cpu_1.load(&program_1);
+        let register_copy = cpu_1.registers;
+        cpu_1.registers.set_a(0x00);
+        cpu_1.registers.set_d(test_value_1);
+        let cycles = cpu_1.execute_next();
+        assert_eq!(cycles, 1);
+        assert_eq!(cpu_1.registers.get_a(), test_value_1);
+        assert_eq!(cpu_1.registers.get_d(), test_value_1);
+        // Flags untouched
+        assert_eq!(cpu_1.registers.get_zero_flag(), register_copy.get_zero_flag());
+        assert_eq!(cpu_1.registers.get_negative_flag(), register_copy.get_negative_flag());
+        assert_eq!(cpu_1.registers.get_half_carry_flag(), register_copy.get_half_carry_flag());
+        assert_eq!(cpu_1.registers.get_carry_flag(), register_copy.get_carry_flag());
+    }
+
+    #[test]
+    fn test_0x7b_ld_a_e() {
+        let test_value_1: u8 = 0xC4;
+        let mut cpu_1 = CPU::new();
+        let program_1: Vec<u8> = vec![0x7B];
+        cpu_1.load(&program_1);
+        let register_copy = cpu_1.registers;
+        cpu_1.registers.set_a(0x00);
+        cpu_1.registers.set_e(test_value_1);
+        let cycles = cpu_1.execute_next();
+        assert_eq!(cycles, 1);
+        assert_eq!(cpu_1.registers.get_a(), test_value_1);
+        assert_eq!(cpu_1.registers.get_e(), test_value_1);
+        // Flags untouched
+        assert_eq!(cpu_1.registers.get_zero_flag(), register_copy.get_zero_flag());
+        assert_eq!(cpu_1.registers.get_negative_flag(), register_copy.get_negative_flag());
+        assert_eq!(cpu_1.registers.get_half_carry_flag(), register_copy.get_half_carry_flag());
+        assert_eq!(cpu_1.registers.get_carry_flag(), register_copy.get_carry_flag());
+    }
+
+    #[test]
+    fn test_0x7c_ld_a_h() {
+        let test_value_1: u8 = 0xC4;
+        let mut cpu_1 = CPU::new();
+        let program_1: Vec<u8> = vec![0x7C];
+        cpu_1.load(&program_1);
+        let register_copy = cpu_1.registers;
+        cpu_1.registers.set_a(0x00);
+        cpu_1.registers.set_h(test_value_1);
+        let cycles = cpu_1.execute_next();
+        assert_eq!(cycles, 1);
+        assert_eq!(cpu_1.registers.get_a(), test_value_1);
+        assert_eq!(cpu_1.registers.get_h(), test_value_1);
+        // Flags untouched
+        assert_eq!(cpu_1.registers.get_zero_flag(), register_copy.get_zero_flag());
+        assert_eq!(cpu_1.registers.get_negative_flag(), register_copy.get_negative_flag());
+        assert_eq!(cpu_1.registers.get_half_carry_flag(), register_copy.get_half_carry_flag());
+        assert_eq!(cpu_1.registers.get_carry_flag(), register_copy.get_carry_flag());
+    }
+
+    #[test]
+    fn test_0x7d_ld_a_l() {
+        let test_value_1: u8 = 0xC4;
+        let mut cpu_1 = CPU::new();
+        let program_1: Vec<u8> = vec![0x7D];
+        cpu_1.load(&program_1);
+        let register_copy = cpu_1.registers;
+        cpu_1.registers.set_a(0x00);
+        cpu_1.registers.set_l(test_value_1);
+        let cycles = cpu_1.execute_next();
+        assert_eq!(cycles, 1);
+        assert_eq!(cpu_1.registers.get_a(), test_value_1);
+        assert_eq!(cpu_1.registers.get_l(), test_value_1);
+        // Flags untouched
+        assert_eq!(cpu_1.registers.get_zero_flag(), register_copy.get_zero_flag());
+        assert_eq!(cpu_1.registers.get_negative_flag(), register_copy.get_negative_flag());
+        assert_eq!(cpu_1.registers.get_half_carry_flag(), register_copy.get_half_carry_flag());
+        assert_eq!(cpu_1.registers.get_carry_flag(), register_copy.get_carry_flag());
+    }
+
+    #[test]
+    fn test_0x7e_ld_a__hl_() {
+        let test_value_1: u8 = 0xC4;
+        let test_address_1: u16 = WRAM_ADDRESS as u16 + 0x99;
+        let mut cpu_1 = CPU::new();
+        let program_1: Vec<u8> = vec![0x7E];
+        cpu_1.load(&program_1);
+        let register_copy = cpu_1.registers;
+        cpu_1.registers.set_a(0x00);
+        cpu_1.registers.set_hl(test_address_1);
+        cpu_1.ram.write(test_address_1, test_value_1);
+        let cycles = cpu_1.execute_next();
+        assert_eq!(cycles, 2);
+        assert_eq!(cpu_1.registers.get_a(), test_value_1);
+        assert_eq!(cpu_1.registers.get_hl(), test_address_1);
+        // Flags untouched
+        assert_eq!(cpu_1.registers.get_zero_flag(), register_copy.get_zero_flag());
+        assert_eq!(cpu_1.registers.get_negative_flag(), register_copy.get_negative_flag());
+        assert_eq!(cpu_1.registers.get_half_carry_flag(), register_copy.get_half_carry_flag());
+        assert_eq!(cpu_1.registers.get_carry_flag(), register_copy.get_carry_flag());
+    }
+
+    #[test]
+    fn test_0x7f_ld_a_a() {
+        let test_value_1: u8 = 0xC4;
+        let mut cpu_1 = CPU::new();
+        let program_1: Vec<u8> = vec![0x7F];
+        cpu_1.load(&program_1);
+        let register_copy = cpu_1.registers;
+        cpu_1.registers.set_a(test_value_1);
+        let cycles = cpu_1.execute_next();
+        assert_eq!(cycles, 1);
+        assert_eq!(cpu_1.registers.get_a(), test_value_1);
+        // Flags untouched
+        assert_eq!(cpu_1.registers.get_zero_flag(), register_copy.get_zero_flag());
+        assert_eq!(cpu_1.registers.get_negative_flag(), register_copy.get_negative_flag());
+        assert_eq!(cpu_1.registers.get_half_carry_flag(), register_copy.get_half_carry_flag());
+        assert_eq!(cpu_1.registers.get_carry_flag(), register_copy.get_carry_flag());
+    }
 }
