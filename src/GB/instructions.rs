@@ -733,7 +733,7 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
             cpu.registers.set_a(!cpu.registers.get_a());
             cpu.registers.set_half_carry_flag(true);
-            cpu.registers.set_zero_flag(true);
+            cpu.registers.set_negative_flag(true);
             opcode.cycles as u64
         },
     });
@@ -2985,6 +2985,25 @@ mod test {
     }
 
     #[test]
+    fn test_0x2f_cpl() {
+        //No Flags
+        let test_value_1: u8 = 0xD4;
+        let mut cpu_1 = CPU::new();
+        let program_1: Vec<u8> = vec![0x2F];
+        cpu_1.load(&program_1);
+        let register_copy = cpu_1.registers;
+        cpu_1.registers.set_a(test_value_1);
+        let mut cycles = cpu_1.execute_next();
+        assert_eq!(cycles, 1);
+        assert_eq!(cpu_1.registers.get_a(), !test_value_1);
+        // Z/C Flags untouched - N/H Flags on
+        assert_eq!(cpu_1.registers.get_zero_flag(), register_copy.get_zero_flag());
+        assert_eq!(cpu_1.registers.get_negative_flag(), true);
+        assert_eq!(cpu_1.registers.get_half_carry_flag(), true);
+        assert_eq!(cpu_1.registers.get_carry_flag(), register_copy.get_carry_flag());
+    }
+
+    #[test]
     fn test_0x30_jr_nc_e8() {
         let mut test_value: i8 = -50;
         let mut start_address: i16 = 0x0350;
@@ -3417,5 +3436,30 @@ mod test {
         assert_eq!(cpu_1.registers.get_negative_flag(), register_copy.get_negative_flag());
         assert_eq!(cpu_1.registers.get_half_carry_flag(), register_copy.get_half_carry_flag());
         assert_eq!(cpu_1.registers.get_carry_flag(), register_copy.get_carry_flag());
+    }
+
+    #[test]
+    fn test_0x3f_ccf() {
+        // CCF = Complement Carry Flag
+        let mut cpu_1 = CPU::new();
+        let program_1: Vec<u8> = vec![0x3F, 0x3F];
+        cpu_1.load(&program_1);
+        let register_copy = cpu_1.registers;
+        cpu_1.registers.set_carry_flag(false);
+        let mut cycles = cpu_1.execute_next();
+        assert_eq!(cycles, 1);
+        // Z Flag untouched - N/H Flags off
+        assert_eq!(cpu_1.registers.get_zero_flag(), register_copy.get_zero_flag());
+        assert_eq!(cpu_1.registers.get_negative_flag(), false);
+        assert_eq!(cpu_1.registers.get_half_carry_flag(), false);
+        assert_eq!(cpu_1.registers.get_carry_flag(), true);
+
+        cycles = cpu_1.execute_next();
+        assert_eq!(cycles, 1);
+        // Z Flag untouched - N/H Flags off
+        assert_eq!(cpu_1.registers.get_zero_flag(), register_copy.get_zero_flag());
+        assert_eq!(cpu_1.registers.get_negative_flag(), false);
+        assert_eq!(cpu_1.registers.get_half_carry_flag(), false);
+        assert_eq!(cpu_1.registers.get_carry_flag(), false);
     }
 }
