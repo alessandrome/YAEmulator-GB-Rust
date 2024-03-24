@@ -409,12 +409,12 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
     opcodes[0x18] = Some(&Instruction {
         opcode: 0x18,
         name: "JR e8",
-        cycles: 1,
-        size: 1,
+        cycles: 3,
+        size: 2,
         flags: &[],
         execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
             // TODO: Test
-            let byte = cpu.fetch_next() as i16;
+            let byte = cpu.fetch_next() as i8;
             cpu.registers.set_pc(cpu.registers.get_pc() -  if byte < 0 {byte.abs()} else {byte} as u16);
             opcode.cycles as u64
         },
@@ -2310,6 +2310,94 @@ mod test {
         assert_eq!(cpu_1.registers.get_negative_flag(), false);
         assert_eq!(cpu_1.registers.get_half_carry_flag(), false);
         assert_eq!(cpu_1.registers.get_carry_flag(), false);
+    }
+
+    #[test]
+    fn test_0x18_jr_e8() {
+        let mut test_value: i8 = -50;
+        let mut start_address: i16 = 0x0350;
+        let mut cpu = CPU::new();
+        let mut program: Vec<u8> = vec![0x18, test_value as u8];
+        cpu.load(&program);
+        cpu.ram.write(0x0350, program[0]);
+        cpu.ram.write(0x0351, program[1]);
+        cpu.registers.set_pc(0x0350);
+        println!("PRE PC: {}", cpu.registers.get_pc());
+        let mut cycles = cpu.execute_next();
+        assert_eq!(cycles, 3);
+        assert_eq!(cpu.registers.get_pc(), ((start_address + test_value as i16 + program.len() as i16)) as u16);
+    }
+
+    #[test]
+    fn test_0x19_add_hl_de() {
+        //No Flags
+        let mut test_value_1: u16 = 0xBD89;
+        let mut test_value_2: u16 = 0x1029;
+        let mut cpu_1 = CPU::new();
+        let program: Vec<u8> = vec![0x19];
+        cpu_1.load(&program);
+        cpu_1.registers.set_hl(test_value_1);
+        cpu_1.registers.set_de(test_value_2);
+        let cycles = cpu_1.execute_next();
+        assert_eq!(cycles, 2);
+        assert_eq!(cpu_1.registers.get_de(), test_value_2);
+        assert_eq!(cpu_1.registers.get_hl(), test_value_1 + test_value_2);
+        assert_eq!(cpu_1.registers.get_negative_flag(), false);
+        assert_eq!(cpu_1.registers.get_half_carry_flag(), false);
+        assert_eq!(cpu_1.registers.get_carry_flag(), false);
+
+        test_value_1 = 0x7000;
+        test_value_2 = 0x9000;
+        cpu_1.load(&program);
+        cpu_1.registers.set_hl(test_value_1);
+        cpu_1.registers.set_de(test_value_2);
+        let cycles = cpu_1.execute_next();
+        assert_eq!(cycles, 2);
+        assert_eq!(cpu_1.registers.get_de(), test_value_2);
+        assert_eq!(cpu_1.registers.get_hl(), 0);
+        assert_eq!(cpu_1.registers.get_negative_flag(), false);
+        assert_eq!(cpu_1.registers.get_half_carry_flag(), false);
+        assert_eq!(cpu_1.registers.get_carry_flag(), true);
+
+        // H flags on ADD HL, rr should be on only carrying from bit 11 (check is made on H of HL)
+        test_value_1 = 0x1070;
+        test_value_2 = 0x1090;
+        cpu_1.load(&program);
+        cpu_1.registers.set_hl(test_value_1);
+        cpu_1.registers.set_de(test_value_2);
+        let cycles = cpu_1.execute_next();
+        assert_eq!(cycles, 2);
+        assert_eq!(cpu_1.registers.get_de(), test_value_2);
+        assert_eq!(cpu_1.registers.get_hl(), test_value_1 + test_value_2);
+        assert_eq!(cpu_1.registers.get_negative_flag(), false);
+        assert_eq!(cpu_1.registers.get_half_carry_flag(), false);
+        assert_eq!(cpu_1.registers.get_carry_flag(), false);
+
+        test_value_1 = 0x1700;
+        test_value_2 = 0x1900;
+        cpu_1.load(&program);
+        cpu_1.registers.set_hl(test_value_1);
+        cpu_1.registers.set_de(test_value_2);
+        let cycles = cpu_1.execute_next();
+        assert_eq!(cycles, 2);
+        assert_eq!(cpu_1.registers.get_de(), test_value_2);
+        assert_eq!(cpu_1.registers.get_hl(), test_value_1 + test_value_2);
+        assert_eq!(cpu_1.registers.get_negative_flag(), false);
+        assert_eq!(cpu_1.registers.get_half_carry_flag(), true);
+        assert_eq!(cpu_1.registers.get_carry_flag(), false);
+
+        test_value_1 = 0x9700;
+        test_value_2 = 0x7900;
+        cpu_1.load(&program);
+        cpu_1.registers.set_hl(test_value_1);
+        cpu_1.registers.set_de(test_value_2);
+        let cycles = cpu_1.execute_next();
+        assert_eq!(cycles, 2);
+        assert_eq!(cpu_1.registers.get_de(), test_value_2);
+        assert_eq!(cpu_1.registers.get_hl(), test_value_1.wrapping_add(test_value_2));
+        assert_eq!(cpu_1.registers.get_negative_flag(), false);
+        assert_eq!(cpu_1.registers.get_half_carry_flag(), true);
+        assert_eq!(cpu_1.registers.get_carry_flag(), true);
     }
 
     #[test]

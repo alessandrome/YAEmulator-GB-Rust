@@ -1,6 +1,7 @@
 use crate::GB::instructions;
 use crate::GB::registers;
 use crate::GB::RAM;
+use crate::GB::RAM::USER_PROGRAM_ADDRESS;
 
 #[cfg(test)]
 mod test {
@@ -69,7 +70,7 @@ impl CPU {
     }
     
     pub fn fetch_next(&mut self) -> u8 {
-        self.ram.read_user_program(self.registers.get_and_inc_pc())
+        self.ram.read(self.registers.get_and_inc_pc())
     }
 
     pub fn decode(opcode: &u8, cb_opcode: bool) -> Option<&'static instructions::Instruction> {
@@ -100,9 +101,9 @@ impl CPU {
     pub fn load(&mut self, data: &Vec<u8>) {
         let mut addr: u16 = 0;
         for byte in data {
-            self.ram.write_user_program(addr, *byte);
+            self.ram.write(USER_PROGRAM_ADDRESS as u16 + addr, *byte);
             addr += 1;
         }
-        self.registers.set_pc(0);
+        self.registers.set_pc(USER_PROGRAM_ADDRESS as u16);
     }
 }
