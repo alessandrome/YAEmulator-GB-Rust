@@ -524,7 +524,7 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         flags: &[],
         execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
             // TODO: Test
-            let byte = cpu.fetch_next() as i16;
+            let byte = cpu.fetch_next() as i8;
             if !cpu.registers.get_zero_flag() {
                 cpu.registers.set_pc(cpu.registers.get_pc() - if byte < 0 { byte.abs() } else { byte } as u16);
                 return opcode.cycles as u64;
@@ -634,7 +634,7 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         flags: &[],
         execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
             // TODO: Test
-            let byte = cpu.fetch_next() as i16;
+            let byte = cpu.fetch_next() as i8;
             if cpu.registers.get_zero_flag() {
                 cpu.registers.set_pc(cpu.registers.get_pc() - if byte < 0 { byte.abs() } else { byte } as u16);
                 return opcode.cycles as u64;
@@ -745,7 +745,7 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         flags: &[],
         execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
             // TODO: Test
-            let byte = cpu.fetch_next() as i16;
+            let byte = cpu.fetch_next() as i8;
             if !cpu.registers.get_carry_flag() {
                 cpu.registers.set_pc(cpu.registers.get_pc() - if byte < 0 { byte.abs() } else { byte } as u16);
                 return opcode.cycles as u64;
@@ -854,7 +854,7 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         flags: &[],
         execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
             // TODO: Test
-            let byte = cpu.fetch_next() as i16;
+            let byte = cpu.fetch_next() as i8;
             if cpu.registers.get_carry_flag() {
                 cpu.registers.set_pc(cpu.registers.get_pc() - if byte < 0 { byte.abs() } else { byte } as u16);
                 return opcode.cycles as u64;
@@ -2322,7 +2322,6 @@ mod test {
         cpu.ram.write(0x0350, program[0]);
         cpu.ram.write(0x0351, program[1]);
         cpu.registers.set_pc(0x0350);
-        println!("PRE PC: {}", cpu.registers.get_pc());
         let mut cycles = cpu.execute_next();
         assert_eq!(cycles, 3);
         assert_eq!(cpu.registers.get_pc(), ((start_address + test_value as i16 + program.len() as i16)) as u16);
@@ -2518,6 +2517,52 @@ mod test {
     }
 
     #[test]
+    fn test_0x1e_ld_e_imm8() {
+        //No Flags
+        let test_value_1: u8 = 0xD4;
+        let mut cpu_1 = CPU::new();
+        let program_1: Vec<u8> = vec![0x1E, test_value_1];
+        cpu_1.load(&program_1);
+        let register_copy = cpu_1.registers;
+        cpu_1.registers.set_e(0xAA);
+        let mut cycles = cpu_1.execute_next();
+        assert_eq!(cycles, 2);
+        assert_eq!(cpu_1.registers.get_e(), test_value_1);
+        // Flags untouched
+        assert_eq!(cpu_1.registers.get_zero_flag(), register_copy.get_zero_flag());
+        assert_eq!(cpu_1.registers.get_negative_flag(), register_copy.get_negative_flag());
+        assert_eq!(cpu_1.registers.get_half_carry_flag(), register_copy.get_half_carry_flag());
+        assert_eq!(cpu_1.registers.get_carry_flag(), register_copy.get_carry_flag());
+    }
+
+    #[test]
+    fn test_0x20_jr_nz_e8() {
+        let mut test_value: i8 = -50;
+        let mut start_address: i16 = 0x0350;
+        let mut cpu = CPU::new();
+        let mut program: Vec<u8> = vec![0x20, test_value as u8];
+        cpu.load(&program);
+        cpu.ram.write(0x0350, program[0]);
+        cpu.ram.write(0x0351, program[1]);
+        cpu.registers.set_pc(0x0350);
+        cpu.registers.set_zero_flag(false);
+        let mut cycles = cpu.execute_next();
+        assert_eq!(cycles, 3);
+        assert_eq!(cpu.registers.get_pc(), ((start_address + test_value as i16 + program.len() as i16)) as u16);
+
+        cpu = CPU::new();
+        assert_eq!(cycles, 3);
+        cpu.load(&program);
+        cpu.ram.write(0x0350, program[0]);
+        cpu.ram.write(0x0351, program[1]);
+        cpu.registers.set_pc(0x0350);
+        cpu.registers.set_zero_flag(true);
+        cycles = cpu.execute_next();
+        assert_eq!(cycles, 2);
+        assert_eq!(cpu.registers.get_pc(), 0x352);
+    }
+
+    #[test]
     fn test_0x21_ld_hl_imm16() {
         let test_value: u16 = 0xC05A;
         let mut cpu = CPU::new();
@@ -2668,6 +2713,35 @@ mod test {
     #[test]
     fn test_0x27_daa() {
         // TODO: Implement test for DAA and CBD values
+    }
+
+
+
+    #[test]
+    fn test_0x30_jr_nz_e8() {
+        let mut test_value: i8 = -50;
+        let mut start_address: i16 = 0x0350;
+        let mut cpu = CPU::new();
+        let mut program: Vec<u8> = vec![0x30, test_value as u8];
+        cpu.load(&program);
+        cpu.ram.write(0x0350, program[0]);
+        cpu.ram.write(0x0351, program[1]);
+        cpu.registers.set_pc(0x0350);
+        cpu.registers.set_carry_flag(false);
+        let mut cycles = cpu.execute_next();
+        assert_eq!(cycles, 3);
+        assert_eq!(cpu.registers.get_pc(), ((start_address + test_value as i16 + program.len() as i16)) as u16);
+
+        cpu = CPU::new();
+        assert_eq!(cycles, 3);
+        cpu.load(&program);
+        cpu.ram.write(0x0350, program[0]);
+        cpu.ram.write(0x0351, program[1]);
+        cpu.registers.set_pc(0x0350);
+        cpu.registers.set_carry_flag(true);
+        cycles = cpu.execute_next();
+        assert_eq!(cycles, 2);
+        assert_eq!(cpu.registers.get_pc(), 0x352);
     }
 
     #[test]
