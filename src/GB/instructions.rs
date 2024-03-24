@@ -2866,6 +2866,19 @@ mod test {
     }
 
     #[test]
+    fn test_0x2b_dec_hl() {
+        //No Flags
+        let mut test_value_1: u16 = 0xBD89;
+        let mut cpu_1 = CPU::new();
+        let program: Vec<u8> = vec![0x2B];
+        cpu_1.load(&program);
+        cpu_1.registers.set_hl(test_value_1 + 1);
+        let cycles = cpu_1.execute_next();
+        assert_eq!(cycles, 2);
+        assert_eq!(cpu_1.registers.get_hl(), test_value_1);
+    }
+
+    #[test]
     fn test_0x30_jr_nc_e8() {
         let mut test_value: i8 = -50;
         let mut start_address: i16 = 0x0350;
@@ -3162,5 +3175,35 @@ mod test {
         assert_eq!(cpu_1.registers.get_negative_flag(), false);
         assert_eq!(cpu_1.registers.get_half_carry_flag(), true);
         assert_eq!(cpu_1.registers.get_carry_flag(), true);
+    }
+
+    #[test]
+    fn test_0x3a_ld_a__hld_() {
+        let mut test_value_1: u8 = 0xBD;
+        let mut test_address_1: u16 = WRAM_ADDRESS as u16 + 0x0128;
+        let mut cpu_1 = CPU::new();
+        let program: Vec<u8> = vec![0x3A];
+        cpu_1.load(&program);
+        cpu_1.registers.set_hl(test_address_1);
+        cpu_1.ram.write(test_address_1, test_value_1);
+        cpu_1.registers.set_a(0x11); // Sure different from expected value
+        let cycles = cpu_1.execute_next();
+        assert_eq!(cycles, 2);
+        assert_eq!(cpu_1.ram.read(test_address_1), test_value_1);
+        assert_eq!(cpu_1.registers.get_hl(), test_address_1 - 1);
+        assert_eq!(cpu_1.registers.get_a(), test_value_1);
+    }
+
+    #[test]
+    fn test_0x3b_dec_sp() {
+        //No Flags
+        let mut test_value_1: u16 = 0xBD89;
+        let mut cpu_1 = CPU::new();
+        let program: Vec<u8> = vec![0x3B];
+        cpu_1.load(&program);
+        cpu_1.registers.set_sp(test_value_1 + 1);
+        let cycles = cpu_1.execute_next();
+        assert_eq!(cycles, 2);
+        assert_eq!(cpu_1.registers.get_sp(), test_value_1);
     }
 }
