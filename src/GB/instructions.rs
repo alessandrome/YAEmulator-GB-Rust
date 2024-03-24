@@ -2134,6 +2134,29 @@ mod test {
         assert_eq!(cpu_1.registers.get_carry_flag(), register_copy.get_carry_flag());
     }
 
+    #[test]
+    fn test_0x0f_rrca() {
+        //No Flags
+        let test_value_1: u8 = 0b0001_0001;
+        let mut cpu_1 = CPU::new();
+        let program_1: Vec<u8> = vec![0x0F, 0x0F];
+        cpu_1.load(&program_1);
+        cpu_1.registers.set_a(test_value_1);
+        cpu_1.execute_next();
+        // Check load data and FLAGs should be untouched
+        assert_eq!(cpu_1.registers.get_a(), 0b1000_1000);
+        assert_eq!(cpu_1.registers.get_zero_flag(), false);
+        assert_eq!(cpu_1.registers.get_negative_flag(), false);
+        assert_eq!(cpu_1.registers.get_half_carry_flag(), false);
+        assert_eq!(cpu_1.registers.get_carry_flag(), true);
+        cpu_1.execute_next();
+        assert_eq!(cpu_1.registers.get_a(), 0b0100_0100);
+        assert_eq!(cpu_1.registers.get_zero_flag(), false);
+        assert_eq!(cpu_1.registers.get_negative_flag(), false);
+        assert_eq!(cpu_1.registers.get_half_carry_flag(), false);
+        assert_eq!(cpu_1.registers.get_carry_flag(), false);
+    }
+
     #[cfg(test)]
     fn test_0x10_stop() {
         // TODO: Study and implement STOP function
@@ -2536,6 +2559,30 @@ mod test {
     }
 
     #[test]
+    fn test_0x1f_rra() {
+        //No Flags
+        let test_value_1: u8 = 0b0001_0001;
+        let mut cpu_1 = CPU::new();
+        let program_1: Vec<u8> = vec![0x1F, 0x1F];
+        cpu_1.load(&program_1);
+        cpu_1.registers.set_a(test_value_1);
+        cpu_1.registers.set_carry_flag(false);
+        cpu_1.execute_next();
+        // The re-entrance Bit is given by the previous content of C Flag
+        assert_eq!(cpu_1.registers.get_a(), 0b0000_1000);
+        assert_eq!(cpu_1.registers.get_zero_flag(), false);
+        assert_eq!(cpu_1.registers.get_negative_flag(), false);
+        assert_eq!(cpu_1.registers.get_half_carry_flag(), false);
+        assert_eq!(cpu_1.registers.get_carry_flag(), true);
+        cpu_1.execute_next();
+        assert_eq!(cpu_1.registers.get_a(), 0b1000_0100);
+        assert_eq!(cpu_1.registers.get_zero_flag(), false);
+        assert_eq!(cpu_1.registers.get_negative_flag(), false);
+        assert_eq!(cpu_1.registers.get_half_carry_flag(), false);
+        assert_eq!(cpu_1.registers.get_carry_flag(), false);
+    }
+
+    #[test]
     fn test_0x20_jr_nz_e8() {
         let mut test_value: i8 = -50;
         let mut start_address: i16 = 0x0350;
@@ -2714,8 +2761,6 @@ mod test {
     fn test_0x27_daa() {
         // TODO: Implement test for DAA and CBD values
     }
-
-
 
     #[test]
     fn test_0x30_jr_nz_e8() {
