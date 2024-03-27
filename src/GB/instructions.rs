@@ -1934,6 +1934,286 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
             opcode.cycles as u64
         },
     });
+    opcodes[0x90] = Some(&Instruction {
+        opcode: 0x90,
+        name: "SUB A, B",
+        cycles: 1,
+        size: 1,
+        flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
+        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
+            let old_value = cpu.registers.get_a();
+            let new_value = old_value.wrapping_sub(cpu.registers.get_b());
+            cpu.registers.set_a(new_value);
+            cpu.registers.set_zero_flag(new_value == 0);
+            cpu.registers.set_negative_flag(true);
+            cpu.registers.set_half_carry_flag((new_value & 0x0F) > (old_value & 0x0F));
+            cpu.registers.set_carry_flag(new_value > old_value);
+            opcode.cycles as u64
+        },
+    });
+    opcodes[0x91] = Some(&Instruction {
+        opcode: 0x91,
+        name: "SUB A, C",
+        cycles: 1,
+        size: 1,
+        flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
+        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
+            let old_value = cpu.registers.get_a();
+            let new_value = old_value.wrapping_sub(cpu.registers.get_c());
+            cpu.registers.set_a(new_value);
+            cpu.registers.set_zero_flag(new_value == 0);
+            cpu.registers.set_negative_flag(true);
+            cpu.registers.set_half_carry_flag((new_value & 0x0F) > (old_value & 0x0F));
+            cpu.registers.set_carry_flag(new_value > old_value);
+            opcode.cycles as u64
+        },
+    });
+    opcodes[0x92] = Some(&Instruction {
+        opcode: 0x92,
+        name: "SUB A, D",
+        cycles: 1,
+        size: 1,
+        flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
+        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
+            let old_value = cpu.registers.get_a();
+            let new_value = old_value.wrapping_sub(cpu.registers.get_d());
+            cpu.registers.set_a(new_value);
+            cpu.registers.set_zero_flag(new_value == 0);
+            cpu.registers.set_negative_flag(true);
+            cpu.registers.set_half_carry_flag((new_value & 0x0F) > (old_value & 0x0F));
+            cpu.registers.set_carry_flag(new_value > old_value);
+            opcode.cycles as u64
+        },
+    });
+    opcodes[0x93] = Some(&Instruction {
+        opcode: 0x93,
+        name: "SUB A, E",
+        cycles: 1,
+        size: 1,
+        flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
+        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
+            let old_value = cpu.registers.get_a();
+            let new_value = old_value.wrapping_sub(cpu.registers.get_e());
+            cpu.registers.set_a(new_value);
+            cpu.registers.set_zero_flag(new_value == 0);
+            cpu.registers.set_negative_flag(true);
+            cpu.registers.set_half_carry_flag((new_value & 0x0F) > (old_value & 0x0F));
+            cpu.registers.set_carry_flag(new_value > old_value);
+            opcode.cycles as u64
+        },
+    });
+    opcodes[0x94] = Some(&Instruction {
+        opcode: 0x94,
+        name: "SUB A, H",
+        cycles: 1,
+        size: 1,
+        flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
+        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
+            let old_value = cpu.registers.get_a();
+            let new_value = old_value.wrapping_sub(cpu.registers.get_h());
+            cpu.registers.set_a(new_value);
+            cpu.registers.set_zero_flag(new_value == 0);
+            cpu.registers.set_negative_flag(true);
+            cpu.registers.set_half_carry_flag((new_value & 0x0F) > (old_value & 0x0F));
+            cpu.registers.set_carry_flag(new_value > old_value);
+            opcode.cycles as u64
+        },
+    });
+    opcodes[0x95] = Some(&Instruction {
+        opcode: 0x95,
+        name: "SUB A, L",
+        cycles: 1,
+        size: 1,
+        flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
+        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
+            let old_value = cpu.registers.get_a();
+            let new_value = old_value.wrapping_sub(cpu.registers.get_h());
+            cpu.registers.set_a(new_value);
+            cpu.registers.set_zero_flag(new_value == 0);
+            cpu.registers.set_negative_flag(true);
+            cpu.registers.set_half_carry_flag((new_value & 0x0F) > (old_value & 0x0F));
+            cpu.registers.set_carry_flag(new_value > old_value);
+            opcode.cycles as u64
+        },
+    });
+    opcodes[0x96] = Some(&Instruction {
+        opcode: 0x96,
+        name: "SUB A, [HL]",
+        cycles: 2,
+        size: 1,
+        flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
+        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
+            let old_value = cpu.registers.get_a();
+            let new_value = old_value.wrapping_sub(cpu.ram.read(cpu.registers.get_hl()));
+            cpu.registers.set_a(new_value);
+            cpu.registers.set_zero_flag(new_value == 0);
+            cpu.registers.set_negative_flag(true);
+            cpu.registers.set_half_carry_flag((new_value & 0x0F) > (old_value & 0x0F));
+            cpu.registers.set_carry_flag(new_value > old_value);
+            opcode.cycles as u64
+        },
+    });
+    opcodes[0x97] = Some(&Instruction {
+        opcode: 0x97,
+        name: "SUB A, A",
+        cycles: 2,
+        size: 1,
+        flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
+        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
+            let old_value = cpu.registers.get_a();
+            let new_value = old_value.wrapping_sub(cpu.registers.get_a());
+            cpu.registers.set_a(new_value);
+            cpu.registers.set_zero_flag(new_value == 0);
+            cpu.registers.set_negative_flag(true);
+            cpu.registers.set_half_carry_flag((new_value & 0x0F) > (old_value & 0x0F));
+            cpu.registers.set_carry_flag(new_value > old_value);
+            opcode.cycles as u64
+        },
+    });
+    opcodes[0x98] = Some(&Instruction {
+        opcode: 0x98,
+        name: "SBC A, B",
+        cycles: 1,
+        size: 1,
+        flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
+        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
+            let old_value = cpu.registers.get_a();
+            let new_value = old_value.wrapping_sub(cpu.registers.get_b())
+                .wrapping_sub(cpu.registers.get_carry_flag() as u8);
+            cpu.registers.set_a(new_value);
+            cpu.registers.set_zero_flag(new_value == 0);
+            cpu.registers.set_negative_flag(true);
+            cpu.registers.set_half_carry_flag((new_value & 0x0F) < (old_value & 0x0F));
+            cpu.registers.set_carry_flag(new_value > old_value);
+            opcode.cycles as u64
+        },
+    });
+    opcodes[0x99] = Some(&Instruction {
+        opcode: 0x99,
+        name: "SBC A, C",
+        cycles: 1,
+        size: 1,
+        flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
+        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
+            let old_value = cpu.registers.get_a();
+            let new_value = old_value.wrapping_sub(cpu.registers.get_c())
+                .wrapping_sub(cpu.registers.get_carry_flag() as u8);
+            cpu.registers.set_a(new_value);
+            cpu.registers.set_zero_flag(new_value == 0);
+            cpu.registers.set_negative_flag(true);
+            cpu.registers.set_half_carry_flag((new_value & 0x0F) < (old_value & 0x0F));
+            cpu.registers.set_carry_flag(new_value > old_value);
+            opcode.cycles as u64
+        },
+    });
+    opcodes[0x9A] = Some(&Instruction {
+        opcode: 0x9A,
+        name: "SBC A, D",
+        cycles: 1,
+        size: 1,
+        flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
+        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
+            let old_value = cpu.registers.get_a();
+            let new_value = old_value.wrapping_sub(cpu.registers.get_d())
+                .wrapping_sub(cpu.registers.get_carry_flag() as u8);
+            cpu.registers.set_a(new_value);
+            cpu.registers.set_zero_flag(new_value == 0);
+            cpu.registers.set_negative_flag(true);
+            cpu.registers.set_half_carry_flag((new_value & 0x0F) < (old_value & 0x0F));
+            cpu.registers.set_carry_flag(new_value > old_value);
+            opcode.cycles as u64
+        },
+    });
+    opcodes[0x9B] = Some(&Instruction {
+        opcode: 0x9B,
+        name: "SBC A, E",
+        cycles: 1,
+        size: 1,
+        flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
+        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
+            let old_value = cpu.registers.get_a();
+            let new_value = old_value.wrapping_sub(cpu.registers.get_e())
+                .wrapping_sub(cpu.registers.get_carry_flag() as u8);
+            cpu.registers.set_a(new_value);
+            cpu.registers.set_zero_flag(new_value == 0);
+            cpu.registers.set_negative_flag(true);
+            cpu.registers.set_half_carry_flag((new_value & 0x0F) < (old_value & 0x0F));
+            cpu.registers.set_carry_flag(new_value > old_value);
+            opcode.cycles as u64
+        },
+    });
+    opcodes[0x9C] = Some(&Instruction {
+        opcode: 0x9C,
+        name: "SBC A, H",
+        cycles: 1,
+        size: 1,
+        flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
+        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
+            let old_value = cpu.registers.get_a();
+            let new_value = old_value.wrapping_sub(cpu.registers.get_h())
+                .wrapping_sub(cpu.registers.get_carry_flag() as u8);
+            cpu.registers.set_a(new_value);
+            cpu.registers.set_zero_flag(new_value == 0);
+            cpu.registers.set_negative_flag(true);
+            cpu.registers.set_half_carry_flag((new_value & 0x0F) < (old_value & 0x0F));
+            cpu.registers.set_carry_flag(new_value > old_value);
+            opcode.cycles as u64
+        },
+    });
+    opcodes[0x9D] = Some(&Instruction {
+        opcode: 0x9D,
+        name: "SBC A, L",
+        cycles: 1,
+        size: 1,
+        flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
+        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
+            let old_value = cpu.registers.get_a();
+            let new_value = old_value.wrapping_sub(cpu.registers.get_l())
+                .wrapping_sub(cpu.registers.get_carry_flag() as u8);
+            cpu.registers.set_a(new_value);
+            cpu.registers.set_zero_flag(new_value == 0);
+            cpu.registers.set_negative_flag(true);
+            cpu.registers.set_half_carry_flag((new_value & 0x0F) < (old_value & 0x0F));
+            cpu.registers.set_carry_flag(new_value > old_value);
+            opcode.cycles as u64
+        },
+    });
+    opcodes[0x9E] = Some(&Instruction {
+        opcode: 0x9E,
+        name: "SBC A, [HL]",
+        cycles: 2,
+        size: 1,
+        flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
+        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
+            let old_value = cpu.registers.get_a();
+            let new_value = old_value.wrapping_sub(cpu.ram.read(cpu.registers.get_hl()))
+                .wrapping_sub(cpu.registers.get_carry_flag() as u8);
+            cpu.registers.set_a(new_value);
+            cpu.registers.set_zero_flag(new_value == 0);
+            cpu.registers.set_negative_flag(true);
+            cpu.registers.set_half_carry_flag((new_value & 0x0F) < (old_value & 0x0F));
+            cpu.registers.set_carry_flag(new_value > old_value);
+            opcode.cycles as u64
+        },
+    });
+    opcodes[0x9F] = Some(&Instruction {
+        opcode: 0x9F,
+        name: "SBC A, A",
+        cycles: 2,
+        size: 1,
+        flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
+        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
+            let old_value = cpu.registers.get_a();
+            let new_value = old_value.wrapping_sub(cpu.registers.get_a())
+                .wrapping_sub(cpu.registers.get_carry_flag() as u8);
+            cpu.registers.set_a(new_value);
+            cpu.registers.set_zero_flag(new_value == 0);
+            cpu.registers.set_negative_flag(true);
+            cpu.registers.set_half_carry_flag((new_value & 0x0F) < (old_value & 0x0F));
+            cpu.registers.set_carry_flag(new_value > old_value);
+            opcode.cycles as u64
+        },
+    });
     opcodes[0xCB] = Some(&Instruction {
         opcode: 0xCB,
         name: "CB SUBSET",
@@ -6788,6 +7068,184 @@ mod test {
         // H/C Flag
         assert_eq!(cpu_1.registers.get_zero_flag(), false);
         assert_eq!(cpu_1.registers.get_negative_flag(), false);
+        assert_eq!(cpu_1.registers.get_half_carry_flag(), true);
+        assert_eq!(cpu_1.registers.get_carry_flag(), true);
+    }
+
+    #[test]
+    fn test_0x90_sub_a_b() {
+        let mut test_value_1: u8 = 0xC4;
+        let mut test_value_2: u8 = 0x11;
+        let mut expected_value: u8 = test_value_1.wrapping_sub(test_value_2);
+        let mut cpu_1 = CPU::new();
+        let program_1: Vec<u8> = vec![0x90];
+        cpu_1.load(&program_1);
+        cpu_1.registers.set_a(test_value_1);
+        cpu_1.registers.set_b(test_value_2);
+        let mut cycles = cpu_1.execute_next();
+        assert_eq!(cycles, 1);
+        assert_eq!(cpu_1.registers.get_a(), expected_value);
+        assert_eq!(cpu_1.registers.get_b(), test_value_2);
+        // No Flags
+        assert_eq!(cpu_1.registers.get_zero_flag(), false);
+        assert_eq!(cpu_1.registers.get_negative_flag(), true);
+        assert_eq!(cpu_1.registers.get_half_carry_flag(), false);
+        assert_eq!(cpu_1.registers.get_carry_flag(), false);
+
+        test_value_1 = 0xF0;
+        test_value_2 = 0xF0;
+        expected_value = 0x00;
+        cpu_1 = CPU::new();
+        cpu_1.load(&program_1);
+        cpu_1.registers.set_a(test_value_1);
+        cpu_1.registers.set_b(test_value_2);
+        cycles = cpu_1.execute_next();
+        assert_eq!(cycles, 1);
+        assert_eq!(cpu_1.registers.get_a(), expected_value);
+        assert_eq!(cpu_1.registers.get_b(), test_value_2);
+        // Z Flags
+        assert_eq!(cpu_1.registers.get_zero_flag(), true);
+        assert_eq!(cpu_1.registers.get_negative_flag(), true);
+        assert_eq!(cpu_1.registers.get_half_carry_flag(), false);
+        assert_eq!(cpu_1.registers.get_carry_flag(), false);
+
+        test_value_1 = 0x10;
+        test_value_2 = 0x01;
+        expected_value = 0x0F;
+        cpu_1 = CPU::new();
+        cpu_1.load(&program_1);
+        cpu_1.registers.set_a(test_value_1);
+        cpu_1.registers.set_b(test_value_2);
+        cycles = cpu_1.execute_next();
+        assert_eq!(cycles, 1);
+        assert_eq!(cpu_1.registers.get_a(), expected_value);
+        assert_eq!(cpu_1.registers.get_b(), test_value_2);
+        // H Flag
+        assert_eq!(cpu_1.registers.get_zero_flag(), false);
+        assert_eq!(cpu_1.registers.get_negative_flag(), true);
+        assert_eq!(cpu_1.registers.get_half_carry_flag(), true);
+        assert_eq!(cpu_1.registers.get_carry_flag(), false);
+
+        test_value_1 = 0x10;
+        test_value_2 = 0x20;
+        expected_value = test_value_1.wrapping_sub(test_value_2);
+        cpu_1 = CPU::new();
+        cpu_1.load(&program_1);
+        cpu_1.registers.set_a(test_value_1);
+        cpu_1.registers.set_b(test_value_2);
+        cycles = cpu_1.execute_next();
+        assert_eq!(cycles, 1);
+        assert_eq!(cpu_1.registers.get_a(), expected_value);
+        assert_eq!(cpu_1.registers.get_b(), test_value_2);
+        // C Flag
+        assert_eq!(cpu_1.registers.get_zero_flag(), false);
+        assert_eq!(cpu_1.registers.get_negative_flag(), true);
+        assert_eq!(cpu_1.registers.get_half_carry_flag(), false);
+        assert_eq!(cpu_1.registers.get_carry_flag(), true);
+
+        test_value_1 = 0x00;
+        test_value_2 = 0x01;
+        expected_value = 0xFF;
+        cpu_1 = CPU::new();
+        cpu_1.load(&program_1);
+        cpu_1.registers.set_a(test_value_1);
+        cpu_1.registers.set_b(test_value_2);
+        cycles = cpu_1.execute_next();
+        assert_eq!(cycles, 1);
+        assert_eq!(cpu_1.registers.get_a(), expected_value);
+        assert_eq!(cpu_1.registers.get_b(), test_value_2);
+        // H/C Flag
+        assert_eq!(cpu_1.registers.get_zero_flag(), false);
+        assert_eq!(cpu_1.registers.get_negative_flag(), true);
+        assert_eq!(cpu_1.registers.get_half_carry_flag(), true);
+        assert_eq!(cpu_1.registers.get_carry_flag(), true);
+    }
+
+    #[test]
+    fn test_0x91_sub_a_c() {
+        let mut test_value_1: u8 = 0xC4;
+        let mut test_value_2: u8 = 0x11;
+        let mut expected_value: u8 = test_value_1.wrapping_sub(test_value_2);
+        let mut cpu_1 = CPU::new();
+        let program_1: Vec<u8> = vec![0x91];
+        cpu_1.load(&program_1);
+        cpu_1.registers.set_a(test_value_1);
+        cpu_1.registers.set_c(test_value_2);
+        let mut cycles = cpu_1.execute_next();
+        assert_eq!(cycles, 1);
+        assert_eq!(cpu_1.registers.get_a(), expected_value);
+        assert_eq!(cpu_1.registers.get_c(), test_value_2);
+        // No Flags
+        assert_eq!(cpu_1.registers.get_zero_flag(), false);
+        assert_eq!(cpu_1.registers.get_negative_flag(), true);
+        assert_eq!(cpu_1.registers.get_half_carry_flag(), false);
+        assert_eq!(cpu_1.registers.get_carry_flag(), false);
+
+        test_value_1 = 0xF0;
+        test_value_2 = 0xF0;
+        expected_value = 0x00;
+        cpu_1 = CPU::new();
+        cpu_1.load(&program_1);
+        cpu_1.registers.set_a(test_value_1);
+        cpu_1.registers.set_c(test_value_2);
+        cycles = cpu_1.execute_next();
+        assert_eq!(cycles, 1);
+        assert_eq!(cpu_1.registers.get_a(), expected_value);
+        assert_eq!(cpu_1.registers.get_c(), test_value_2);
+        // Z Flags
+        assert_eq!(cpu_1.registers.get_zero_flag(), true);
+        assert_eq!(cpu_1.registers.get_negative_flag(), true);
+        assert_eq!(cpu_1.registers.get_half_carry_flag(), false);
+        assert_eq!(cpu_1.registers.get_carry_flag(), false);
+
+        test_value_1 = 0x10;
+        test_value_2 = 0x01;
+        expected_value = 0x0F;
+        cpu_1 = CPU::new();
+        cpu_1.load(&program_1);
+        cpu_1.registers.set_a(test_value_1);
+        cpu_1.registers.set_c(test_value_2);
+        cycles = cpu_1.execute_next();
+        assert_eq!(cycles, 1);
+        assert_eq!(cpu_1.registers.get_a(), expected_value);
+        assert_eq!(cpu_1.registers.get_c(), test_value_2);
+        // H Flag
+        assert_eq!(cpu_1.registers.get_zero_flag(), false);
+        assert_eq!(cpu_1.registers.get_negative_flag(), true);
+        assert_eq!(cpu_1.registers.get_half_carry_flag(), true);
+        assert_eq!(cpu_1.registers.get_carry_flag(), false);
+
+        test_value_1 = 0x10;
+        test_value_2 = 0x20;
+        expected_value = test_value_1.wrapping_sub(test_value_2);
+        cpu_1 = CPU::new();
+        cpu_1.load(&program_1);
+        cpu_1.registers.set_a(test_value_1);
+        cpu_1.registers.set_c(test_value_2);
+        cycles = cpu_1.execute_next();
+        assert_eq!(cycles, 1);
+        assert_eq!(cpu_1.registers.get_a(), expected_value);
+        assert_eq!(cpu_1.registers.get_c(), test_value_2);
+        // C Flag
+        assert_eq!(cpu_1.registers.get_zero_flag(), false);
+        assert_eq!(cpu_1.registers.get_negative_flag(), true);
+        assert_eq!(cpu_1.registers.get_half_carry_flag(), false);
+        assert_eq!(cpu_1.registers.get_carry_flag(), true);
+
+        test_value_1 = 0x00;
+        test_value_2 = 0x01;
+        expected_value = 0xFF;
+        cpu_1 = CPU::new();
+        cpu_1.load(&program_1);
+        cpu_1.registers.set_a(test_value_1);
+        cpu_1.registers.set_c(test_value_2);
+        cycles = cpu_1.execute_next();
+        assert_eq!(cycles, 1);
+        assert_eq!(cpu_1.registers.get_a(), expected_value);
+        assert_eq!(cpu_1.registers.get_c(), test_value_2);
+        // H/C Flag
+        assert_eq!(cpu_1.registers.get_zero_flag(), false);
+        assert_eq!(cpu_1.registers.get_negative_flag(), true);
         assert_eq!(cpu_1.registers.get_half_carry_flag(), true);
         assert_eq!(cpu_1.registers.get_carry_flag(), true);
     }
