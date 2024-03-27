@@ -6,6 +6,7 @@ use crate::GB::RAM::USER_PROGRAM_ADDRESS;
 #[cfg(test)]
 mod test {
     use crate::GB::CPU::CPU;
+    use crate::GB::RAM::{RAM, WRAM_ADDRESS, WRAM_SIZE};
 
     #[test]
     fn cpu_new_8bit_registers() {
@@ -27,7 +28,7 @@ mod test {
         assert_eq!(cpu.registers.get_bc(), 0);
         assert_eq!(cpu.registers.get_de(), 0);
         assert_eq!(cpu.registers.get_hl(), 0);
-        assert_eq!(cpu.registers.get_sp(), 0);
+        assert_eq!(cpu.registers.get_sp(), (WRAM_ADDRESS + WRAM_SIZE - 1) as u16);
         assert_eq!(cpu.registers.get_pc(), 0);
     }
 
@@ -47,8 +48,22 @@ mod test {
         assert_eq!(cpu.registers.get_bc(), 0);
         assert_eq!(cpu.registers.get_de(), 0);
         assert_eq!(cpu.registers.get_hl(), 0);
-        assert_eq!(cpu.registers.get_sp(), 0);
+        assert_eq!(cpu.registers.get_sp(), (WRAM_ADDRESS + WRAM_SIZE - 1) as u16);
         assert_eq!(cpu.registers.get_pc(), 0);
+    }
+
+    #[test]
+    fn cpu_push_n_pop() {
+        let mut cpu = CPU::new();
+        let start_sp = cpu.registers.get_sp();
+        let test_value: u8 = 0x81;
+        cpu.push(test_value);
+        assert_eq!(cpu.registers.get_sp(), start_sp - 1);
+        assert_eq!(cpu.ram.read(start_sp), test_value);
+
+        let popped_val = cpu.pop();
+        assert_eq!(cpu.registers.get_sp(), start_sp);
+        assert_eq!(popped_val, test_value);
     }
 }
 
@@ -105,5 +120,15 @@ impl CPU {
             addr += 1;
         }
         self.registers.set_pc(USER_PROGRAM_ADDRESS as u16);
+    }
+
+    pub fn push(&mut self, byte: u8) {
+        self.ram.write(self.registers.get_sp(), byte);
+        self.registers.set_sp(self.registers.get_sp() - 1);
+    }
+
+    pub fn pop(&mut self) -> u8 {
+        self.registers.set_sp(self.registers.get_sp() + 1);
+        self.ram.read(self.registers.get_sp())
     }
 }
