@@ -122,11 +122,17 @@ impl CPU {
         self.registers.set_pc(USER_PROGRAM_ADDRESS as u16);
     }
 
+    /*
+        CPU Push 1-byte using SP register (to not confuse with instruction PUSH r16, that PUSH in a 2-bytes value from a double-register)
+     */
     pub fn push(&mut self, byte: u8) {
         self.ram.write(self.registers.get_sp(), byte);
         self.registers.set_sp(self.registers.get_sp() - 1);
     }
 
+    /*
+        CPU Pop 1-byte using SP register (to not confuse with instruction POP r16, that pop out a 2-bytes value to put in a double-register)
+     */
     pub fn pop(&mut self) -> u8 {
         self.registers.set_sp(self.registers.get_sp() + 1);
         self.ram.read(self.registers.get_sp())

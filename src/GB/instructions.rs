@@ -2759,6 +2759,40 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
             opcode.cycles as u64
         },
     });
+    opcodes[0xC0] = Some(&Instruction {
+        opcode: 0xC0,
+        name: "RET NZ",
+        cycles: 5,
+        size: 1,
+        flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
+        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
+            if !cpu.registers.get_zero_flag() {
+                let mut return_address: u16 = 0x00;
+                return_address |= cpu.pop() as u16;
+                return_address |= (cpu.pop() as u16) << 8;
+                cpu.registers.set_pc(return_address);
+                return opcode.cycles as u64
+            }
+            2
+        },
+    });
+    opcodes[0xD0] = Some(&Instruction {
+        opcode: 0xD0,
+        name: "RET CZ",
+        cycles: 5,
+        size: 1,
+        flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
+        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
+            if !cpu.registers.get_carry_flag() {
+                let mut return_address: u16 = 0x00;
+                return_address |= cpu.pop() as u16;
+                return_address |= (cpu.pop() as u16) << 8;
+                cpu.registers.set_pc(return_address);
+                return opcode.cycles as u64
+            }
+            2
+        },
+    });
     opcodes[0xCB] = Some(&Instruction {
         opcode: 0xCB,
         name: "CB SUBSET",
@@ -2811,7 +2845,7 @@ pub const OPCODES_CB: [Option<&'static Instruction>; 256] = create_cb_opcodes();
 mod test {
     use crate::GB::CPU::CPU;
     use crate::GB::RAM;
-    use crate::GB::RAM::WRAM_ADDRESS;
+    use crate::GB::RAM::{USER_PROGRAM_ADDRESS, WRAM_ADDRESS};
 
     macro_rules! test_flags {
         ($cpu:ident, $zero:expr, $negative:expr, $half:expr, $carry:expr) => {
@@ -3389,6 +3423,53 @@ mod test {
                 assert_eq!(cpu_1.registers.get_a(), test_value_1);
                 // Z Flag
                 test_flags!(cpu_1, true, true, false, false);
+            }
+        };
+    }
+
+    macro_rules! test_ret {
+        ($opcode:expr, $func:ident) => {
+            #[test]
+            fn $func() {
+                let test_return_address: u16 = USER_PROGRAM_ADDRESS as u16 + 0x210;
+                let mut cpu_1 = CPU::new();
+                let program_1: Vec<u8> = vec![$opcode];
+                cpu_1.load(&program_1);
+                let registers_copy = cpu_1.registers;
+                cpu_1.push((test_return_address >> 8) as u8);
+                cpu_1.push((test_return_address & 0xFF) as u8);
+                let mut cycles = cpu_1.execute_next();
+                assert_eq!(cycles, 4);
+                assert_eq!(cpu_1.registers.get_sp(), registers_copy.get_sp());
+                assert_eq!(cpu_1.registers.get_pc(), test_return_address);
+            }
+        };
+        ($opcode:expr, $func:ident, $inverse:expr, $set_flag:ident, $get_flag:ident) => {
+            #[test]
+            fn $func() {
+                let test_return_address: u16 = USER_PROGRAM_ADDRESS as u16 + 0x210;
+                let mut cpu = CPU::new();
+                let program_1: Vec<u8> = vec![$opcode];
+                cpu.load(&program_1);
+                let registers_copy = cpu.registers;
+                cpu.push((test_return_address >> 8) as u8);
+                cpu.push((test_return_address & 0xFF) as u8);
+                if $inverse {cpu.registers.$set_flag(true)} else {cpu.registers.$set_flag(false)};
+                let mut cycles = cpu.execute_next();
+                assert_eq!(cycles, 2);
+                assert_eq!(cpu.registers.get_sp(), registers_copy.get_sp() - 2);
+                assert_eq!(cpu.registers.get_pc(), registers_copy.get_pc() + 1);
+
+                cpu = CPU::new();
+                cpu.load(&program_1);
+                let registers_copy = cpu.registers;
+                cpu.push((test_return_address >> 8) as u8);
+                cpu.push((test_return_address & 0xFF) as u8);
+                if $inverse {cpu.registers.$set_flag(false)} else {cpu.registers.$set_flag(true)};
+                let mut cycles = cpu.execute_next();
+                assert_eq!(cycles, 5);
+                assert_eq!(cpu.registers.get_sp(), registers_copy.get_sp());
+                assert_eq!(cpu.registers.get_pc(), test_return_address);
             }
         };
     }
@@ -10046,4 +10127,12 @@ mod test {
     test_cp_a_r8!(0xBD, test_0xbd_cp_a_l, set_l, get_l);
     test_cp_a_r8!(0xBE, test_0xbe_cp_a__hl_, hl);
     test_cp_a_r8!(0xBF, test_0xbf_cp_a_a, a);
+
+    // RET NZ
+    test_ret!(0xC0, test_0xc0_ret_nz, true, set_zero_flag, get_zero_flag);
+
+
+
+    // RET NC
+    test_ret!(0xD0, test_0xd0_ret_nc, true, set_carry_flag, get_carry_flag);
 }
