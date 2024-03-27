@@ -1,6 +1,7 @@
 use std::fmt;
 use crate::GB;
 use crate::GB::debug_print;
+use crate::GB::RAM::{WRAM_ADDRESS, WRAM_SIZE};
 
 macro_rules! get_set {
     ($reg:ident, $get_name:ident, $set_name:ident, $size:ty) => {
@@ -144,7 +145,7 @@ impl Registers {
             f: 0,
             h: 0,
             l: 0,
-            sp: 0,
+            sp: (WRAM_ADDRESS + WRAM_SIZE - 1) as u16,
             pc: 0,
         }
     }
