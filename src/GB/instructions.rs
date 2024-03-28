@@ -2821,6 +2821,38 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
             opcode.cycles as u64
         },
     });
+    opcodes[0xC4] = Some(&Instruction {
+        opcode: 0xC4,
+        name: "CALL NZ, imm16",
+        cycles: 6,
+        size: 3,
+        flags: &[],
+        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
+            let mut call_address: u16 = 0x00;
+            call_address |= cpu.fetch_next() as u16;
+            call_address |= (cpu.fetch_next() as u16) << 8;
+            if !cpu.registers.get_zero_flag() {
+                let return_address = cpu.registers.get_pc();
+                cpu.push((return_address >> 8) as u8);
+                cpu.push((return_address & 0xFF) as u8);
+                cpu.registers.set_pc(call_address);
+                return opcode.cycles as u64
+            }
+            3
+        },
+    });
+    opcodes[0xC5] = Some(&Instruction {
+        opcode: 0xC5,
+        name: "PUSH BC",
+        cycles: 3,
+        size: 1,
+        flags: &[],
+        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
+            cpu.push(cpu.registers.get_b());
+            cpu.push(cpu.registers.get_c());
+            opcode.cycles as u64
+        },
+    });
     opcodes[0xD0] = Some(&Instruction {
         opcode: 0xD0,
         name: "RET CZ",
@@ -3503,6 +3535,61 @@ mod test {
         };
     }
 
+    macro_rules! test_call {
+        ($opcode:expr, $func:ident) => {
+            #[test]
+            fn $func() {
+                let test_call_address: u16 = USER_PROGRAM_ADDRESS as u16 + 0x210;
+                let test_call_low: u8 = (test_call_address & 0xFF) as u8;
+                let test_call_high: u8 = (test_call_address >> 8) as u8;
+                let mut cpu_1 = CPU::new();
+                let program_1: Vec<u8> = vec![$opcode, test_call_low, test_call_high];
+                cpu_1.load(&program_1);
+                let registers_copy = cpu_1.registers;
+                let return_address = cpu_1.registers.get_pc() + 3;
+                let return_address_low = (return_address & 0xFF) as u8;
+                let return_address_high = (return_address >> 8) as u8;
+                let mut cycles = cpu_1.execute_next();
+                assert_eq!(cycles, 6);
+                assert_eq!(cpu_1.registers.get_sp(), registers_copy.get_sp() - 2);
+                assert_eq!(cpu_1.registers.get_pc(), test_call_address);
+                assert_eq!(cpu_1.ram.read(cpu_1.registers.get_sp() + 1), return_address_low);
+                assert_eq!(cpu_1.ram.read(cpu_1.registers.get_sp() + 2), return_address_high);
+            }
+        };
+        ($opcode:expr, $func:ident, $inverse:expr, $set_flag:ident, $get_flag:ident) => {
+            #[test]
+            fn $func() {
+                let test_call_address: u16 = USER_PROGRAM_ADDRESS as u16 + 0x210;
+                let test_call_low: u8 = (test_call_address & 0xFF) as u8;
+                let test_call_high: u8 = (test_call_address >> 8) as u8;
+                let mut cpu = CPU::new();
+                let program_1: Vec<u8> = vec![$opcode, test_call_low, test_call_high];
+                cpu.load(&program_1);
+                let registers_copy = cpu.registers;
+                if $inverse {cpu.registers.$set_flag(true)} else {cpu.registers.$set_flag(false)};
+                let mut cycles = cpu.execute_next();
+                assert_eq!(cycles, 3);
+                assert_eq!(cpu.registers.get_sp(), registers_copy.get_sp());
+                assert_eq!(cpu.registers.get_pc(), registers_copy.get_pc() + 3);
+
+                cpu = CPU::new();
+                cpu.load(&program_1);
+                let registers_copy = cpu.registers;
+                let return_address = cpu.registers.get_pc() + 3;
+                let return_address_low = (return_address & 0xFF) as u8;
+                let return_address_high = (return_address >> 8) as u8;
+                if $inverse {cpu.registers.$set_flag(false)} else {cpu.registers.$set_flag(true)};
+                let mut cycles = cpu.execute_next();
+                assert_eq!(cycles, 6);
+                assert_eq!(cpu.registers.get_sp(), registers_copy.get_sp() - 2);
+                assert_eq!(cpu.registers.get_pc(), test_call_address);
+                assert_eq!(cpu.ram.read(cpu.registers.get_sp() + 1), return_address_low);
+                assert_eq!(cpu.ram.read(cpu.registers.get_sp() + 2), return_address_high);
+            }
+        };
+    }
+
     macro_rules! test_ret {
         ($opcode:expr, $func:ident) => {
             #[test]
@@ -3610,6 +3697,28 @@ mod test {
                 assert_eq!(cycles, 3);
                 assert_eq!(cpu.registers.$get_reg(), test_value);
                 assert_eq!(cpu.registers.get_sp(), registers_copy.get_sp());
+            }
+        };
+    }
+
+    macro_rules! test_push {
+        ($opcode:expr, $func:ident, $set_reg:ident, $get_reg:ident) => {
+            #[test]
+            fn $func() {
+                let test_value: u16 = 0x521B;
+                let test_high_byte: u8 = (test_value >> 8) as u8;
+                let test_low_byte: u8 = (test_value & 0xFF) as u8;
+                let mut cpu = CPU::new();
+                let program_1: Vec<u8> = vec![$opcode];
+                cpu.load(&program_1);
+                cpu.registers.$set_reg(test_value);
+                let registers_copy = cpu.registers;
+                let mut cycles = cpu.execute_next();
+                assert_eq!(cycles, 3);
+                assert_eq!(cpu.registers.$get_reg(), test_value);
+                assert_eq!(cpu.registers.get_sp(), registers_copy.get_sp() - 2);
+                assert_eq!(cpu.ram.read(cpu.registers.get_sp() + 1), test_low_byte);
+                assert_eq!(cpu.ram.read(cpu.registers.get_sp() + 2), test_high_byte);
             }
         };
     }
@@ -10271,13 +10380,15 @@ mod test {
     // 0xC* Row
     test_ret!(0xC0, test_0xc0_ret_nz, true, set_zero_flag, get_zero_flag);
     test_pop!(0xC1, test_0xc1_pop_bc, set_bc, get_bc);
-    test_jump!(0xC2, test_0xc2_jp_nz_imm8, true, set_zero_flag, get_zero_flag);
+    test_jump!(0xC2, test_0xc2_jp_nz_imm16, true, set_zero_flag, get_zero_flag);
     test_jump!(0xC3, test_0xc3_jp_imm8);
+    test_call!(0xC4, test_0xc4_call_nz_imm16, true, set_zero_flag, get_zero_flag);
+    test_push!(0xC5, test_0xc5_push_bc, set_bc, get_bc);
 
 
 
     // 0xD* Row
     test_ret!(0xD0, test_0xd0_ret_nc, true, set_carry_flag, get_carry_flag);
     test_pop!(0xD1, test_0xd1_pop_de, set_de, get_de);
-    test_jump!(0xD2, test_0xd2_jp_nc_imm8, true, set_carry_flag, get_carry_flag);
+    test_jump!(0xD2, test_0xd2_jp_nc_imm16, true, set_carry_flag, get_carry_flag);
 }
