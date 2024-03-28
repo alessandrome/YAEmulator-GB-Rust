@@ -2901,6 +2901,38 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
             3
         },
     });
+    opcodes[0xD4] = Some(&Instruction {
+        opcode: 0xD4,
+        name: "CALL NC, imm16",
+        cycles: 6,
+        size: 3,
+        flags: &[],
+        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
+            let mut call_address: u16 = 0x00;
+            call_address |= cpu.fetch_next() as u16;
+            call_address |= (cpu.fetch_next() as u16) << 8;
+            if !cpu.registers.get_carry_flag() {
+                let return_address = cpu.registers.get_pc();
+                cpu.push((return_address >> 8) as u8);
+                cpu.push((return_address & 0xFF) as u8);
+                cpu.registers.set_pc(call_address);
+                return opcode.cycles as u64
+            }
+            3
+        },
+    });
+    opcodes[0xD5] = Some(&Instruction {
+        opcode: 0xD5,
+        name: "PUSH DE",
+        cycles: 3,
+        size: 1,
+        flags: &[],
+        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
+            cpu.push(cpu.registers.get_d());
+            cpu.push(cpu.registers.get_e());
+            opcode.cycles as u64
+        },
+    });
     opcodes[0xCB] = Some(&Instruction {
         opcode: 0xCB,
         name: "CB SUBSET",
@@ -10391,4 +10423,6 @@ mod test {
     test_ret!(0xD0, test_0xd0_ret_nc, true, set_carry_flag, get_carry_flag);
     test_pop!(0xD1, test_0xd1_pop_de, set_de, get_de);
     test_jump!(0xD2, test_0xd2_jp_nc_imm16, true, set_carry_flag, get_carry_flag);
+    test_call!(0xD4, test_0xd4_call_nc_imm16, true, set_carry_flag, get_carry_flag);
+    test_push!(0xD5, test_0xd5_push_de, set_de, get_de);
 }
