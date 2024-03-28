@@ -2794,7 +2794,7 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         opcode: 0xC2,
         name: "JP NZ, imm16",
         cycles: 4,
-        size: 1,
+        size: 3,
         flags: &[],
         execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
             let mut return_address: u16 = 0x00;
@@ -2805,6 +2805,20 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
                 return opcode.cycles as u64
             }
             3
+        },
+    });
+    opcodes[0xC3] = Some(&Instruction {
+        opcode: 0xC3,
+        name: "JP imm16",
+        cycles: 4,
+        size: 3,
+        flags: &[],
+        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
+            let mut return_address: u16 = 0x00;
+            return_address |= cpu.fetch_next() as u16;
+            return_address |= (cpu.fetch_next() as u16) << 8;
+            cpu.registers.set_pc(return_address);
+            opcode.cycles as u64
         },
     });
     opcodes[0xD0] = Some(&Instruction {
@@ -2836,6 +2850,23 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
             byte = cpu.pop();
             cpu.registers.set_d(byte);
             opcode.cycles as u64
+        },
+    });
+    opcodes[0xD2] = Some(&Instruction {
+        opcode: 0xD2,
+        name: "JP NC, imm16",
+        cycles: 4,
+        size: 3,
+        flags: &[],
+        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
+            let mut return_address: u16 = 0x00;
+            return_address |= cpu.fetch_next() as u16;
+            return_address |= (cpu.fetch_next() as u16) << 8;
+            if !cpu.registers.get_carry_flag() {
+                cpu.registers.set_pc(return_address);
+                return opcode.cycles as u64
+            }
+            3
         },
     });
     opcodes[0xCB] = Some(&Instruction {
@@ -3532,7 +3563,7 @@ mod test {
                 let registers_copy = cpu_1.registers;
                 let mut cycles = cpu_1.execute_next();
                 assert_eq!(cycles, 4);
-                assert_eq!(cpu_1.registers.get_pc(), test_return_address);
+                assert_eq!(cpu_1.registers.get_pc(), test_jump_address);
             }
         };
         ($opcode:expr, $func:ident, $inverse:expr, $set_flag:ident, $get_flag:ident) => {
@@ -10241,11 +10272,12 @@ mod test {
     test_ret!(0xC0, test_0xc0_ret_nz, true, set_zero_flag, get_zero_flag);
     test_pop!(0xC1, test_0xc1_pop_bc, set_bc, get_bc);
     test_jump!(0xC2, test_0xc2_jp_nz_imm8, true, set_zero_flag, get_zero_flag);
+    test_jump!(0xC3, test_0xc3_jp_imm8);
 
 
 
     // 0xD* Row
     test_ret!(0xD0, test_0xd0_ret_nc, true, set_carry_flag, get_carry_flag);
-    test_pop!(0xD1, test_0xc1_pop_de, set_de, get_de);
+    test_pop!(0xD1, test_0xd1_pop_de, set_de, get_de);
     test_jump!(0xD2, test_0xd2_jp_nc_imm8, true, set_carry_flag, get_carry_flag);
 }
