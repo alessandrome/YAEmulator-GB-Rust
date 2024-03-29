@@ -3429,6 +3429,74 @@ mod test {
         };
     }
 
+    macro_rules! test_adc_r8_r8 {
+        ($opcode:expr, $func:ident, $set_reg_to:ident, $get_reg_to:ident, $set_reg_from:ident, $get_reg_from:ident, $carry:expr) => {
+            #[test]
+            fn $func() {
+                let mut test_value_1: u8 = 0xC4;
+                let mut test_value_2: u8 = 0x16;
+                let mut expected_value: u8 = test_value_1.wrapping_add(test_value_2).wrapping_add($carry as u8);
+                let mut cpu_1 = CPU::new();
+                let program_1: Vec<u8> = vec![$opcode];
+                cpu_1.load(&program_1);
+                cpu_1.registers.$set_reg_to(test_value_1);
+                cpu_1.registers.$set_reg_from(test_value_2);
+                cpu_1.registers.set_carry_flag($carry);
+                let mut cycles = cpu_1.execute_next();
+                assert_eq!(cycles, 1);
+                assert_eq!(cpu_1.registers.$get_reg_to(), expected_value);
+                assert_eq!(cpu_1.registers.$get_reg_from(), test_value_2);
+                // No Flags
+                test_flags!(cpu_1, false, false, false, false);
+
+                test_value_1 = 0xF0;
+                test_value_2 = 0x10 - $carry as u8;
+                expected_value = 0x00;
+                cpu_1 = CPU::new();
+                cpu_1.load(&program_1);
+                cpu_1.registers.$set_reg_to(test_value_1);
+                cpu_1.registers.$set_reg_from(test_value_2);
+                cpu_1.registers.set_carry_flag($carry);
+                cycles = cpu_1.execute_next();
+                assert_eq!(cycles, 1);
+                assert_eq!(cpu_1.registers.$get_reg_to(), expected_value);
+                assert_eq!(cpu_1.registers.$get_reg_from(), test_value_2);
+                // Z/C Flags
+                test_flags!(cpu_1, true, false, false, true);
+
+                test_value_1 = 0x0F;
+                test_value_2 = 0x01;
+                expected_value = 0x10 + $carry as u8;
+                cpu_1 = CPU::new();
+                cpu_1.load(&program_1);
+                cpu_1.registers.$set_reg_to(test_value_1);
+                cpu_1.registers.$set_reg_from(test_value_2);
+                cpu_1.registers.set_carry_flag($carry);
+                cycles = cpu_1.execute_next();
+                assert_eq!(cycles, 1);
+                assert_eq!(cpu_1.registers.$get_reg_to(), expected_value);
+                assert_eq!(cpu_1.registers.$get_reg_from(), test_value_2);
+                // H Flag
+                test_flags!(cpu_1, false, false, true, false);
+
+                test_value_1 = 0xFF - $carry as u8;
+                test_value_2 = 0x01;
+                expected_value = 0x00;
+                cpu_1 = CPU::new();
+                cpu_1.load(&program_1);
+                cpu_1.registers.$set_reg_to(test_value_1);
+                cpu_1.registers.$set_reg_from(test_value_2);
+                cpu_1.registers.set_carry_flag($carry);
+                cycles = cpu_1.execute_next();
+                assert_eq!(cycles, 1);
+                assert_eq!(cpu_1.registers.$get_reg_to(), expected_value);
+                assert_eq!(cpu_1.registers.$get_reg_from(), test_value_2);
+                // Z/H/C Flag
+                test_flags!(cpu_1, true, false, true, true);
+            }
+        };
+    }
+
     macro_rules! test_and_a_r8 {
         ($opcode:expr, $func:ident, $set_reg:ident, $get_reg:ident) => {
             #[test]
@@ -4350,11 +4418,8 @@ mod test {
     }
 
     test_dec_r16!(0x0B, test_0x0b_dec_bc, set_bc, get_bc, get_b, get_c);
-
     test_inc_r8!(0x0C, test_0x0c_inc_c, set_c, get_c);
-
     test_dec_r8!(0x0D, test_0x0d_dec_c, set_c, get_c);
-
     test_ld_r8_imm8!(0x0E, test_0x0e_ld_c_imm8, set_c, get_c);
 
     #[test]
@@ -4385,18 +4450,11 @@ mod test {
         // TODO: Study and implement STOP function
     }
 
-
-
     test_ld_r16_imm16!(0x11, test_0x11_ld_de_imm16, set_de, get_de, get_d, get_e);
-
     test_ld_ar16_r8!(0x12, test_0x12_ld__de__a, set_de, get_de, set_a, get_a);
-
     test_inc_r16!(0x13, test_0x13_inc_de, set_de, get_de, get_d, get_e);
-
     test_inc_r8!(0x14, test_0x14_inc_d, set_d, get_d);
-
     test_dec_r8!(0x15, test_0x15_dec_d, set_d, get_d);
-
     test_ld_r8_imm8!(0x16, test_0x16_ld_d_imm8, set_d, get_d);
 
     #[test]
@@ -4528,11 +4586,8 @@ mod test {
     }
 
     test_dec_r16!(0x1B, test_0x1b_dec_de, set_de, get_de, get_d, get_e);
-
     test_inc_r8!(0x1C, test_0x1c_inc_e, set_e, get_e);
-
     test_dec_r8!(0x1D, test_0x1d_dec_e, set_e, get_e);
-
     test_ld_r8_imm8!(0x1E, test_0x1e_ld_e_imm8, set_e, get_e);
 
     #[test]
@@ -4606,11 +4661,8 @@ mod test {
     }
 
     test_inc_r16!(0x23, test_0x23_inc_hl, set_hl, get_hl, get_h, get_l);
-
     test_inc_r8!(0x24, test_0x24_inc_h, set_h, get_h);
-
     test_dec_r8!(0x25, test_0x25_dec_h, set_h, get_h);
-
     test_ld_r8_imm8!(0x26, test_0x26_ld_h_imm8, set_h, get_h);
 
     #[test]
@@ -4722,11 +4774,8 @@ mod test {
     }
 
     test_dec_r16!(0x2B, test_0x2b_dec_hl, set_hl, get_hl, get_h, get_l);
-
     test_inc_r8!(0x2C, test_0x2c_inc_l, set_l, get_l);
-
     test_dec_r8!(0x2D, test_0x2d_dec_l, set_l, get_l);
-
     test_ld_r8_imm8!(0x2E, test_0x2e_ld_l_imm8, set_l, get_l);
 
     #[test]
@@ -5047,11 +5096,8 @@ mod test {
     }
 
     test_dec_r16!(0x3B, test_0x3b_dec_sp, set_sp, get_sp);
-
     test_inc_r8!(0x3C, test_0x3c_inc_a, set_a, get_a);
-
     test_dec_r8!(0x3D, test_0x3d_dec_a, set_a, get_a);
-
     test_ld_r8_imm8!(0x3E, test_0x3e_ld_a_imm8, set_a, get_a);
 
     #[test]
@@ -5394,917 +5440,18 @@ mod test {
     }
 
     // ADC A, R8 | ADC A, [HL]
-    #[test]
-    fn test_0x88_adc_a_b__c_off() {
-        let mut test_value_1: u8 = 0xC4;
-        let mut test_value_2: u8 = 0x16;
-        let mut expected_value: u8 = test_value_1.wrapping_add(test_value_2);
-        let mut cpu_1 = CPU::new();
-        let program_1: Vec<u8> = vec![0x88];
-        cpu_1.load(&program_1);
-        cpu_1.registers.set_a(test_value_1);
-        cpu_1.registers.set_b(test_value_2);
-        cpu_1.registers.set_carry_flag(false);
-        let mut cycles = cpu_1.execute_next();
-        assert_eq!(cycles, 1);
-        assert_eq!(cpu_1.registers.get_a(), expected_value);
-        assert_eq!(cpu_1.registers.get_b(), test_value_2);
-        // No Flags
-        assert_eq!(cpu_1.registers.get_zero_flag(), false);
-        assert_eq!(cpu_1.registers.get_negative_flag(), false);
-        assert_eq!(cpu_1.registers.get_half_carry_flag(), false);
-        assert_eq!(cpu_1.registers.get_carry_flag(), false);
-
-        test_value_1 = 0xF0;
-        test_value_2 = 0x10;
-        expected_value = 0x00;
-        cpu_1 = CPU::new();
-        cpu_1.load(&program_1);
-        cpu_1.registers.set_a(test_value_1);
-        cpu_1.registers.set_b(test_value_2);
-        cpu_1.registers.set_carry_flag(false);
-        cycles = cpu_1.execute_next();
-        assert_eq!(cycles, 1);
-        assert_eq!(cpu_1.registers.get_a(), expected_value);
-        assert_eq!(cpu_1.registers.get_b(), test_value_2);
-        // Z/C Flags
-        assert_eq!(cpu_1.registers.get_zero_flag(), true);
-        assert_eq!(cpu_1.registers.get_negative_flag(), false);
-        assert_eq!(cpu_1.registers.get_half_carry_flag(), false);
-        assert_eq!(cpu_1.registers.get_carry_flag(), true);
-
-        test_value_1 = 0x0F;
-        test_value_2 = 0x01;
-        expected_value = 0x10;
-        cpu_1 = CPU::new();
-        cpu_1.load(&program_1);
-        cpu_1.registers.set_a(test_value_1);
-        cpu_1.registers.set_b(test_value_2);
-        cpu_1.registers.set_carry_flag(false);
-        cycles = cpu_1.execute_next();
-        assert_eq!(cycles, 1);
-        assert_eq!(cpu_1.registers.get_a(), expected_value);
-        assert_eq!(cpu_1.registers.get_b(), test_value_2);
-        // H Flag
-        assert_eq!(cpu_1.registers.get_zero_flag(), false);
-        assert_eq!(cpu_1.registers.get_negative_flag(), false);
-        assert_eq!(cpu_1.registers.get_half_carry_flag(), true);
-        assert_eq!(cpu_1.registers.get_carry_flag(), false);
-
-        test_value_1 = 0xFF;
-        test_value_2 = 0x01;
-        expected_value = 0x00;
-        cpu_1 = CPU::new();
-        cpu_1.load(&program_1);
-        cpu_1.registers.set_a(test_value_1);
-        cpu_1.registers.set_b(test_value_2);
-        cpu_1.registers.set_carry_flag(false);
-        cycles = cpu_1.execute_next();
-        assert_eq!(cycles, 1);
-        assert_eq!(cpu_1.registers.get_a(), expected_value);
-        assert_eq!(cpu_1.registers.get_b(), test_value_2);
-        // Z/H/C Flag
-        assert_eq!(cpu_1.registers.get_zero_flag(), true);
-        assert_eq!(cpu_1.registers.get_negative_flag(), false);
-        assert_eq!(cpu_1.registers.get_half_carry_flag(), true);
-        assert_eq!(cpu_1.registers.get_carry_flag(), true);
-    }
-
-    #[test]
-    fn test_0x88_adc_a_b__c_on() {
-        let mut test_value_1: u8 = 0xC4;
-        let mut test_value_2: u8 = 0x16;
-        let mut expected_value: u8 = test_value_1.wrapping_add(test_value_2 + 1);
-        let mut cpu_1 = CPU::new();
-        let program_1: Vec<u8> = vec![0x88];
-        cpu_1.load(&program_1);
-        cpu_1.registers.set_a(test_value_1);
-        cpu_1.registers.set_b(test_value_2);
-        cpu_1.registers.set_carry_flag(true);
-        let mut cycles = cpu_1.execute_next();
-        assert_eq!(cycles, 1);
-        assert_eq!(cpu_1.registers.get_a(), expected_value);
-        assert_eq!(cpu_1.registers.get_b(), test_value_2);
-        // No Flags
-        assert_eq!(cpu_1.registers.get_zero_flag(), false);
-        assert_eq!(cpu_1.registers.get_negative_flag(), false);
-        assert_eq!(cpu_1.registers.get_half_carry_flag(), false);
-        assert_eq!(cpu_1.registers.get_carry_flag(), false);
-
-        test_value_1 = 0xF0;
-        test_value_2 = 0x0F;
-        expected_value = 0x00;
-        cpu_1 = CPU::new();
-        cpu_1.load(&program_1);
-        cpu_1.registers.set_a(test_value_1);
-        cpu_1.registers.set_b(test_value_2);
-        cpu_1.registers.set_carry_flag(true);
-        cycles = cpu_1.execute_next();
-        assert_eq!(cycles, 1);
-        assert_eq!(cpu_1.registers.get_a(), expected_value);
-        assert_eq!(cpu_1.registers.get_b(), test_value_2);
-        // Z/C Flags
-        assert_eq!(cpu_1.registers.get_zero_flag(), true);
-        assert_eq!(cpu_1.registers.get_negative_flag(), false);
-        assert_eq!(cpu_1.registers.get_half_carry_flag(), false);
-        assert_eq!(cpu_1.registers.get_carry_flag(), true);
-
-        test_value_1 = 0x0D;
-        test_value_2 = 0x02;
-        expected_value = 0x10;
-        cpu_1 = CPU::new();
-        cpu_1.load(&program_1);
-        cpu_1.registers.set_a(test_value_1);
-        cpu_1.registers.set_b(test_value_2);
-        cpu_1.registers.set_carry_flag(true);
-        cycles = cpu_1.execute_next();
-        assert_eq!(cycles, 1);
-        assert_eq!(cpu_1.registers.get_a(), expected_value);
-        assert_eq!(cpu_1.registers.get_b(), test_value_2);
-        // H Flag
-        assert_eq!(cpu_1.registers.get_zero_flag(), false);
-        assert_eq!(cpu_1.registers.get_negative_flag(), false);
-        assert_eq!(cpu_1.registers.get_half_carry_flag(), true);
-        assert_eq!(cpu_1.registers.get_carry_flag(), false);
-
-        test_value_1 = 0xFE;
-        test_value_2 = 0x01;
-        expected_value = 0x00;
-        cpu_1 = CPU::new();
-        cpu_1.load(&program_1);
-        cpu_1.registers.set_a(test_value_1);
-        cpu_1.registers.set_b(test_value_2);
-        cpu_1.registers.set_carry_flag(true);
-        cycles = cpu_1.execute_next();
-        assert_eq!(cycles, 1);
-        assert_eq!(cpu_1.registers.get_a(), expected_value);
-        assert_eq!(cpu_1.registers.get_b(), test_value_2);
-        // Z/H/C Flag
-        assert_eq!(cpu_1.registers.get_zero_flag(), true);
-        assert_eq!(cpu_1.registers.get_negative_flag(), false);
-        assert_eq!(cpu_1.registers.get_half_carry_flag(), true);
-        assert_eq!(cpu_1.registers.get_carry_flag(), true);
-    }
-
-    #[test]
-    fn test_0x89_adc_a_c__c_off() {
-        let mut test_value_1: u8 = 0xC4;
-        let mut test_value_2: u8 = 0x16;
-        let mut expected_value: u8 = test_value_1.wrapping_add(test_value_2);
-        let mut cpu_1 = CPU::new();
-        let program_1: Vec<u8> = vec![0x89];
-        cpu_1.load(&program_1);
-        cpu_1.registers.set_a(test_value_1);
-        cpu_1.registers.set_c(test_value_2);
-        cpu_1.registers.set_carry_flag(false);
-        let mut cycles = cpu_1.execute_next();
-        assert_eq!(cycles, 1);
-        assert_eq!(cpu_1.registers.get_a(), expected_value);
-        assert_eq!(cpu_1.registers.get_c(), test_value_2);
-        // No Flags
-        assert_eq!(cpu_1.registers.get_zero_flag(), false);
-        assert_eq!(cpu_1.registers.get_negative_flag(), false);
-        assert_eq!(cpu_1.registers.get_half_carry_flag(), false);
-        assert_eq!(cpu_1.registers.get_carry_flag(), false);
-
-        test_value_1 = 0xF0;
-        test_value_2 = 0x10;
-        expected_value = 0x00;
-        cpu_1 = CPU::new();
-        cpu_1.load(&program_1);
-        cpu_1.registers.set_a(test_value_1);
-        cpu_1.registers.set_c(test_value_2);
-        cpu_1.registers.set_carry_flag(false);
-        cycles = cpu_1.execute_next();
-        assert_eq!(cycles, 1);
-        assert_eq!(cpu_1.registers.get_a(), expected_value);
-        assert_eq!(cpu_1.registers.get_c(), test_value_2);
-        // Z/C Flags
-        assert_eq!(cpu_1.registers.get_zero_flag(), true);
-        assert_eq!(cpu_1.registers.get_negative_flag(), false);
-        assert_eq!(cpu_1.registers.get_half_carry_flag(), false);
-        assert_eq!(cpu_1.registers.get_carry_flag(), true);
-
-        test_value_1 = 0x0F;
-        test_value_2 = 0x01;
-        expected_value = 0x10;
-        cpu_1 = CPU::new();
-        cpu_1.load(&program_1);
-        cpu_1.registers.set_a(test_value_1);
-        cpu_1.registers.set_c(test_value_2);
-        cpu_1.registers.set_carry_flag(false);
-        cycles = cpu_1.execute_next();
-        assert_eq!(cycles, 1);
-        assert_eq!(cpu_1.registers.get_a(), expected_value);
-        assert_eq!(cpu_1.registers.get_c(), test_value_2);
-        // H Flag
-        assert_eq!(cpu_1.registers.get_zero_flag(), false);
-        assert_eq!(cpu_1.registers.get_negative_flag(), false);
-        assert_eq!(cpu_1.registers.get_half_carry_flag(), true);
-        assert_eq!(cpu_1.registers.get_carry_flag(), false);
-
-        test_value_1 = 0xFF;
-        test_value_2 = 0x01;
-        expected_value = 0x00;
-        cpu_1 = CPU::new();
-        cpu_1.load(&program_1);
-        cpu_1.registers.set_a(test_value_1);
-        cpu_1.registers.set_c(test_value_2);
-        cpu_1.registers.set_carry_flag(false);
-        cycles = cpu_1.execute_next();
-        assert_eq!(cycles, 1);
-        assert_eq!(cpu_1.registers.get_a(), expected_value);
-        assert_eq!(cpu_1.registers.get_c(), test_value_2);
-        // Z/H/C Flag
-        assert_eq!(cpu_1.registers.get_zero_flag(), true);
-        assert_eq!(cpu_1.registers.get_negative_flag(), false);
-        assert_eq!(cpu_1.registers.get_half_carry_flag(), true);
-        assert_eq!(cpu_1.registers.get_carry_flag(), true);
-    }
-
-    #[test]
-    fn test_0x89_adc_a_c__c_on() {
-        let mut test_value_1: u8 = 0xC4;
-        let mut test_value_2: u8 = 0x16;
-        let mut expected_value: u8 = test_value_1.wrapping_add(test_value_2 + 1);
-        let mut cpu_1 = CPU::new();
-        let program_1: Vec<u8> = vec![0x89];
-        cpu_1.load(&program_1);
-        cpu_1.registers.set_a(test_value_1);
-        cpu_1.registers.set_c(test_value_2);
-        cpu_1.registers.set_carry_flag(true);
-        let mut cycles = cpu_1.execute_next();
-        assert_eq!(cycles, 1);
-        assert_eq!(cpu_1.registers.get_a(), expected_value);
-        assert_eq!(cpu_1.registers.get_c(), test_value_2);
-        // No Flags
-        assert_eq!(cpu_1.registers.get_zero_flag(), false);
-        assert_eq!(cpu_1.registers.get_negative_flag(), false);
-        assert_eq!(cpu_1.registers.get_half_carry_flag(), false);
-        assert_eq!(cpu_1.registers.get_carry_flag(), false);
-
-        test_value_1 = 0xF0;
-        test_value_2 = 0x0F;
-        expected_value = 0x00;
-        cpu_1 = CPU::new();
-        cpu_1.load(&program_1);
-        cpu_1.registers.set_a(test_value_1);
-        cpu_1.registers.set_c(test_value_2);
-        cpu_1.registers.set_carry_flag(true);
-        cycles = cpu_1.execute_next();
-        assert_eq!(cycles, 1);
-        assert_eq!(cpu_1.registers.get_a(), expected_value);
-        assert_eq!(cpu_1.registers.get_c(), test_value_2);
-        // Z/C Flags
-        assert_eq!(cpu_1.registers.get_zero_flag(), true);
-        assert_eq!(cpu_1.registers.get_negative_flag(), false);
-        assert_eq!(cpu_1.registers.get_half_carry_flag(), false);
-        assert_eq!(cpu_1.registers.get_carry_flag(), true);
-
-        test_value_1 = 0x0D;
-        test_value_2 = 0x02;
-        expected_value = 0x10;
-        cpu_1 = CPU::new();
-        cpu_1.load(&program_1);
-        cpu_1.registers.set_a(test_value_1);
-        cpu_1.registers.set_c(test_value_2);
-        cpu_1.registers.set_carry_flag(true);
-        cycles = cpu_1.execute_next();
-        assert_eq!(cycles, 1);
-        assert_eq!(cpu_1.registers.get_a(), expected_value);
-        assert_eq!(cpu_1.registers.get_c(), test_value_2);
-        // H Flag
-        assert_eq!(cpu_1.registers.get_zero_flag(), false);
-        assert_eq!(cpu_1.registers.get_negative_flag(), false);
-        assert_eq!(cpu_1.registers.get_half_carry_flag(), true);
-        assert_eq!(cpu_1.registers.get_carry_flag(), false);
-
-        test_value_1 = 0xFE;
-        test_value_2 = 0x01;
-        expected_value = 0x00;
-        cpu_1 = CPU::new();
-        cpu_1.load(&program_1);
-        cpu_1.registers.set_a(test_value_1);
-        cpu_1.registers.set_c(test_value_2);
-        cpu_1.registers.set_carry_flag(true);
-        cycles = cpu_1.execute_next();
-        assert_eq!(cycles, 1);
-        assert_eq!(cpu_1.registers.get_a(), expected_value);
-        assert_eq!(cpu_1.registers.get_c(), test_value_2);
-        // Z/H/C Flag
-        assert_eq!(cpu_1.registers.get_zero_flag(), true);
-        assert_eq!(cpu_1.registers.get_negative_flag(), false);
-        assert_eq!(cpu_1.registers.get_half_carry_flag(), true);
-        assert_eq!(cpu_1.registers.get_carry_flag(), true);
-    }
-
-    #[test]
-    fn test_0x8a_adc_a_d__c_off() {
-        let mut test_value_1: u8 = 0xC4;
-        let mut test_value_2: u8 = 0x16;
-        let mut expected_value: u8 = test_value_1.wrapping_add(test_value_2);
-        let mut cpu_1 = CPU::new();
-        let program_1: Vec<u8> = vec![0x8A];
-        cpu_1.load(&program_1);
-        cpu_1.registers.set_a(test_value_1);
-        cpu_1.registers.set_d(test_value_2);
-        cpu_1.registers.set_carry_flag(false);
-        let mut cycles = cpu_1.execute_next();
-        assert_eq!(cycles, 1);
-        assert_eq!(cpu_1.registers.get_a(), expected_value);
-        assert_eq!(cpu_1.registers.get_d(), test_value_2);
-        // No Flags
-        assert_eq!(cpu_1.registers.get_zero_flag(), false);
-        assert_eq!(cpu_1.registers.get_negative_flag(), false);
-        assert_eq!(cpu_1.registers.get_half_carry_flag(), false);
-        assert_eq!(cpu_1.registers.get_carry_flag(), false);
-
-        test_value_1 = 0xF0;
-        test_value_2 = 0x10;
-        expected_value = 0x00;
-        cpu_1 = CPU::new();
-        cpu_1.load(&program_1);
-        cpu_1.registers.set_a(test_value_1);
-        cpu_1.registers.set_d(test_value_2);
-        cpu_1.registers.set_carry_flag(false);
-        cycles = cpu_1.execute_next();
-        assert_eq!(cycles, 1);
-        assert_eq!(cpu_1.registers.get_a(), expected_value);
-        assert_eq!(cpu_1.registers.get_d(), test_value_2);
-        // Z/C Flags
-        assert_eq!(cpu_1.registers.get_zero_flag(), true);
-        assert_eq!(cpu_1.registers.get_negative_flag(), false);
-        assert_eq!(cpu_1.registers.get_half_carry_flag(), false);
-        assert_eq!(cpu_1.registers.get_carry_flag(), true);
-
-        test_value_1 = 0x0F;
-        test_value_2 = 0x01;
-        expected_value = 0x10;
-        cpu_1 = CPU::new();
-        cpu_1.load(&program_1);
-        cpu_1.registers.set_a(test_value_1);
-        cpu_1.registers.set_d(test_value_2);
-        cpu_1.registers.set_carry_flag(false);
-        cycles = cpu_1.execute_next();
-        assert_eq!(cycles, 1);
-        assert_eq!(cpu_1.registers.get_a(), expected_value);
-        assert_eq!(cpu_1.registers.get_d(), test_value_2);
-        // H Flag
-        assert_eq!(cpu_1.registers.get_zero_flag(), false);
-        assert_eq!(cpu_1.registers.get_negative_flag(), false);
-        assert_eq!(cpu_1.registers.get_half_carry_flag(), true);
-        assert_eq!(cpu_1.registers.get_carry_flag(), false);
-
-        test_value_1 = 0xFF;
-        test_value_2 = 0x01;
-        expected_value = 0x00;
-        cpu_1 = CPU::new();
-        cpu_1.load(&program_1);
-        cpu_1.registers.set_a(test_value_1);
-        cpu_1.registers.set_d(test_value_2);
-        cpu_1.registers.set_carry_flag(false);
-        cycles = cpu_1.execute_next();
-        assert_eq!(cycles, 1);
-        assert_eq!(cpu_1.registers.get_a(), expected_value);
-        assert_eq!(cpu_1.registers.get_d(), test_value_2);
-        // Z/H/C Flag
-        assert_eq!(cpu_1.registers.get_zero_flag(), true);
-        assert_eq!(cpu_1.registers.get_negative_flag(), false);
-        assert_eq!(cpu_1.registers.get_half_carry_flag(), true);
-        assert_eq!(cpu_1.registers.get_carry_flag(), true);
-    }
-
-    #[test]
-    fn test_0x8a_adc_a_d__c_on() {
-        let mut test_value_1: u8 = 0xC4;
-        let mut test_value_2: u8 = 0x16;
-        let mut expected_value: u8 = test_value_1.wrapping_add(test_value_2 + 1);
-        let mut cpu_1 = CPU::new();
-        let program_1: Vec<u8> = vec![0x8A];
-        cpu_1.load(&program_1);
-        cpu_1.registers.set_a(test_value_1);
-        cpu_1.registers.set_d(test_value_2);
-        cpu_1.registers.set_carry_flag(true);
-        let mut cycles = cpu_1.execute_next();
-        assert_eq!(cycles, 1);
-        assert_eq!(cpu_1.registers.get_a(), expected_value);
-        assert_eq!(cpu_1.registers.get_d(), test_value_2);
-        // No Flags
-        assert_eq!(cpu_1.registers.get_zero_flag(), false);
-        assert_eq!(cpu_1.registers.get_negative_flag(), false);
-        assert_eq!(cpu_1.registers.get_half_carry_flag(), false);
-        assert_eq!(cpu_1.registers.get_carry_flag(), false);
-
-        test_value_1 = 0xF0;
-        test_value_2 = 0x0F;
-        expected_value = 0x00;
-        cpu_1 = CPU::new();
-        cpu_1.load(&program_1);
-        cpu_1.registers.set_a(test_value_1);
-        cpu_1.registers.set_d(test_value_2);
-        cpu_1.registers.set_carry_flag(true);
-        cycles = cpu_1.execute_next();
-        assert_eq!(cycles, 1);
-        assert_eq!(cpu_1.registers.get_a(), expected_value);
-        assert_eq!(cpu_1.registers.get_d(), test_value_2);
-        // Z/C Flags
-        assert_eq!(cpu_1.registers.get_zero_flag(), true);
-        assert_eq!(cpu_1.registers.get_negative_flag(), false);
-        assert_eq!(cpu_1.registers.get_half_carry_flag(), false);
-        assert_eq!(cpu_1.registers.get_carry_flag(), true);
-
-        test_value_1 = 0x0D;
-        test_value_2 = 0x02;
-        expected_value = 0x10;
-        cpu_1 = CPU::new();
-        cpu_1.load(&program_1);
-        cpu_1.registers.set_a(test_value_1);
-        cpu_1.registers.set_d(test_value_2);
-        cpu_1.registers.set_carry_flag(true);
-        cycles = cpu_1.execute_next();
-        assert_eq!(cycles, 1);
-        assert_eq!(cpu_1.registers.get_a(), expected_value);
-        assert_eq!(cpu_1.registers.get_d(), test_value_2);
-        // H Flag
-        assert_eq!(cpu_1.registers.get_zero_flag(), false);
-        assert_eq!(cpu_1.registers.get_negative_flag(), false);
-        assert_eq!(cpu_1.registers.get_half_carry_flag(), true);
-        assert_eq!(cpu_1.registers.get_carry_flag(), false);
-
-        test_value_1 = 0xFE;
-        test_value_2 = 0x01;
-        expected_value = 0x00;
-        cpu_1 = CPU::new();
-        cpu_1.load(&program_1);
-        cpu_1.registers.set_a(test_value_1);
-        cpu_1.registers.set_d(test_value_2);
-        cpu_1.registers.set_carry_flag(true);
-        cycles = cpu_1.execute_next();
-        assert_eq!(cycles, 1);
-        assert_eq!(cpu_1.registers.get_a(), expected_value);
-        assert_eq!(cpu_1.registers.get_d(), test_value_2);
-        // Z/H/C Flag
-        assert_eq!(cpu_1.registers.get_zero_flag(), true);
-        assert_eq!(cpu_1.registers.get_negative_flag(), false);
-        assert_eq!(cpu_1.registers.get_half_carry_flag(), true);
-        assert_eq!(cpu_1.registers.get_carry_flag(), true);
-    }
-
-    #[test]
-    fn test_0x8b_adc_a_e__c_off() {
-        let mut test_value_1: u8 = 0xC4;
-        let mut test_value_2: u8 = 0x16;
-        let mut expected_value: u8 = test_value_1.wrapping_add(test_value_2);
-        let mut cpu_1 = CPU::new();
-        let program_1: Vec<u8> = vec![0x8B];
-        cpu_1.load(&program_1);
-        cpu_1.registers.set_a(test_value_1);
-        cpu_1.registers.set_e(test_value_2);
-        cpu_1.registers.set_carry_flag(false);
-        let mut cycles = cpu_1.execute_next();
-        assert_eq!(cycles, 1);
-        assert_eq!(cpu_1.registers.get_a(), expected_value);
-        assert_eq!(cpu_1.registers.get_e(), test_value_2);
-        // No Flags
-        assert_eq!(cpu_1.registers.get_zero_flag(), false);
-        assert_eq!(cpu_1.registers.get_negative_flag(), false);
-        assert_eq!(cpu_1.registers.get_half_carry_flag(), false);
-        assert_eq!(cpu_1.registers.get_carry_flag(), false);
-
-        test_value_1 = 0xF0;
-        test_value_2 = 0x10;
-        expected_value = 0x00;
-        cpu_1 = CPU::new();
-        cpu_1.load(&program_1);
-        cpu_1.registers.set_a(test_value_1);
-        cpu_1.registers.set_e(test_value_2);
-        cpu_1.registers.set_carry_flag(false);
-        cycles = cpu_1.execute_next();
-        assert_eq!(cycles, 1);
-        assert_eq!(cpu_1.registers.get_a(), expected_value);
-        assert_eq!(cpu_1.registers.get_e(), test_value_2);
-        // Z/C Flags
-        assert_eq!(cpu_1.registers.get_zero_flag(), true);
-        assert_eq!(cpu_1.registers.get_negative_flag(), false);
-        assert_eq!(cpu_1.registers.get_half_carry_flag(), false);
-        assert_eq!(cpu_1.registers.get_carry_flag(), true);
-
-        test_value_1 = 0x0F;
-        test_value_2 = 0x01;
-        expected_value = 0x10;
-        cpu_1 = CPU::new();
-        cpu_1.load(&program_1);
-        cpu_1.registers.set_a(test_value_1);
-        cpu_1.registers.set_e(test_value_2);
-        cpu_1.registers.set_carry_flag(false);
-        cycles = cpu_1.execute_next();
-        assert_eq!(cycles, 1);
-        assert_eq!(cpu_1.registers.get_a(), expected_value);
-        assert_eq!(cpu_1.registers.get_e(), test_value_2);
-        // H Flag
-        assert_eq!(cpu_1.registers.get_zero_flag(), false);
-        assert_eq!(cpu_1.registers.get_negative_flag(), false);
-        assert_eq!(cpu_1.registers.get_half_carry_flag(), true);
-        assert_eq!(cpu_1.registers.get_carry_flag(), false);
-
-        test_value_1 = 0xFF;
-        test_value_2 = 0x01;
-        expected_value = 0x00;
-        cpu_1 = CPU::new();
-        cpu_1.load(&program_1);
-        cpu_1.registers.set_a(test_value_1);
-        cpu_1.registers.set_e(test_value_2);
-        cpu_1.registers.set_carry_flag(false);
-        cycles = cpu_1.execute_next();
-        assert_eq!(cycles, 1);
-        assert_eq!(cpu_1.registers.get_a(), expected_value);
-        assert_eq!(cpu_1.registers.get_e(), test_value_2);
-        // Z/H/C Flag
-        assert_eq!(cpu_1.registers.get_zero_flag(), true);
-        assert_eq!(cpu_1.registers.get_negative_flag(), false);
-        assert_eq!(cpu_1.registers.get_half_carry_flag(), true);
-        assert_eq!(cpu_1.registers.get_carry_flag(), true);
-    }
-
-    #[test]
-    fn test_0x8b_adc_a_e__c_on() {
-        let mut test_value_1: u8 = 0xC4;
-        let mut test_value_2: u8 = 0x16;
-        let mut expected_value: u8 = test_value_1.wrapping_add(test_value_2 + 1);
-        let mut cpu_1 = CPU::new();
-        let program_1: Vec<u8> = vec![0x8B];
-        cpu_1.load(&program_1);
-        cpu_1.registers.set_a(test_value_1);
-        cpu_1.registers.set_e(test_value_2);
-        cpu_1.registers.set_carry_flag(true);
-        let mut cycles = cpu_1.execute_next();
-        assert_eq!(cycles, 1);
-        assert_eq!(cpu_1.registers.get_a(), expected_value);
-        assert_eq!(cpu_1.registers.get_e(), test_value_2);
-        // No Flags
-        assert_eq!(cpu_1.registers.get_zero_flag(), false);
-        assert_eq!(cpu_1.registers.get_negative_flag(), false);
-        assert_eq!(cpu_1.registers.get_half_carry_flag(), false);
-        assert_eq!(cpu_1.registers.get_carry_flag(), false);
-
-        test_value_1 = 0xF0;
-        test_value_2 = 0x0F;
-        expected_value = 0x00;
-        cpu_1 = CPU::new();
-        cpu_1.load(&program_1);
-        cpu_1.registers.set_a(test_value_1);
-        cpu_1.registers.set_e(test_value_2);
-        cpu_1.registers.set_carry_flag(true);
-        cycles = cpu_1.execute_next();
-        assert_eq!(cycles, 1);
-        assert_eq!(cpu_1.registers.get_a(), expected_value);
-        assert_eq!(cpu_1.registers.get_e(), test_value_2);
-        // Z/C Flags
-        assert_eq!(cpu_1.registers.get_zero_flag(), true);
-        assert_eq!(cpu_1.registers.get_negative_flag(), false);
-        assert_eq!(cpu_1.registers.get_half_carry_flag(), false);
-        assert_eq!(cpu_1.registers.get_carry_flag(), true);
-
-        test_value_1 = 0x0D;
-        test_value_2 = 0x02;
-        expected_value = 0x10;
-        cpu_1 = CPU::new();
-        cpu_1.load(&program_1);
-        cpu_1.registers.set_a(test_value_1);
-        cpu_1.registers.set_e(test_value_2);
-        cpu_1.registers.set_carry_flag(true);
-        cycles = cpu_1.execute_next();
-        assert_eq!(cycles, 1);
-        assert_eq!(cpu_1.registers.get_a(), expected_value);
-        assert_eq!(cpu_1.registers.get_e(), test_value_2);
-        // H Flag
-        assert_eq!(cpu_1.registers.get_zero_flag(), false);
-        assert_eq!(cpu_1.registers.get_negative_flag(), false);
-        assert_eq!(cpu_1.registers.get_half_carry_flag(), true);
-        assert_eq!(cpu_1.registers.get_carry_flag(), false);
-
-        test_value_1 = 0xFE;
-        test_value_2 = 0x01;
-        expected_value = 0x00;
-        cpu_1 = CPU::new();
-        cpu_1.load(&program_1);
-        cpu_1.registers.set_a(test_value_1);
-        cpu_1.registers.set_e(test_value_2);
-        cpu_1.registers.set_carry_flag(true);
-        cycles = cpu_1.execute_next();
-        assert_eq!(cycles, 1);
-        assert_eq!(cpu_1.registers.get_a(), expected_value);
-        assert_eq!(cpu_1.registers.get_e(), test_value_2);
-        // Z/H/C Flag
-        assert_eq!(cpu_1.registers.get_zero_flag(), true);
-        assert_eq!(cpu_1.registers.get_negative_flag(), false);
-        assert_eq!(cpu_1.registers.get_half_carry_flag(), true);
-        assert_eq!(cpu_1.registers.get_carry_flag(), true);
-    }
-
-    #[test]
-    fn test_0x8c_adc_a_h__c_off() {
-        let mut test_value_1: u8 = 0xC4;
-        let mut test_value_2: u8 = 0x16;
-        let mut expected_value: u8 = test_value_1.wrapping_add(test_value_2);
-        let mut cpu_1 = CPU::new();
-        let program_1: Vec<u8> = vec![0x8C];
-        cpu_1.load(&program_1);
-        cpu_1.registers.set_a(test_value_1);
-        cpu_1.registers.set_h(test_value_2);
-        cpu_1.registers.set_carry_flag(false);
-        let mut cycles = cpu_1.execute_next();
-        assert_eq!(cycles, 1);
-        assert_eq!(cpu_1.registers.get_a(), expected_value);
-        assert_eq!(cpu_1.registers.get_h(), test_value_2);
-        // No Flags
-        assert_eq!(cpu_1.registers.get_zero_flag(), false);
-        assert_eq!(cpu_1.registers.get_negative_flag(), false);
-        assert_eq!(cpu_1.registers.get_half_carry_flag(), false);
-        assert_eq!(cpu_1.registers.get_carry_flag(), false);
-
-        test_value_1 = 0xF0;
-        test_value_2 = 0x10;
-        expected_value = 0x00;
-        cpu_1 = CPU::new();
-        cpu_1.load(&program_1);
-        cpu_1.registers.set_a(test_value_1);
-        cpu_1.registers.set_h(test_value_2);
-        cpu_1.registers.set_carry_flag(false);
-        cycles = cpu_1.execute_next();
-        assert_eq!(cycles, 1);
-        assert_eq!(cpu_1.registers.get_a(), expected_value);
-        assert_eq!(cpu_1.registers.get_h(), test_value_2);
-        // Z/C Flags
-        assert_eq!(cpu_1.registers.get_zero_flag(), true);
-        assert_eq!(cpu_1.registers.get_negative_flag(), false);
-        assert_eq!(cpu_1.registers.get_half_carry_flag(), false);
-        assert_eq!(cpu_1.registers.get_carry_flag(), true);
-
-        test_value_1 = 0x0F;
-        test_value_2 = 0x01;
-        expected_value = 0x10;
-        cpu_1 = CPU::new();
-        cpu_1.load(&program_1);
-        cpu_1.registers.set_a(test_value_1);
-        cpu_1.registers.set_h(test_value_2);
-        cpu_1.registers.set_carry_flag(false);
-        cycles = cpu_1.execute_next();
-        assert_eq!(cycles, 1);
-        assert_eq!(cpu_1.registers.get_a(), expected_value);
-        assert_eq!(cpu_1.registers.get_h(), test_value_2);
-        // H Flag
-        assert_eq!(cpu_1.registers.get_zero_flag(), false);
-        assert_eq!(cpu_1.registers.get_negative_flag(), false);
-        assert_eq!(cpu_1.registers.get_half_carry_flag(), true);
-        assert_eq!(cpu_1.registers.get_carry_flag(), false);
-
-        test_value_1 = 0xFF;
-        test_value_2 = 0x01;
-        expected_value = 0x00;
-        cpu_1 = CPU::new();
-        cpu_1.load(&program_1);
-        cpu_1.registers.set_a(test_value_1);
-        cpu_1.registers.set_h(test_value_2);
-        cpu_1.registers.set_carry_flag(false);
-        cycles = cpu_1.execute_next();
-        assert_eq!(cycles, 1);
-        assert_eq!(cpu_1.registers.get_a(), expected_value);
-        assert_eq!(cpu_1.registers.get_h(), test_value_2);
-        // Z/H/C Flag
-        assert_eq!(cpu_1.registers.get_zero_flag(), true);
-        assert_eq!(cpu_1.registers.get_negative_flag(), false);
-        assert_eq!(cpu_1.registers.get_half_carry_flag(), true);
-        assert_eq!(cpu_1.registers.get_carry_flag(), true);
-    }
-
-    #[test]
-    fn test_0x8c_adc_a_h__c_on() {
-        let mut test_value_1: u8 = 0xC4;
-        let mut test_value_2: u8 = 0x16;
-        let mut expected_value: u8 = test_value_1.wrapping_add(test_value_2 + 1);
-        let mut cpu_1 = CPU::new();
-        let program_1: Vec<u8> = vec![0x8C];
-        cpu_1.load(&program_1);
-        cpu_1.registers.set_a(test_value_1);
-        cpu_1.registers.set_h(test_value_2);
-        cpu_1.registers.set_carry_flag(true);
-        let mut cycles = cpu_1.execute_next();
-        assert_eq!(cycles, 1);
-        assert_eq!(cpu_1.registers.get_a(), expected_value);
-        assert_eq!(cpu_1.registers.get_h(), test_value_2);
-        // No Flags
-        assert_eq!(cpu_1.registers.get_zero_flag(), false);
-        assert_eq!(cpu_1.registers.get_negative_flag(), false);
-        assert_eq!(cpu_1.registers.get_half_carry_flag(), false);
-        assert_eq!(cpu_1.registers.get_carry_flag(), false);
-
-        test_value_1 = 0xF0;
-        test_value_2 = 0x0F;
-        expected_value = 0x00;
-        cpu_1 = CPU::new();
-        cpu_1.load(&program_1);
-        cpu_1.registers.set_a(test_value_1);
-        cpu_1.registers.set_h(test_value_2);
-        cpu_1.registers.set_carry_flag(true);
-        cycles = cpu_1.execute_next();
-        assert_eq!(cycles, 1);
-        assert_eq!(cpu_1.registers.get_a(), expected_value);
-        assert_eq!(cpu_1.registers.get_h(), test_value_2);
-        // Z/C Flags
-        assert_eq!(cpu_1.registers.get_zero_flag(), true);
-        assert_eq!(cpu_1.registers.get_negative_flag(), false);
-        assert_eq!(cpu_1.registers.get_half_carry_flag(), false);
-        assert_eq!(cpu_1.registers.get_carry_flag(), true);
-
-        test_value_1 = 0x0D;
-        test_value_2 = 0x02;
-        expected_value = 0x10;
-        cpu_1 = CPU::new();
-        cpu_1.load(&program_1);
-        cpu_1.registers.set_a(test_value_1);
-        cpu_1.registers.set_h(test_value_2);
-        cpu_1.registers.set_carry_flag(true);
-        cycles = cpu_1.execute_next();
-        assert_eq!(cycles, 1);
-        assert_eq!(cpu_1.registers.get_a(), expected_value);
-        assert_eq!(cpu_1.registers.get_h(), test_value_2);
-        // H Flag
-        assert_eq!(cpu_1.registers.get_zero_flag(), false);
-        assert_eq!(cpu_1.registers.get_negative_flag(), false);
-        assert_eq!(cpu_1.registers.get_half_carry_flag(), true);
-        assert_eq!(cpu_1.registers.get_carry_flag(), false);
-
-        test_value_1 = 0xFE;
-        test_value_2 = 0x01;
-        expected_value = 0x00;
-        cpu_1 = CPU::new();
-        cpu_1.load(&program_1);
-        cpu_1.registers.set_a(test_value_1);
-        cpu_1.registers.set_h(test_value_2);
-        cpu_1.registers.set_carry_flag(true);
-        cycles = cpu_1.execute_next();
-        assert_eq!(cycles, 1);
-        assert_eq!(cpu_1.registers.get_a(), expected_value);
-        assert_eq!(cpu_1.registers.get_h(), test_value_2);
-        // Z/H/C Flag
-        assert_eq!(cpu_1.registers.get_zero_flag(), true);
-        assert_eq!(cpu_1.registers.get_negative_flag(), false);
-        assert_eq!(cpu_1.registers.get_half_carry_flag(), true);
-        assert_eq!(cpu_1.registers.get_carry_flag(), true);
-    }
-
-    #[test]
-    fn test_0x8d_adc_a_l__c_off() {
-        let mut test_value_1: u8 = 0xC4;
-        let mut test_value_2: u8 = 0x16;
-        let mut expected_value: u8 = test_value_1.wrapping_add(test_value_2);
-        let mut cpu_1 = CPU::new();
-        let program_1: Vec<u8> = vec![0x8D];
-        cpu_1.load(&program_1);
-        cpu_1.registers.set_a(test_value_1);
-        cpu_1.registers.set_l(test_value_2);
-        cpu_1.registers.set_carry_flag(false);
-        let mut cycles = cpu_1.execute_next();
-        assert_eq!(cycles, 1);
-        assert_eq!(cpu_1.registers.get_a(), expected_value);
-        assert_eq!(cpu_1.registers.get_l(), test_value_2);
-        // No Flags
-        assert_eq!(cpu_1.registers.get_zero_flag(), false);
-        assert_eq!(cpu_1.registers.get_negative_flag(), false);
-        assert_eq!(cpu_1.registers.get_half_carry_flag(), false);
-        assert_eq!(cpu_1.registers.get_carry_flag(), false);
-
-        test_value_1 = 0xF0;
-        test_value_2 = 0x10;
-        expected_value = 0x00;
-        cpu_1 = CPU::new();
-        cpu_1.load(&program_1);
-        cpu_1.registers.set_a(test_value_1);
-        cpu_1.registers.set_l(test_value_2);
-        cpu_1.registers.set_carry_flag(false);
-        cycles = cpu_1.execute_next();
-        assert_eq!(cycles, 1);
-        assert_eq!(cpu_1.registers.get_a(), expected_value);
-        assert_eq!(cpu_1.registers.get_l(), test_value_2);
-        // Z/C Flags
-        assert_eq!(cpu_1.registers.get_zero_flag(), true);
-        assert_eq!(cpu_1.registers.get_negative_flag(), false);
-        assert_eq!(cpu_1.registers.get_half_carry_flag(), false);
-        assert_eq!(cpu_1.registers.get_carry_flag(), true);
-
-        test_value_1 = 0x0F;
-        test_value_2 = 0x01;
-        expected_value = 0x10;
-        cpu_1 = CPU::new();
-        cpu_1.load(&program_1);
-        cpu_1.registers.set_a(test_value_1);
-        cpu_1.registers.set_l(test_value_2);
-        cpu_1.registers.set_carry_flag(false);
-        cycles = cpu_1.execute_next();
-        assert_eq!(cycles, 1);
-        assert_eq!(cpu_1.registers.get_a(), expected_value);
-        assert_eq!(cpu_1.registers.get_l(), test_value_2);
-        // H Flag
-        assert_eq!(cpu_1.registers.get_zero_flag(), false);
-        assert_eq!(cpu_1.registers.get_negative_flag(), false);
-        assert_eq!(cpu_1.registers.get_half_carry_flag(), true);
-        assert_eq!(cpu_1.registers.get_carry_flag(), false);
-
-        test_value_1 = 0xFF;
-        test_value_2 = 0x01;
-        expected_value = 0x00;
-        cpu_1 = CPU::new();
-        cpu_1.load(&program_1);
-        cpu_1.registers.set_a(test_value_1);
-        cpu_1.registers.set_l(test_value_2);
-        cpu_1.registers.set_carry_flag(false);
-        cycles = cpu_1.execute_next();
-        assert_eq!(cycles, 1);
-        assert_eq!(cpu_1.registers.get_a(), expected_value);
-        assert_eq!(cpu_1.registers.get_l(), test_value_2);
-        // Z/H/C Flag
-        assert_eq!(cpu_1.registers.get_zero_flag(), true);
-        assert_eq!(cpu_1.registers.get_negative_flag(), false);
-        assert_eq!(cpu_1.registers.get_half_carry_flag(), true);
-        assert_eq!(cpu_1.registers.get_carry_flag(), true);
-    }
-
-    #[test]
-    fn test_0x8d_adc_a_l__c_on() {
-        let mut test_value_1: u8 = 0xC4;
-        let mut test_value_2: u8 = 0x16;
-        let mut expected_value: u8 = test_value_1.wrapping_add(test_value_2 + 1);
-        let mut cpu_1 = CPU::new();
-        let program_1: Vec<u8> = vec![0x8D];
-        cpu_1.load(&program_1);
-        cpu_1.registers.set_a(test_value_1);
-        cpu_1.registers.set_l(test_value_2);
-        cpu_1.registers.set_carry_flag(true);
-        let mut cycles = cpu_1.execute_next();
-        assert_eq!(cycles, 1);
-        assert_eq!(cpu_1.registers.get_a(), expected_value);
-        assert_eq!(cpu_1.registers.get_l(), test_value_2);
-        // No Flags
-        assert_eq!(cpu_1.registers.get_zero_flag(), false);
-        assert_eq!(cpu_1.registers.get_negative_flag(), false);
-        assert_eq!(cpu_1.registers.get_half_carry_flag(), false);
-        assert_eq!(cpu_1.registers.get_carry_flag(), false);
-
-        test_value_1 = 0xF0;
-        test_value_2 = 0x0F;
-        expected_value = 0x00;
-        cpu_1 = CPU::new();
-        cpu_1.load(&program_1);
-        cpu_1.registers.set_a(test_value_1);
-        cpu_1.registers.set_l(test_value_2);
-        cpu_1.registers.set_carry_flag(true);
-        cycles = cpu_1.execute_next();
-        assert_eq!(cycles, 1);
-        assert_eq!(cpu_1.registers.get_a(), expected_value);
-        assert_eq!(cpu_1.registers.get_l(), test_value_2);
-        // Z/C Flags
-        assert_eq!(cpu_1.registers.get_zero_flag(), true);
-        assert_eq!(cpu_1.registers.get_negative_flag(), false);
-        assert_eq!(cpu_1.registers.get_half_carry_flag(), false);
-        assert_eq!(cpu_1.registers.get_carry_flag(), true);
-
-        test_value_1 = 0x0D;
-        test_value_2 = 0x02;
-        expected_value = 0x10;
-        cpu_1 = CPU::new();
-        cpu_1.load(&program_1);
-        cpu_1.registers.set_a(test_value_1);
-        cpu_1.registers.set_l(test_value_2);
-        cpu_1.registers.set_carry_flag(true);
-        cycles = cpu_1.execute_next();
-        assert_eq!(cycles, 1);
-        assert_eq!(cpu_1.registers.get_a(), expected_value);
-        assert_eq!(cpu_1.registers.get_l(), test_value_2);
-        // H Flag
-        assert_eq!(cpu_1.registers.get_zero_flag(), false);
-        assert_eq!(cpu_1.registers.get_negative_flag(), false);
-        assert_eq!(cpu_1.registers.get_half_carry_flag(), true);
-        assert_eq!(cpu_1.registers.get_carry_flag(), false);
-
-        test_value_1 = 0xFE;
-        test_value_2 = 0x01;
-        expected_value = 0x00;
-        cpu_1 = CPU::new();
-        cpu_1.load(&program_1);
-        cpu_1.registers.set_a(test_value_1);
-        cpu_1.registers.set_l(test_value_2);
-        cpu_1.registers.set_carry_flag(true);
-        cycles = cpu_1.execute_next();
-        assert_eq!(cycles, 1);
-        assert_eq!(cpu_1.registers.get_a(), expected_value);
-        assert_eq!(cpu_1.registers.get_l(), test_value_2);
-        // Z/H/C Flag
-        assert_eq!(cpu_1.registers.get_zero_flag(), true);
-        assert_eq!(cpu_1.registers.get_negative_flag(), false);
-        assert_eq!(cpu_1.registers.get_half_carry_flag(), true);
-        assert_eq!(cpu_1.registers.get_carry_flag(), true);
-    }
+    test_adc_r8_r8!(0x88, test_0x88_adc_a_b__c_off, set_a, get_a, set_b, get_b, false);
+    test_adc_r8_r8!(0x88, test_0x88_adc_a_b__c_on, set_a, get_a, set_b, get_b, true);
+    test_adc_r8_r8!(0x89, test_0x89_adc_a_c__c_off, set_a, get_a, set_c, get_c, false);
+    test_adc_r8_r8!(0x89, test_0x89_adc_a_c__c_on, set_a, get_a, set_c, get_c, true);
+    test_adc_r8_r8!(0x8A, test_0x8a_adc_a_d__c_off, set_a, get_a, set_d, get_d, false);
+    test_adc_r8_r8!(0x8A, test_0x8a_adc_a_d__c_on, set_a, get_a, set_d, get_d, true);
+    test_adc_r8_r8!(0x8B, test_0x8b_adc_a_e__c_off, set_a, get_a, set_e, get_e, false);
+    test_adc_r8_r8!(0x8B, test_0x8b_adc_a_e__c_on, set_a, get_a, set_e, get_e, true);
+    test_adc_r8_r8!(0x8C, test_0x8c_adc_a_h__c_off, set_a, get_a, set_h, get_h, false);
+    test_adc_r8_r8!(0x8C, test_0x8c_adc_a_h__c_on, set_a, get_a, set_h, get_h, true);
+    test_adc_r8_r8!(0x8D, test_0x8d_adc_a_l__c_off, set_a, get_a, set_l, get_l, false);
+    test_adc_r8_r8!(0x8D, test_0x8d_adc_a_l__c_on, set_a, get_a, set_l, get_l, true);
 
     #[test]
     fn test_0x8e_adc_a__hl___c_off() {
@@ -6596,6 +5743,7 @@ mod test {
         assert_eq!(cpu_1.registers.get_carry_flag(), true);
     }
 
+    // SUB A, r8 | SUB A, [HL]
     #[test]
     fn test_0x90_sub_a_b() {
         let mut test_value_1: u8 = 0xC4;
