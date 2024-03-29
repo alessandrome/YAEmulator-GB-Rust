@@ -2886,6 +2886,82 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
             opcode.cycles as u64
         },
     });
+    opcodes[0xC8] = Some(&Instruction {
+        opcode: 0xC8,
+        name: "RET Z",
+        cycles: 5,
+        size: 1,
+        flags: &[],
+        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
+            if cpu.registers.get_zero_flag() {
+                let mut return_addr = cpu.pop() as u16;
+                return_addr |= (cpu.pop() as u16) << 8;
+                cpu.registers.set_pc(return_addr);
+                return opcode.cycles as u64
+            }
+            2
+        },
+    });
+    opcodes[0xC9] = Some(&Instruction {
+        opcode: 0xC9,
+        name: "RET",
+        cycles: 4,
+        size: 1,
+        flags: &[],
+        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
+            let mut return_addr = cpu.pop() as u16;
+            return_addr |= (cpu.pop() as u16) << 8;
+            cpu.registers.set_pc(return_addr);
+            opcode.cycles as u64
+        },
+    });
+    opcodes[0xCA] = Some(&Instruction {
+        opcode: 0xCA,
+        name: "JP Z, imm16",
+        cycles: 4,
+        size: 3,
+        flags: &[],
+        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
+            let mut return_address: u16 = 0x00;
+            return_address |= cpu.fetch_next() as u16;
+            return_address |= (cpu.fetch_next() as u16) << 8;
+            if cpu.registers.get_zero_flag() {
+                cpu.registers.set_pc(return_address);
+                return opcode.cycles as u64
+            }
+            3
+        },
+    });
+    opcodes[0xCB] = Some(&Instruction {
+        opcode: 0xCB,
+        name: "CB SUBSET",
+        cycles: 0,
+        size: 0,
+        flags: &[],
+        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
+            // Implement CB subset will be executed on next fetching & execute
+            opcode.cycles as u64
+        },
+    });
+    opcodes[0xCC] = Some(&Instruction {
+        opcode: 0xCC,
+        name: "CALL Z, imm16",
+        cycles: 6,
+        size: 3,
+        flags: &[],
+        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
+            let mut call_address: u16 = 0x00;
+            call_address |= cpu.fetch_next() as u16;
+            call_address |= (cpu.fetch_next() as u16) << 8;
+            if cpu.registers.get_zero_flag() {
+                cpu.push((cpu.registers.get_pc() >> 8) as u8);
+                cpu.push((cpu.registers.get_pc() & 0xFF) as u8);
+                cpu.registers.set_pc(call_address);
+                return opcode.cycles as u64
+            }
+            3
+        },
+    });
     opcodes[0xD0] = Some(&Instruction {
         opcode: 0xD0,
         name: "RET CZ",
@@ -2999,15 +3075,20 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
             opcode.cycles as u64
         },
     });
-    opcodes[0xCB] = Some(&Instruction {
-        opcode: 0xCB,
-        name: "CB SUBSET",
-        cycles: 0,
-        size: 0,
+    opcodes[0xD8] = Some(&Instruction {
+        opcode: 0xD8,
+        name: "RET C",
+        cycles: 5,
+        size: 1,
         flags: &[],
         execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            // Implement CB subset will be executed on next fetching & execute
-            opcode.cycles as u64
+            if cpu.registers.get_carry_flag() {
+                let mut return_addr = cpu.pop() as u16;
+                return_addr |= (cpu.pop() as u16) << 8;
+                cpu.registers.set_pc(return_addr);
+                return opcode.cycles as u64
+            }
+            2
         },
     });
     opcodes
@@ -4236,6 +4317,61 @@ mod test {
         };
     }
 
+    macro_rules! test_call {
+        ($opcode:expr, $func:ident) => {
+            #[test]
+            fn $func() {
+                let test_call_address: u16 = USER_PROGRAM_ADDRESS as u16 + 0x0C16;
+                let test_call_address_high: u8 = (test_call_address >> 8) as u8;
+                let test_call_address_low: u8 = (test_call_address & 0xFF) as u8;
+                let mut cpu_1 = CPU::new();
+                let program_1: Vec<u8> = vec![$opcode, test_call_address_low, test_call_address_high];
+                cpu_1.load(&program_1);
+                let registers_copy = cpu_1.registers;
+                let test_return_address = registers_copy.get_pc() + program_1.len() as u16;
+                let test_return_address_high = (test_return_address >> 8) as u8;
+                let test_return_address_low = (test_return_address & 0xFF) as u8;
+                let mut cycles = cpu_1.execute_next();
+                assert_eq!(cycles, 6);
+                assert_eq!(cpu_1.registers.get_sp(), registers_copy.get_sp() - 2);
+                assert_eq!(cpu_1.registers.get_pc(), test_call_address);
+                assert_eq!(cpu_1.ram.read(cpu_1.registers.get_sp() + 1), test_return_address_low);
+                assert_eq!(cpu_1.ram.read(cpu_1.registers.get_sp() + 2), test_return_address_high);
+            }
+        };
+        ($opcode:expr, $func:ident, $inverse:expr, $set_flag:ident, $get_flag:ident) => {
+            #[test]
+            fn $func() {
+                let test_call_address: u16 = USER_PROGRAM_ADDRESS as u16 + 0x0C16;
+                let test_call_address_high: u8 = (test_call_address >> 8) as u8;
+                let test_call_address_low: u8 = (test_call_address & 0xFF) as u8;
+                let mut cpu = CPU::new();
+                let program_1: Vec<u8> = vec![$opcode, test_call_address_low, test_call_address_high];
+                cpu.load(&program_1);
+                let registers_copy = cpu.registers;
+                if $inverse {cpu.registers.$set_flag(true)} else {cpu.registers.$set_flag(false)};
+                let mut cycles = cpu.execute_next();
+                assert_eq!(cycles, 3);
+                assert_eq!(cpu.registers.get_sp(), registers_copy.get_sp());
+                assert_eq!(cpu.registers.get_pc(), registers_copy.get_pc() + program_1.len() as u16);
+
+                cpu = CPU::new();
+                cpu.load(&program_1);
+                let registers_copy = cpu.registers;
+                if $inverse {cpu.registers.$set_flag(false)} else {cpu.registers.$set_flag(true)};
+                let test_return_address = registers_copy.get_pc() + program_1.len() as u16;
+                let test_return_address_high = (test_return_address >> 8) as u8;
+                let test_return_address_low = (test_return_address & 0xFF) as u8;
+                cycles = cpu.execute_next();
+                assert_eq!(cycles, 6);
+                assert_eq!(cpu.registers.get_sp(), registers_copy.get_sp() - 2);
+                assert_eq!(cpu.registers.get_pc(), test_call_address);
+                assert_eq!(cpu.ram.read(cpu.registers.get_sp() + 1), test_return_address_low);
+                assert_eq!(cpu.ram.read(cpu.registers.get_sp() + 2), test_return_address_high);
+            }
+        };
+    }
+
     macro_rules! test_jump {
         ($opcode:expr, $func:ident) => {
             #[test]
@@ -4271,7 +4407,7 @@ mod test {
                 cpu.load(&program_1);
                 let registers_copy = cpu.registers;
                 if $inverse {cpu.registers.$set_flag(false)} else {cpu.registers.$set_flag(true)};
-                let mut cycles = cpu.execute_next();
+                cycles = cpu.execute_next();
                 assert_eq!(cycles, 4);
                 assert_eq!(cpu.registers.get_pc(), test_jump_address);
             }
@@ -7749,6 +7885,10 @@ mod test {
         test_flags!(cpu_1, true, false, true, true);
     }
     test_rst!(0xC7, test_0xc7_rst_00);
+    test_ret!(0xC8, test_0xc8_ret_n, false, set_zero_flag, get_zero_flag);
+    test_ret!(0xC9, test_0xc9_ret);
+    test_jump!(0xCA, test_0xca_jp_z_imm16, false, set_zero_flag, get_zero_flag);
+    test_call!(0xCC, test_0xcc_call_z_imm16, false, set_zero_flag, get_zero_flag);
 
     // 0xD* Row
     test_ret!(0xD0, test_0xd0_ret_nc, true, set_carry_flag, get_carry_flag);
@@ -7826,4 +7966,5 @@ mod test {
         test_flags!(cpu_1, false, true, true, true);
     }
     test_rst!(0xD7, test_0xd7_rst_08);
+    test_ret!(0xD8, test_0xd8_ret_c, false, set_carry_flag, get_carry_flag);
 }
