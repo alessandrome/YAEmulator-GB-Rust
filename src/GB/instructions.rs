@@ -3046,6 +3046,36 @@ mod test {
         };
     }
 
+    macro_rules! test_ld_ar16_r8 {
+        ($opcode:expr, $func:ident, $set_reg_addr:ident, $get_reg_addr:ident, $set_reg_from:ident, $get_reg_from:ident) => {
+            #[test]
+            fn $func() {
+                let test_value_1: u8 = 0xC4;
+                let test_address_1: u16 = WRAM_ADDRESS as u16 + 0x99;
+                let mut cpu = CPU::new();
+                let program_1: Vec<u8> = vec![$opcode];
+                cpu.load(&program_1);
+                let register_copy = cpu.registers;
+                cpu.registers.$set_reg_from(test_value_1);
+                cpu.registers.$set_reg_addr(test_address_1);
+                cpu.ram.write(test_address_1, 0x00);
+                let cycles = cpu.execute_next();
+                assert_eq!(cycles, 2);
+                assert_eq!(cpu.registers.$get_reg_from(), test_value_1);
+                assert_eq!(cpu.registers.$get_reg_addr(), test_address_1);
+                assert_eq!(cpu.ram.read(test_address_1), test_value_1);
+                // Flags untouched
+                test_flags!(
+                    cpu,
+                    register_copy.get_zero_flag(),
+                    register_copy.get_negative_flag(),
+                    register_copy.get_half_carry_flag(),
+                    register_copy.get_carry_flag()
+                );
+            }
+        };
+    }
+
     macro_rules! test_ld_ar16 {
         ($opcode:expr, $func:ident, $set_reg_to:ident, $get_reg_to:ident, $set_reg_addr:ident, $get_reg_addr:ident) => {
             #[test]
