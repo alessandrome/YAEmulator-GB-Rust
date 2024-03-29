@@ -1805,11 +1805,12 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
         execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
             let old_value = cpu.registers.get_a();
-            let new_value = old_value.wrapping_add(cpu.registers.get_b()).wrapping_add(cpu.registers.get_carry_flag() as u8);
+            let intermediate_value = old_value.wrapping_add(cpu.registers.get_b());
+            let new_value = intermediate_value.wrapping_add(cpu.registers.get_carry_flag() as u8);
             cpu.registers.set_a(new_value);
             cpu.registers.set_zero_flag(new_value == 0);
             cpu.registers.set_negative_flag(false);
-            cpu.registers.set_half_carry_flag((new_value & 0x0F) < (old_value & 0x0F));
+            cpu.registers.set_half_carry_flag(((new_value & 0x0F) < (intermediate_value & 0x0F)) || ((intermediate_value & 0x0F) < (old_value & 0x0F)));
             cpu.registers.set_carry_flag(new_value < old_value);
             opcode.cycles as u64
         },
@@ -1822,11 +1823,12 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
         execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
             let old_value = cpu.registers.get_a();
-            let new_value = old_value.wrapping_add(cpu.registers.get_c()).wrapping_add(cpu.registers.get_carry_flag() as u8);
+            let intermediate_value = old_value.wrapping_add(cpu.registers.get_c());
+            let new_value = intermediate_value.wrapping_add(cpu.registers.get_carry_flag() as u8);
             cpu.registers.set_a(new_value);
             cpu.registers.set_zero_flag(new_value == 0);
             cpu.registers.set_negative_flag(false);
-            cpu.registers.set_half_carry_flag((new_value & 0x0F) < (old_value & 0x0F));
+            cpu.registers.set_half_carry_flag(((new_value & 0x0F) < (intermediate_value & 0x0F)) || ((intermediate_value & 0x0F) < (old_value & 0x0F)));
             cpu.registers.set_carry_flag(new_value < old_value);
             opcode.cycles as u64
         },
@@ -1839,11 +1841,12 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
         execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
             let old_value = cpu.registers.get_a();
-            let new_value = old_value.wrapping_add(cpu.registers.get_d()).wrapping_add(cpu.registers.get_carry_flag() as u8);
+            let intermediate_value = old_value.wrapping_add(cpu.registers.get_d());
+            let new_value = intermediate_value.wrapping_add(cpu.registers.get_carry_flag() as u8);
             cpu.registers.set_a(new_value);
             cpu.registers.set_zero_flag(new_value == 0);
             cpu.registers.set_negative_flag(false);
-            cpu.registers.set_half_carry_flag((new_value & 0x0F) < (old_value & 0x0F));
+            cpu.registers.set_half_carry_flag(((new_value & 0x0F) < (intermediate_value & 0x0F)) || ((intermediate_value & 0x0F) < (old_value & 0x0F)));
             cpu.registers.set_carry_flag(new_value < old_value);
             opcode.cycles as u64
         },
@@ -1856,11 +1859,12 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
         execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
             let old_value = cpu.registers.get_a();
-            let new_value = old_value.wrapping_add(cpu.registers.get_e()).wrapping_add(cpu.registers.get_carry_flag() as u8);
+            let intermediate_value = old_value.wrapping_add(cpu.registers.get_e());
+            let new_value = intermediate_value.wrapping_add(cpu.registers.get_carry_flag() as u8);
             cpu.registers.set_a(new_value);
             cpu.registers.set_zero_flag(new_value == 0);
             cpu.registers.set_negative_flag(false);
-            cpu.registers.set_half_carry_flag((new_value & 0x0F) < (old_value & 0x0F));
+            cpu.registers.set_half_carry_flag(((new_value & 0x0F) < (intermediate_value & 0x0F)) || ((intermediate_value & 0x0F) < (old_value & 0x0F)));
             cpu.registers.set_carry_flag(new_value < old_value);
             opcode.cycles as u64
         },
@@ -1873,11 +1877,12 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
         execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
             let old_value = cpu.registers.get_a();
-            let new_value = old_value.wrapping_add(cpu.registers.get_h()).wrapping_add(cpu.registers.get_carry_flag() as u8);
+            let intermediate_value = old_value.wrapping_add(cpu.registers.get_h());
+            let new_value = intermediate_value.wrapping_add(cpu.registers.get_carry_flag() as u8);
             cpu.registers.set_a(new_value);
             cpu.registers.set_zero_flag(new_value == 0);
             cpu.registers.set_negative_flag(false);
-            cpu.registers.set_half_carry_flag((new_value & 0x0F) < (old_value & 0x0F));
+            cpu.registers.set_half_carry_flag(((new_value & 0x0F) < (intermediate_value & 0x0F)) || ((intermediate_value & 0x0F) < (old_value & 0x0F)));
             cpu.registers.set_carry_flag(new_value < old_value);
             opcode.cycles as u64
         },
@@ -1890,11 +1895,12 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
         execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
             let old_value = cpu.registers.get_a();
-            let new_value = old_value.wrapping_add(cpu.registers.get_l()).wrapping_add(cpu.registers.get_carry_flag() as u8);
+            let intermediate_value = old_value.wrapping_add(cpu.registers.get_l());
+            let new_value = intermediate_value.wrapping_add(cpu.registers.get_carry_flag() as u8);
             cpu.registers.set_a(new_value);
             cpu.registers.set_zero_flag(new_value == 0);
             cpu.registers.set_negative_flag(false);
-            cpu.registers.set_half_carry_flag((new_value & 0x0F) < (old_value & 0x0F));
+            cpu.registers.set_half_carry_flag(((new_value & 0x0F) < (intermediate_value & 0x0F)) || ((intermediate_value & 0x0F) < (old_value & 0x0F)));
             cpu.registers.set_carry_flag(new_value < old_value);
             opcode.cycles as u64
         },
@@ -1907,12 +1913,12 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
         execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
             let old_value = cpu.registers.get_a();
-            let new_value = old_value.wrapping_add(cpu.ram.read(cpu.registers.get_hl()))
-                .wrapping_add(cpu.registers.get_carry_flag() as u8);
+            let intermediate_value = old_value.wrapping_add(cpu.ram.read(cpu.registers.get_hl()));
+            let new_value = intermediate_value.wrapping_add(cpu.registers.get_carry_flag() as u8);
             cpu.registers.set_a(new_value);
             cpu.registers.set_zero_flag(new_value == 0);
             cpu.registers.set_negative_flag(false);
-            cpu.registers.set_half_carry_flag((new_value & 0x0F) < (old_value & 0x0F));
+            cpu.registers.set_half_carry_flag(((new_value & 0x0F) < (intermediate_value & 0x0F)) || ((intermediate_value & 0x0F) < (old_value & 0x0F)));
             cpu.registers.set_carry_flag(new_value < old_value);
             opcode.cycles as u64
         },
@@ -1925,11 +1931,12 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
         execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
             let old_value = cpu.registers.get_a();
-            let new_value = old_value.wrapping_add(old_value).wrapping_add(cpu.registers.get_carry_flag() as u8);
+            let intermediate_value = old_value.wrapping_add(cpu.registers.get_a());
+            let new_value = intermediate_value.wrapping_add(cpu.registers.get_carry_flag() as u8);
             cpu.registers.set_a(new_value);
             cpu.registers.set_zero_flag(new_value == 0);
             cpu.registers.set_negative_flag(false);
-            cpu.registers.set_half_carry_flag((new_value & 0x0F) < (old_value & 0x0F));
+            cpu.registers.set_half_carry_flag(((new_value & 0x0F) < (intermediate_value & 0x0F)) || ((intermediate_value & 0x0F) < (old_value & 0x0F)));
             cpu.registers.set_carry_flag(new_value < old_value);
             opcode.cycles as u64
         },
@@ -2962,6 +2969,56 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
             3
         },
     });
+    opcodes[0xCD] = Some(&Instruction {
+        opcode: 0xCD,
+        name: "CALL imm16",
+        cycles: 6,
+        size: 3,
+        flags: &[],
+        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
+            let mut call_address: u16 = 0x00;
+            call_address |= cpu.fetch_next() as u16;
+            call_address |= (cpu.fetch_next() as u16) << 8;
+            cpu.push((cpu.registers.get_pc() >> 8) as u8);
+            cpu.push((cpu.registers.get_pc() & 0xFF) as u8);
+            cpu.registers.set_pc(call_address);
+            return opcode.cycles as u64
+        },
+    });
+    opcodes[0xCE] = Some(&Instruction {
+        opcode: 0xCE,
+        name: "ADC A, imm8",
+        cycles: 2,
+        size: 2,
+        flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
+        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
+            let byte = cpu.fetch_next();
+            let old_value = cpu.registers.get_a();
+            let intermediate_value = old_value.wrapping_add(byte);
+            let new_value = intermediate_value.wrapping_add(cpu.registers.get_carry_flag() as u8);
+            cpu.registers.set_a(new_value);
+            cpu.registers.set_zero_flag(new_value == 0);
+            cpu.registers.set_negative_flag(false);
+            cpu.registers.set_half_carry_flag(((new_value & 0x0F) < (intermediate_value & 0x0F)) || ((intermediate_value & 0x0F) < (old_value & 0x0F)));
+            cpu.registers.set_carry_flag(new_value < old_value);
+            opcode.cycles as u64
+        },
+    });
+    opcodes[0xCF] = Some(&Instruction {
+        opcode: 0xCF,
+        name: "RST $08",
+        cycles: 4,
+        size: 1,
+        flags: &[],
+        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
+            let return_addr = cpu.registers.get_pc();
+            let interrupt_addr = ((opcode.opcode & 0b00_111_000) >> 3) as u16 * 8;
+            cpu.push((return_addr >> 8) as u8);
+            cpu.push((return_addr & 0xFF) as u8);
+            cpu.registers.set_pc(interrupt_addr);
+            opcode.cycles as u64
+        },
+    });
     opcodes[0xD0] = Some(&Instruction {
         opcode: 0xD0,
         name: "RET CZ",
@@ -3062,7 +3119,7 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
     });
     opcodes[0xD7] = Some(&Instruction {
         opcode: 0xD7,
-        name: "RST $08",
+        name: "RST $10",
         cycles: 4,
         size: 1,
         flags: &[],
@@ -3089,6 +3146,56 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
                 return opcode.cycles as u64
             }
             2
+        },
+    });
+    opcodes[0xD9] = Some(&Instruction {
+        opcode: 0xD9,
+        name: "RETI",
+        cycles: 4,
+        size: 1,
+        flags: &[],
+        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
+            let mut return_addr = cpu.pop() as u16;
+            return_addr |= (cpu.pop() as u16) << 8;
+            cpu.registers.set_pc(return_addr);
+            // TODO: Also need to restore Interrupt Enable flag to pre-interrupt status
+            opcode.cycles as u64
+        },
+    });
+    opcodes[0xDA] = Some(&Instruction {
+        opcode: 0xDA,
+        name: "JP C, imm16",
+        cycles: 4,
+        size: 3,
+        flags: &[],
+        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
+            let mut return_address: u16 = 0x00;
+            return_address |= cpu.fetch_next() as u16;
+            return_address |= (cpu.fetch_next() as u16) << 8;
+            if cpu.registers.get_carry_flag() {
+                cpu.registers.set_pc(return_address);
+                return opcode.cycles as u64
+            }
+            3
+        },
+    });
+    opcodes[0xDC] = Some(&Instruction {
+        opcode: 0xDC,
+        name: "CALL C, imm16",
+        cycles: 6,
+        size: 3,
+        flags: &[],
+        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
+            let mut call_address: u16 = 0x00;
+            call_address |= cpu.fetch_next() as u16;
+            call_address |= (cpu.fetch_next() as u16) << 8;
+            if cpu.registers.get_carry_flag() {
+                cpu.push((cpu.registers.get_pc() >> 8) as u8);
+                cpu.push((cpu.registers.get_pc() & 0xFF) as u8);
+                cpu.registers.set_pc(call_address);
+                return opcode.cycles as u64
+            }
+            3
         },
     });
     opcodes
@@ -3638,6 +3745,196 @@ mod test {
                 assert_eq!(cycles, 1);
                 assert_eq!(cpu_1.registers.$get_reg_to(), expected_value);
                 assert_eq!(cpu_1.registers.$get_reg_from(), test_value_2);
+                // Z/H/C Flag
+                test_flags!(cpu_1, true, false, true, true);
+            }
+        };
+    }
+
+    macro_rules! test_adc_r8_r8 {
+        ($opcode:expr, $func:ident, $set_reg_to:ident, $get_reg_to:ident, $set_reg_from:ident, $get_reg_from:ident, $carry:expr) => {
+            #[test]
+            fn $func() {
+                let mut test_value_1: u8 = 0xC4;
+                let mut test_value_2: u8 = 0x16;
+                let mut expected_value: u8 = test_value_1.wrapping_add(test_value_2).wrapping_add($carry as u8);
+                let mut cpu_1 = CPU::new();
+                let program_1: Vec<u8> = vec![$opcode];
+                cpu_1.load(&program_1);
+                cpu_1.registers.$set_reg_to(test_value_1);
+                cpu_1.registers.$set_reg_from(test_value_2);
+                cpu_1.registers.set_carry_flag($carry);
+                let mut cycles = cpu_1.execute_next();
+                assert_eq!(cycles, 1);
+                assert_eq!(cpu_1.registers.$get_reg_to(), expected_value);
+                assert_eq!(cpu_1.registers.$get_reg_from(), test_value_2);
+                // No Flags
+                test_flags!(cpu_1, false, false, false, false);
+
+                test_value_1 = 0xF0;
+                test_value_2 = 0x10 - $carry as u8;
+                expected_value = 0x00;
+                cpu_1 = CPU::new();
+                cpu_1.load(&program_1);
+                cpu_1.registers.$set_reg_to(test_value_1);
+                cpu_1.registers.$set_reg_from(test_value_2);
+                cpu_1.registers.set_carry_flag($carry);
+                cycles = cpu_1.execute_next();
+                assert_eq!(cycles, 1);
+                assert_eq!(cpu_1.registers.$get_reg_to(), expected_value);
+                assert_eq!(cpu_1.registers.$get_reg_from(), test_value_2);
+                // Z/C Flags
+                test_flags!(cpu_1, true, false, $carry, true);
+
+                test_value_1 = 0x0F;
+                test_value_2 = 0x01;
+                expected_value = 0x10 + $carry as u8;
+                cpu_1 = CPU::new();
+                cpu_1.load(&program_1);
+                cpu_1.registers.$set_reg_to(test_value_1);
+                cpu_1.registers.$set_reg_from(test_value_2);
+                cpu_1.registers.set_carry_flag($carry);
+                cycles = cpu_1.execute_next();
+                assert_eq!(cycles, 1);
+                assert_eq!(cpu_1.registers.$get_reg_to(), expected_value);
+                assert_eq!(cpu_1.registers.$get_reg_from(), test_value_2);
+                // H Flag
+                test_flags!(cpu_1, false, false, true, false);
+
+                test_value_1 = 0xFF - $carry as u8;
+                test_value_2 = 0x01;
+                expected_value = 0x00;
+                cpu_1 = CPU::new();
+                cpu_1.load(&program_1);
+                cpu_1.registers.$set_reg_to(test_value_1);
+                cpu_1.registers.$set_reg_from(test_value_2);
+                cpu_1.registers.set_carry_flag($carry);
+                cycles = cpu_1.execute_next();
+                assert_eq!(cycles, 1);
+                assert_eq!(cpu_1.registers.$get_reg_to(), expected_value);
+                assert_eq!(cpu_1.registers.$get_reg_from(), test_value_2);
+                // Z/H/C Flag
+                test_flags!(cpu_1, true, false, true, true);
+            }
+        };
+    }
+
+    macro_rules! test_add_r8_imm8 {
+        ($opcode:expr, $func:ident, $set_reg_to:ident, $get_reg_to:ident) => {
+            #[test]
+            fn $func() {
+                let mut test_value_1: u8 = 0xC4;
+                let mut test_value_2: u8 = 0x16;
+                let mut expected_value: u8 = test_value_1.wrapping_add(test_value_2);
+                let mut cpu_1 = CPU::new();
+                let mut program_1: Vec<u8> = vec![$opcode, test_value_2];
+                cpu_1.load(&program_1);
+                cpu_1.registers.$set_reg_to(test_value_1);
+                let mut cycles = cpu_1.execute_next();
+                assert_eq!(cycles, 2);
+                assert_eq!(cpu_1.registers.$get_reg_to(), expected_value);
+                // No Flags
+                test_flags!(cpu_1, false, false, false, false);
+
+                test_value_1 = 0xF0;
+                test_value_2 = 0x10;
+                expected_value = 0x00;
+                program_1[1] = test_value_2;
+                cpu_1 = CPU::new();
+                cpu_1.load(&program_1);
+                cpu_1.registers.$set_reg_to(test_value_1);
+                cycles = cpu_1.execute_next();
+                assert_eq!(cycles, 2);
+                assert_eq!(cpu_1.registers.$get_reg_to(), expected_value);
+                // Z/C Flags
+                test_flags!(cpu_1, true, false, false, true);
+
+                test_value_1 = 0x0F;
+                test_value_2 = 0x01;
+                expected_value = 0x10;
+                program_1[1] = test_value_2;
+                cpu_1 = CPU::new();
+                cpu_1.load(&program_1);
+                cpu_1.registers.$set_reg_to(test_value_1);
+                cycles = cpu_1.execute_next();
+                assert_eq!(cycles, 2);
+                assert_eq!(cpu_1.registers.$get_reg_to(), expected_value);
+                // H Flag
+                test_flags!(cpu_1, false, false, true, false);
+
+                test_value_1 = 0xFF;
+                test_value_2 = 0x01;
+                expected_value = 0x00;
+                program_1[1] = test_value_2;
+                cpu_1 = CPU::new();
+                cpu_1.load(&program_1);
+                cpu_1.registers.$set_reg_to(test_value_1);
+                cycles = cpu_1.execute_next();
+                assert_eq!(cycles, 2);
+                assert_eq!(cpu_1.registers.$get_reg_to(), expected_value);
+                // Z/H/C Flag
+                test_flags!(cpu_1, true, false, true, true);
+            }
+        };
+    }
+
+    macro_rules! test_adc_r8_imm8 {
+        ($opcode:expr, $func:ident, $set_reg_to:ident, $get_reg_to:ident, $carry:expr) => {
+            #[test]
+            fn $func() {
+                let mut test_value_1: u8 = 0xC4;
+                let mut test_value_2: u8 = 0x16;
+                let mut expected_value: u8 = test_value_1.wrapping_add(test_value_2).wrapping_add($carry as u8);
+                let mut cpu_1 = CPU::new();
+                let mut program_1: Vec<u8> = vec![$opcode, test_value_2];
+                cpu_1.load(&program_1);
+                cpu_1.registers.$set_reg_to(test_value_1);
+                cpu_1.registers.set_carry_flag($carry);
+                let mut cycles = cpu_1.execute_next();
+                assert_eq!(cycles, 2);
+                assert_eq!(cpu_1.registers.$get_reg_to(), expected_value);
+                // No Flags
+                test_flags!(cpu_1, false, false, false, false);
+
+                test_value_1 = 0xF0;
+                test_value_2 = 0x10 - $carry as u8;
+                expected_value = 0x00;
+                program_1[1] = test_value_2;
+                cpu_1 = CPU::new();
+                cpu_1.load(&program_1);
+                cpu_1.registers.$set_reg_to(test_value_1);
+                cpu_1.registers.set_carry_flag($carry);
+                cycles = cpu_1.execute_next();
+                assert_eq!(cycles, 2);
+                assert_eq!(cpu_1.registers.$get_reg_to(), expected_value);
+                // Z/C Flags
+                test_flags!(cpu_1, true, false, $carry, true);
+
+                test_value_1 = 0x0F;
+                test_value_2 = 0x01;
+                expected_value = 0x10 + $carry as u8;
+                program_1[1] = test_value_2;
+                cpu_1 = CPU::new();
+                cpu_1.load(&program_1);
+                cpu_1.registers.$set_reg_to(test_value_1);
+                cpu_1.registers.set_carry_flag($carry);
+                cycles = cpu_1.execute_next();
+                assert_eq!(cycles, 2);
+                assert_eq!(cpu_1.registers.$get_reg_to(), expected_value);
+                // H Flag
+                test_flags!(cpu_1, false, false, true, false);
+
+                test_value_1 = 0xFF - $carry as u8;
+                test_value_2 = 0x01;
+                expected_value = 0x00;
+                program_1[1] = test_value_2;
+                cpu_1 = CPU::new();
+                cpu_1.load(&program_1);
+                cpu_1.registers.$set_reg_to(test_value_1);
+                cpu_1.registers.set_carry_flag($carry);
+                cycles = cpu_1.execute_next();
+                assert_eq!(cycles, 2);
+                assert_eq!(cpu_1.registers.$get_reg_to(), expected_value);
                 // Z/H/C Flag
                 test_flags!(cpu_1, true, false, true, true);
             }
@@ -5803,7 +6100,7 @@ mod test {
         // Z/C Flags
         assert_eq!(cpu_1.registers.get_zero_flag(), true);
         assert_eq!(cpu_1.registers.get_negative_flag(), false);
-        assert_eq!(cpu_1.registers.get_half_carry_flag(), false);
+        assert_eq!(cpu_1.registers.get_half_carry_flag(), true);
         assert_eq!(cpu_1.registers.get_carry_flag(), true);
 
         test_value_1 = 0x0D;
@@ -7830,65 +8127,18 @@ mod test {
     test_jump!(0xC3, test_0xc3_jp_imm8);
     test_call!(0xC4, test_0xc4_call_nz_imm16, true, set_zero_flag, get_zero_flag);
     test_push!(0xC5, test_0xc5_push_bc, set_bc, get_bc);
-    #[test]
-    fn test_0xc6_add_a_imm8() {
-        let mut test_value_1: u8 = 0xC4;
-        let mut test_value_2: u8 = 0x16;
-        let mut expected_value: u8 = test_value_1.wrapping_add(test_value_2);
-        let mut cpu_1 = CPU::new();
-        let mut program_1: Vec<u8> = vec![0xC6, test_value_2];
-        cpu_1.load(&program_1);
-        cpu_1.registers.set_a(test_value_1);
-        let mut cycles = cpu_1.execute_next();
-        assert_eq!(cycles, 2);
-        assert_eq!(cpu_1.registers.get_a(), expected_value);
-        // No Flags
-        test_flags!(cpu_1, false, false, false, false);
 
-        test_value_1 = 0xF0;
-        test_value_2 = 0x10;
-        expected_value = 0x00;
-        program_1[1] = test_value_2;
-        cpu_1 = CPU::new();
-        cpu_1.load(&program_1);
-        cpu_1.registers.set_a(test_value_1);
-        cycles = cpu_1.execute_next();
-        assert_eq!(cycles, 2);
-        assert_eq!(cpu_1.registers.get_a(), expected_value);
-        // Z/C Flags
-        test_flags!(cpu_1, true, false, false, true);
-
-        test_value_1 = 0x0F;
-        test_value_2 = 0x01;
-        expected_value = 0x10;
-        program_1[1] = test_value_2;
-        cpu_1 = CPU::new();
-        cpu_1.load(&program_1);
-        cpu_1.registers.set_a(test_value_1);
-        cycles = cpu_1.execute_next();
-        assert_eq!(cycles, 2);
-        assert_eq!(cpu_1.registers.get_a(), expected_value);
-        // H Flag
-        test_flags!(cpu_1, false, false, true, false);
-
-        test_value_1 = 0xFF;
-        test_value_2 = 0x01;
-        expected_value = 0x00;
-        program_1[1] = test_value_2;
-        cpu_1 = CPU::new();
-        cpu_1.load(&program_1);
-        cpu_1.registers.set_a(test_value_1);
-        cycles = cpu_1.execute_next();
-        assert_eq!(cycles, 2);
-        assert_eq!(cpu_1.registers.get_a(), expected_value);
-        // Z/H/C Flag
-        test_flags!(cpu_1, true, false, true, true);
-    }
+    // 0xC* Row
+    test_add_r8_imm8!(0xC6, test_0xc6_add_a_imm8, set_a, get_a);
     test_rst!(0xC7, test_0xc7_rst_00);
     test_ret!(0xC8, test_0xc8_ret_n, false, set_zero_flag, get_zero_flag);
     test_ret!(0xC9, test_0xc9_ret);
     test_jump!(0xCA, test_0xca_jp_z_imm16, false, set_zero_flag, get_zero_flag);
     test_call!(0xCC, test_0xcc_call_z_imm16, false, set_zero_flag, get_zero_flag);
+    test_call!(0xCD, test_0xcd_call_imm16);
+    test_adc_r8_imm8!(0xCE, test_0xce_adc_a_imm8__c_off, set_a, get_a, false);
+    test_adc_r8_imm8!(0xCE, test_0xce_adc_a_imm8__c_on, set_a, get_a, true);
+    test_rst!(0xCF, test_0xcf_rst_08);
 
     // 0xD* Row
     test_ret!(0xD0, test_0xd0_ret_nc, true, set_carry_flag, get_carry_flag);
@@ -7965,6 +8215,6 @@ mod test {
         // H/C Flag
         test_flags!(cpu_1, false, true, true, true);
     }
-    test_rst!(0xD7, test_0xd7_rst_08);
+    test_rst!(0xD7, test_0xd7_rst_10);
     test_ret!(0xD8, test_0xd8_ret_c, false, set_carry_flag, get_carry_flag);
 }
