@@ -185,7 +185,7 @@ impl Registers {
     }
     pub fn set_af(&mut self, val: u16) {
         self.a = (val >> 8) as u8;
-        self.f = (val & 0xF0) as u8
+        self.f = (val & 0x00F0) as u8;
     }
 
     get_set_flag!(get_zero_flag, set_zero_flag, Z);

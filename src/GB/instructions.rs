@@ -3271,6 +3271,18 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
             opcode.cycles as u64
         },
     });
+    opcodes[0xE5] = Some(&Instruction {
+        opcode: 0xE5,
+        name: "PUSH HL",
+        cycles: 3,
+        size: 1,
+        flags: &[],
+        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
+            cpu.push(cpu.registers.get_h());
+            cpu.push(cpu.registers.get_l());
+            opcode.cycles as u64
+        },
+    });
     opcodes[0xF0] = Some(&Instruction {
         opcode: 0xF0,
         name: "LDH A, [imm8]",
@@ -3308,6 +3320,29 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
             let byte = (cpu.registers.get_c() as u16) & 0xFF;
             let mem_addr = 0xFF00 | byte;
             cpu.registers.set_a(cpu.ram.read(mem_addr));
+            opcode.cycles as u64
+        },
+    });
+    opcodes[0xF3] = Some(&Instruction {
+        opcode: 0xF3,
+        name: "DI",
+        cycles: 1,
+        size: 1,
+        flags: &[],
+        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
+            cpu.interrupts_enabled = false;
+            opcode.cycles as u64
+        },
+    });
+    opcodes[0xF5] = Some(&Instruction {
+        opcode: 0xF5,
+        name: "PUSH AF",
+        cycles: 3,
+        size: 1,
+        flags: &[],
+        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
+            cpu.push(cpu.registers.get_a());
+            cpu.push(cpu.registers.get_f());
             opcode.cycles as u64
         },
     });
@@ -4989,10 +5024,14 @@ mod test {
                 let registers_copy = cpu.registers;
                 let mut cycles = cpu.execute_next();
                 assert_eq!(cycles, 3);
-                assert_eq!(cpu.registers.$get_reg(), test_value);
+                assert_eq!(cpu.registers.$get_reg(), if stringify!($get_reg) == "get_af" {test_value & 0xFFF0} else {test_value});
                 assert_eq!(cpu.registers.get_sp(), registers_copy.get_sp() - 2);
-                assert_eq!(cpu.ram.read(cpu.registers.get_sp() + 1), test_low_byte);
                 assert_eq!(cpu.ram.read(cpu.registers.get_sp() + 2), test_high_byte);
+                if (stringify!($get_reg) == "get_af") {
+                    assert_eq!(cpu.ram.read(cpu.registers.get_sp() + 1), test_low_byte & 0xF0);
+                } else {
+                    assert_eq!(cpu.ram.read(cpu.registers.get_sp() + 1), test_low_byte);
+                }
             }
         };
     }
@@ -8470,9 +8509,21 @@ mod test {
     test_ldh_r8_imm8!(0xE0, test_0xe0_ldh__imm8__a, set_a, get_a, false);
     test_pop!(0xE1, test_0xe1_pop_hl, set_hl, get_hl);
     test_ldh_r8_r8!(0xE2, test_0xe2_ldh__c__a, set_a, get_a, set_c, get_c, false);
+    test_push!(0xE5, test_0xe5_push_hl, set_hl, get_hl);
 
     // 0XF* Row
     test_ldh_r8_imm8!(0xF0, test_0xf0_ldh_a__imm8_, set_a, get_a, true);
     test_pop!(0xF1, test_0xf1_pop_af, set_af, get_af);
     test_ldh_r8_r8!(0xF2, test_0xf2_ldh_a__c_, set_a, get_a, set_c, get_c, true);
+    #[test]
+    fn test_0xf3_di() {
+        let mut cpu_1 = CPU::new();
+        let mut program_1: Vec<u8> = vec![0xF3];
+        cpu_1.load(&program_1);
+        cpu_1.interrupts_enabled = true;
+        let mut cycles = cpu_1.execute_next();
+        assert_eq!(cycles, 1);
+        assert_eq!(cpu_1.interrupts_enabled, false);
+    }
+    test_push!(0xF5, test_0xf5_push_af, set_af, get_af);
 }
