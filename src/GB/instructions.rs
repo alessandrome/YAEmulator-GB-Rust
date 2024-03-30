@@ -3577,6 +3577,38 @@ mod test {
         };
     }
 
+    macro_rules! test_ldh_r8_r8 {
+        // $rtl = true -> LDH r8, [r'8] else -> LDH [r'8], r8
+        ($opcode:expr, $func:ident, $set_reg:ident, $get_reg:ident, $set_reg_2:ident, $get_reg_2:ident, $rtl:expr) => {
+            #[test]
+            fn $func() {
+                let test_value: u8 = 0xD8;
+                let test_addr_low: u8 = 0x5A;
+                let test_addr: u16 = 0xFF00 | (test_addr_low as u16 & 0xFF);
+                let mut cpu = CPU::new();
+                let program: Vec<u8> = vec![$opcode];
+                cpu.load(&program);
+                let registers_copy = cpu.registers;
+                cpu.ram.write(test_addr, if $rtl {test_value} else {0});
+                cpu.registers.$set_reg_2(test_addr_low);
+                cpu.registers.$set_reg(if !$rtl {test_value} else {0});
+                let cycles = cpu.execute_next();
+                assert_eq!(cycles, 2);
+                assert_eq!(cpu.registers.$get_reg(), test_value);
+                assert_eq!(cpu.registers.$get_reg_2(), test_addr_low);
+                assert_eq!(cpu.ram.read(test_addr), test_value);
+                // Flags untouched
+                test_flags!(
+                    cpu,
+                    registers_copy.get_zero_flag(),
+                    registers_copy.get_negative_flag(),
+                    registers_copy.get_half_carry_flag(),
+                    registers_copy.get_carry_flag()
+                );
+            }
+        };
+    }
+
     macro_rules! test_inc_r16 {
         ($opcode:expr, $func:ident, $set_reg:ident, $get_reg:ident, $get_reg_high:ident, $get_reg_low:ident) => {
             #[test]
@@ -8437,8 +8469,10 @@ mod test {
     // 0XE* Row
     test_ldh_r8_imm8!(0xE0, test_0xe0_ldh__imm8__a, set_a, get_a, false);
     test_pop!(0xE1, test_0xe1_pop_hl, set_hl, get_hl);
+    test_ldh_r8_r8!(0xE2, test_0xe2_ldh__c__a, set_a, get_a, set_c, get_c, false);
 
     // 0XF* Row
     test_ldh_r8_imm8!(0xF0, test_0xf0_ldh_a__imm8_, set_a, get_a, true);
     test_pop!(0xF1, test_0xf1_pop_af, set_af, get_af);
+    test_ldh_r8_r8!(0xF2, test_0xf2_ldh_a__c_, set_a, get_a, set_c, get_c, true);
 }
