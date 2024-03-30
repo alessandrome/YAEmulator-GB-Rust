@@ -415,7 +415,11 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
             // TODO: Test
             let byte = cpu.fetch_next() as i8;
-            cpu.registers.set_pc(cpu.registers.get_pc() -  if byte < 0 {byte.abs()} else {byte} as u16);
+            if byte > 0 {
+                cpu.registers.set_pc(cpu.registers.get_pc().wrapping_add(byte as u16));
+            } else {
+                cpu.registers.set_pc(cpu.registers.get_pc().wrapping_sub((byte as i16).abs() as u16));
+            }
             opcode.cycles as u64
         },
     });
@@ -3197,7 +3201,8 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
             }
             3
         },
-    });opcodes[0xDE] = Some(&Instruction {
+    });
+    opcodes[0xDE] = Some(&Instruction {
         opcode: 0xDE,
         name: "SBC A, imm8",
         cycles: 2,
@@ -3283,6 +3288,118 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
             opcode.cycles as u64
         },
     });
+    opcodes[0xE6] = Some(&Instruction {
+        opcode: 0xE6,
+        name: "AND A, imm8",
+        cycles: 2,
+        size: 1,
+        flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
+        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
+            let old_value = cpu.registers.get_a();
+            let new_value = old_value & cpu.fetch_next();
+            cpu.registers.set_a(new_value);
+            cpu.registers.set_zero_flag(new_value == 0);
+            cpu.registers.set_negative_flag(false);
+            cpu.registers.set_half_carry_flag(true);
+            cpu.registers.set_carry_flag(false);
+            opcode.cycles as u64
+        },
+    });
+    opcodes[0xE7] = Some(&Instruction {
+        opcode: 0xE7,
+        name: "RST $20",
+        cycles: 4,
+        size: 1,
+        flags: &[],
+        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
+            let return_addr = cpu.registers.get_pc();
+            let interrupt_addr = ((opcode.opcode & 0b00_111_000) >> 3) as u16 * 8;
+            cpu.push((return_addr >> 8) as u8);
+            cpu.push((return_addr & 0xFF) as u8);
+            cpu.registers.set_pc(interrupt_addr);
+            opcode.cycles as u64
+        },
+    });
+    opcodes[0xE8] = Some(&Instruction {
+        opcode: 0xE8,
+        name: "ADD SP, e8",
+        cycles: 4,
+        size: 2,
+        flags: &[FlagBits::N, FlagBits::H, FlagBits::C],
+        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
+            let byte = (cpu.fetch_next() as i8) as i16;
+            let old_sp = cpu.registers.get_sp();
+            if byte > 0 {
+                cpu.registers.set_sp(old_sp.wrapping_add(byte as u16));
+                cpu.registers.set_half_carry_flag((cpu.registers.get_sp() & 0x0F00) < (old_sp & 0x0F00));
+                cpu.registers.set_carry_flag(cpu.registers.get_sp() < old_sp);
+            } else {
+                cpu.registers.set_sp(old_sp.wrapping_sub(byte.abs() as u16));
+                cpu.registers.set_half_carry_flag((cpu.registers.get_sp() & 0x0F00) > (old_sp & 0x0F00));
+                cpu.registers.set_carry_flag(cpu.registers.get_sp() > old_sp);
+            }
+            cpu.registers.set_zero_flag(false);
+            cpu.registers.set_negative_flag(false);
+            opcode.cycles as u64
+        },
+    });
+    opcodes[0xE9] = Some(&Instruction {
+        opcode: 0xE9,
+        name: "JP HL",
+        cycles: 1,
+        size: 1,
+        flags: &[],
+        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
+            cpu.registers.set_pc(cpu.registers.get_sp());
+            opcode.cycles as u64
+        },
+    });
+    opcodes[0xEA] = Some(&Instruction {
+        opcode: 0xEA,
+        name: "LD A, [imm16]",
+        cycles: 4,
+        size: 3,
+        flags: &[],
+        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
+            let mut imm_address: u16 = 0x00;
+            imm_address |= cpu.fetch_next() as u16 & 0xFF;
+            imm_address |= (cpu.fetch_next() as u16) << 8;
+            cpu.registers.set_a(cpu.ram.read(imm_address));
+            opcode.cycles as u64
+        },
+    });
+    opcodes[0xEE] = Some(&Instruction {
+        opcode: 0xEE,
+        name: "XOR A, imm8",
+        cycles: 2,
+        size: 1,
+        flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
+        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
+            let old_value = cpu.registers.get_a();
+            let new_value = old_value ^ cpu.fetch_next();
+            cpu.registers.set_a(new_value);
+            cpu.registers.set_zero_flag(new_value == 0);
+            cpu.registers.set_negative_flag(false);
+            cpu.registers.set_half_carry_flag(false);
+            cpu.registers.set_carry_flag(false);
+            opcode.cycles as u64
+        },
+    });
+    opcodes[0xEF] = Some(&Instruction {
+        opcode: 0xEF,
+        name: "RST $28",
+        cycles: 4,
+        size: 1,
+        flags: &[],
+        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
+            let return_addr = cpu.registers.get_pc();
+            let interrupt_addr = ((opcode.opcode & 0b00_111_000) >> 3) as u16 * 8;
+            cpu.push((return_addr >> 8) as u8);
+            cpu.push((return_addr & 0xFF) as u8);
+            cpu.registers.set_pc(interrupt_addr);
+            opcode.cycles as u64
+        },
+    });
     opcodes[0xF0] = Some(&Instruction {
         opcode: 0xF0,
         name: "LDH A, [imm8]",
@@ -3343,6 +3460,129 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
             cpu.push(cpu.registers.get_a());
             cpu.push(cpu.registers.get_f());
+            opcode.cycles as u64
+        },
+    });
+    opcodes[0xF6] = Some(&Instruction {
+        opcode: 0xF6,
+        name: "OR A, imm8",
+        cycles: 2,
+        size: 1,
+        flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
+        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
+            let old_value = cpu.registers.get_a();
+            let new_value = old_value | cpu.fetch_next();
+            cpu.registers.set_a(new_value);
+            cpu.registers.set_zero_flag(new_value == 0);
+            cpu.registers.set_negative_flag(false);
+            cpu.registers.set_half_carry_flag(true);
+            cpu.registers.set_carry_flag(false);
+            opcode.cycles as u64
+        },
+    });
+    opcodes[0xF7] = Some(&Instruction {
+        opcode: 0xF7,
+        name: "RST $30",
+        cycles: 4,
+        size: 1,
+        flags: &[],
+        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
+            let return_addr = cpu.registers.get_pc();
+            let interrupt_addr = ((opcode.opcode & 0b00_111_000) >> 3) as u16 * 8;
+            cpu.push((return_addr >> 8) as u8);
+            cpu.push((return_addr & 0xFF) as u8);
+            cpu.registers.set_pc(interrupt_addr);
+            opcode.cycles as u64
+        },
+    });
+    opcodes[0xF8] = Some(&Instruction {
+        opcode: 0xF8,
+        name: "LD HL, SP + e8",
+        cycles: 3,
+        size: 2,
+        flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
+        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
+            let byte = (cpu.fetch_next() as i8) as i16;
+            let mut temp_sp = cpu.registers.get_sp();
+            if byte > 0 {
+                temp_sp = temp_sp.wrapping_add(byte as u16);
+                cpu.registers.set_half_carry_flag((temp_sp & 0x0F00) < (cpu.registers.get_sp() & 0x0F00));
+                cpu.registers.set_carry_flag(temp_sp < cpu.registers.get_sp());
+            } else {
+                temp_sp = temp_sp.wrapping_sub(byte.abs() as u16);
+                cpu.registers.set_half_carry_flag((temp_sp & 0x0F00) > (cpu.registers.get_sp() & 0x0F00));
+                cpu.registers.set_carry_flag(temp_sp > cpu.registers.get_sp());
+            }
+            cpu.registers.set_zero_flag(false);
+            cpu.registers.set_negative_flag(false);
+            opcode.cycles as u64
+        },
+    });
+    opcodes[0xF9] = Some(&Instruction {
+        opcode: 0xF9,
+        name: "LD SP, HL",
+        cycles: 2,
+        size: 1,
+        flags: &[],
+        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
+            cpu.registers.set_sp(cpu.registers.get_hl());
+            opcode.cycles as u64
+        },
+    });
+    opcodes[0xFA] = Some(&Instruction {
+        opcode: 0xFA,
+        name: "LD [imm16], A",
+        cycles: 4,
+        size: 3,
+        flags: &[],
+        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
+            let mut imm_address: u16 = 0x00;
+            imm_address |= cpu.fetch_next() as u16 & 0xFF;
+            imm_address |= (cpu.fetch_next() as u16) << 8;
+            cpu.ram.write(imm_address, cpu.registers.get_a());
+            opcode.cycles as u64
+        },
+    });
+    opcodes[0xFB] = Some(&Instruction {
+        opcode: 0xFB,
+        name: "EI",
+        cycles: 1,
+        size: 1,
+        flags: &[],
+        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
+            cpu.interrupts_enabled = true;
+            opcode.cycles as u64
+        },
+    });
+    opcodes[0xFE] = Some(&Instruction {
+        opcode: 0xFE,
+        name: "CP A, imm8",
+        cycles: 2,
+        size: 2,
+        flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
+        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
+            let byte = cpu.fetch_next();
+            let old_value = cpu.registers.get_a();
+            let new_value = old_value.wrapping_sub(byte);
+            cpu.registers.set_zero_flag(new_value == 0);
+            cpu.registers.set_negative_flag(true);
+            cpu.registers.set_half_carry_flag((new_value & 0x0F) > (old_value & 0x0F));
+            cpu.registers.set_carry_flag(new_value > old_value);
+            opcode.cycles as u64
+        },
+    });
+    opcodes[0xFF] = Some(&Instruction {
+        opcode: 0xFF,
+        name: "RST $30",
+        cycles: 4,
+        size: 1,
+        flags: &[],
+        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
+            let return_addr = cpu.registers.get_pc();
+            let interrupt_addr = ((opcode.opcode & 0b00_111_000) >> 3) as u16 * 8;
+            cpu.push((return_addr >> 8) as u8);
+            cpu.push((return_addr & 0xFF) as u8);
+            cpu.registers.set_pc(interrupt_addr);
             opcode.cycles as u64
         },
     });
@@ -4315,6 +4555,39 @@ mod test {
         };
     }
 
+    macro_rules! test_and_a_imm8 {
+        ($opcode:expr, $func:ident) => {
+            #[test]
+            fn $func() {
+                let mut test_value_1: u8 = 0b0110_1001;
+                let mut test_value_2: u8 = 0b0100_0111;
+                let mut expected_value: u8 = test_value_1 & test_value_2;
+                let mut cpu_1 = CPU::new();
+                let mut program_1: Vec<u8> = vec![$opcode, test_value_2];
+                cpu_1.load(&program_1);
+                cpu_1.registers.set_a(test_value_1);
+                let mut cycles = cpu_1.execute_next();
+                assert_eq!(cycles, 2);
+                assert_eq!(cpu_1.registers.get_a(), expected_value);
+                // H Flag
+                test_flags!(cpu_1, false, false, true, false);
+
+                test_value_1 = 0b1010_1001;
+                test_value_2 = 0b0100_0110;
+                program_1[1] = test_value_2
+                expected_value = 0x0;
+                cpu_1 = CPU::new();
+                cpu_1.load(&program_1);
+                cpu_1.registers.set_a(test_value_1);
+                let mut cycles = cpu_1.execute_next();
+                assert_eq!(cycles, 2);
+                assert_eq!(cpu_1.registers.get_a(), expected_value);
+                // Z/H Flags
+                test_flags!(cpu_1, true, false, true, false);
+            }
+        };
+    }
+
     macro_rules! test_xor_a_r8 {
         ($opcode:expr, $func:ident, $set_reg:ident, $get_reg:ident) => {
             #[test]
@@ -4430,6 +4703,53 @@ mod test {
                 assert_eq!(cycles, 1);
                 assert_eq!(cpu_1.registers.get_a(), expected_value);
                 // H Flag
+                test_flags!(cpu_1, true, false, false, false);
+            }
+        };
+    }
+
+    macro_rules! test_xor_a_imm8 {
+        ($opcode:expr, $func:ident) => {
+            #[test]
+            fn $func() {
+                let mut test_value_1: u8 = 0b0110_1001;
+                let mut test_value_2: u8 = 0b0100_0111;
+                let mut expected_value: u8 = test_value_1 ^ test_value_2;
+                let mut cpu_1 = CPU::new();
+                let mut program_1: Vec<u8> = vec![$opcode, test_value_2];
+                cpu_1.load(&program_1);
+                cpu_1.registers.set_a(test_value_1);
+                let mut cycles = cpu_1.execute_next();
+                assert_eq!(cycles, 2);
+                assert_eq!(cpu_1.registers.get_a(), expected_value);
+                // H Flag
+                test_flags!(cpu_1, false, false, false, false);
+
+                test_value_1 = 0b1010_1001;
+                test_value_2 = 0b0101_0110;
+                program_1[1] = test_value_2
+                expected_value = 0xFF;
+                cpu_1 = CPU::new();
+                cpu_1.load(&program_1);
+                cpu_1.registers.set_a(test_value_1);
+                let mut cycles = cpu_1.execute_next();
+                assert_eq!(cycles, 2);
+                assert_eq!(cpu_1.registers.get_a(), expected_value);
+                // Z/H Flags
+                test_flags!(cpu_1, false, false, false, false);
+
+                test_value_1 = 0b1010_1001;
+                test_value_2 = 0b1010_1001;
+                expected_value = 0x0;
+                cpu_1 = CPU::new();
+                cpu_1.load(&program_1);
+                cpu_1.registers.set_a(test_value_1);
+                cpu_1.registers.$set_reg(test_value_2);
+                let mut cycles = cpu_1.execute_next();
+                assert_eq!(cycles, 1);
+                assert_eq!(cpu_1.registers.get_a(), expected_value);
+                assert_eq!(cpu_1.registers.$get_reg(), test_value_2);
+                // Z/H Flags
                 test_flags!(cpu_1, true, false, false, false);
             }
         };
@@ -4591,6 +4911,65 @@ mod test {
                 assert_eq!(cycles, 1);
                 assert_eq!(cpu_1.registers.get_a(), expected_value);
                 // Z Flag
+                test_flags!(cpu_1, true, false, false, false);
+            }
+        };
+    }
+
+    macro_rules! test_or_a_imm8 {
+        ($opcode:expr, $func:ident) => {
+            #[test]
+            fn $func() {
+                let mut test_value_1: u8 = 0b0110_1001;
+                let mut test_value_2: u8 = 0b0100_0111;
+                let mut expected_value: u8 = test_value_1 | test_value_2;
+                let mut cpu_1 = CPU::new();
+                let mut program_1: Vec<u8> = vec![$opcode, test_value_2];
+                cpu_1.load(&program_1);
+                cpu_1.registers.set_a(test_value_1);
+                let mut cycles = cpu_1.execute_next();
+                assert_eq!(cycles, 2);
+                assert_eq!(cpu_1.registers.get_a(), expected_value);
+                // H Flag
+                test_flags!(cpu_1, false, false, false, false);
+
+                test_value_1 = 0b1010_1001;
+                test_value_2 = 0b0101_0110;
+                expected_value = 0xFF;
+                program_1[1] = test_value_2
+                cpu_1 = CPU::new();
+                cpu_1.load(&program_1);
+                cpu_1.registers.set_a(test_value_1);
+                let mut cycles = cpu_1.execute_next();
+                assert_eq!(cycles, 2);
+                assert_eq!(cpu_1.registers.get_a(), expected_value);
+                // Z/H Flags
+                test_flags!(cpu_1, false, false, false, false);
+
+                test_value_1 = 0b1010_1001;
+                test_value_2 = 0b1010_1001;
+                expected_value = test_value_1;
+                program_1[1] = test_value_2
+                cpu_1 = CPU::new();
+                cpu_1.load(&program_1);
+                cpu_1.registers.set_a(test_value_1);
+                let mut cycles = cpu_1.execute_next();
+                assert_eq!(cycles, 2);
+                assert_eq!(cpu_1.registers.get_a(), expected_value);
+                // Z/H Flags
+                test_flags!(cpu_1, false, false, false, false);
+
+                test_value_1 = 0b0;
+                test_value_2 = 0b0;
+                expected_value = test_value_1;
+                program_1[1] = test_value_2
+                cpu_1 = CPU::new();
+                cpu_1.load(&program_1);
+                cpu_1.registers.set_a(test_value_1);
+                let mut cycles = cpu_1.execute_next();
+                assert_eq!(cycles, 2);
+                assert_eq!(cpu_1.registers.get_a(), expected_value);
+                // Z/H Flags
                 test_flags!(cpu_1, true, false, false, false);
             }
         };
@@ -4781,6 +5160,78 @@ mod test {
                 assert_eq!(cpu_1.registers.get_a(), test_value_1);
                 // Z Flag
                 test_flags!(cpu_1, true, true, false, false);
+            }
+        };
+    }
+
+    macro_rules! test_cp_a_imm8 {
+        ($opcode:expr, $func:ident, $set_reg:ident, $get_reg:ident) => {
+            #[test]
+            fn $func() {
+                let mut test_value_1: u8 = 0xC4;
+                let mut test_value_2: u8 = 0x11;
+                let mut expected_value: u8 = test_value_1.wrapping_sub(test_value_2);
+                let mut cpu_1 = CPU::new();
+                let mut program_1: Vec<u8> = vec![$opcode, test_value_2];
+                cpu_1.load(&program_1);
+                cpu_1.registers.set_a(test_value_1);
+                let mut cycles = cpu_1.execute_next();
+                assert_eq!(cycles, 2);
+                assert_eq!(cpu_1.registers.get_a(), test_value_1);
+                // No Flags
+                test_flags!(cpu_1, false, true, false, false);
+
+                test_value_1 = 0xF0;
+                test_value_2 = 0xF0;
+                expected_value = 0x00;
+                program_1[1] = test_value_2
+                cpu_1 = CPU::new();
+                cpu_1.load(&program_1);
+                cpu_1.registers.set_a(test_value_1);
+                cycles = cpu_1.execute_next();
+                assert_eq!(cycles, 2);
+                assert_eq!(cpu_1.registers.get_a(), test_value_1);
+                // Z/N Flags
+                test_flags!(cpu_1, true, true, false, false);
+
+                test_value_1 = 0x10;
+                test_value_2 = 0x01;
+                expected_value = 0x0F;
+                program_1[1] = test_value_2
+                cpu_1 = CPU::new();
+                cpu_1.load(&program_1);
+                cpu_1.registers.set_a(test_value_1);
+                cycles = cpu_1.execute_next();
+                assert_eq!(cycles, 2);
+                assert_eq!(cpu_1.registers.get_a(), test_value_1);
+                // N/H Flag
+                test_flags!(cpu_1, false, true, true, false);
+
+                test_value_1 = 0x10;
+                test_value_2 = 0x20;
+                expected_value = test_value_1.wrapping_sub(test_value_2);
+                program_1[1] = test_value_2
+                cpu_1 = CPU::new();
+                cpu_1.load(&program_1);
+                cpu_1.registers.set_a(test_value_1);
+                cycles = cpu_1.execute_next();
+                assert_eq!(cycles, 2);
+                assert_eq!(cpu_1.registers.get_a(), test_value_1);
+                // N/C Flag
+                test_flags!(cpu_1, false, true, false, true);
+
+                test_value_1 = 0x00;
+                test_value_2 = 0x01;
+                expected_value = 0xFF;
+                program_1[1] = test_value_2
+                cpu_1 = CPU::new();
+                cpu_1.load(&program_1);
+                cpu_1.registers.set_a(test_value_1);
+                cycles = cpu_1.execute_next();
+                assert_eq!(cycles, 2);
+                assert_eq!(cpu_1.registers.get_a(), test_value_1);
+                // N/H/C Flag
+                test_flags!(cpu_1, false, true, true, true);
             }
         };
     }
@@ -8510,6 +8961,8 @@ mod test {
     test_pop!(0xE1, test_0xe1_pop_hl, set_hl, get_hl);
     test_ldh_r8_r8!(0xE2, test_0xe2_ldh__c__a, set_a, get_a, set_c, get_c, false);
     test_push!(0xE5, test_0xe5_push_hl, set_hl, get_hl);
+    test_and_a_imm8!(0xE6, test_0xe6_and_a_imm8);
+    test_rst!(0xE7, test_0xe7_rst_20);
 
     // 0XF* Row
     test_ldh_r8_imm8!(0xF0, test_0xf0_ldh_a__imm8_, set_a, get_a, true);
@@ -8526,4 +8979,6 @@ mod test {
         assert_eq!(cpu_1.interrupts_enabled, false);
     }
     test_push!(0xF5, test_0xf5_push_af, set_af, get_af);
+    test_or_a_imm8!(0xF6, test_0xf6_or_a_imm8);
+    test_rst!(0xF7, test_0xf7_rst_30);
 }
