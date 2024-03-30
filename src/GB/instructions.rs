@@ -3197,6 +3197,39 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
             }
             3
         },
+    });opcodes[0xDE] = Some(&Instruction {
+        opcode: 0xDE,
+        name: "SBC A, imm8",
+        cycles: 2,
+        size: 2,
+        flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
+        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
+            let byte = cpu.fetch_next();
+            let old_value = cpu.registers.get_a();
+            let intermediate_value = old_value.wrapping_sub(byte);
+            let new_value = intermediate_value.wrapping_sub(cpu.registers.get_carry_flag() as u8);
+            cpu.registers.set_a(new_value);
+            cpu.registers.set_zero_flag(new_value == 0);
+            cpu.registers.set_negative_flag(true);
+            cpu.registers.set_half_carry_flag(((new_value & 0x0F) > (intermediate_value & 0x0F)) || ((intermediate_value & 0x0F) > (old_value & 0x0F)));
+            cpu.registers.set_carry_flag(new_value > old_value);
+            opcode.cycles as u64
+        },
+    });
+    opcodes[0xDF] = Some(&Instruction {
+        opcode: 0xDF,
+        name: "RST $18",
+        cycles: 4,
+        size: 1,
+        flags: &[],
+        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
+            let return_addr = cpu.registers.get_pc();
+            let interrupt_addr = ((opcode.opcode & 0b00_111_000) >> 3) as u16 * 8;
+            cpu.push((return_addr >> 8) as u8);
+            cpu.push((return_addr & 0xFF) as u8);
+            cpu.registers.set_pc(interrupt_addr);
+            opcode.cycles as u64
+        },
     });
     opcodes
 }
@@ -3937,6 +3970,69 @@ mod test {
                 assert_eq!(cpu_1.registers.$get_reg_to(), expected_value);
                 // Z/H/C Flag
                 test_flags!(cpu_1, true, false, true, true);
+            }
+        };
+    }
+
+    macro_rules! test_sbc_r8_imm8 {
+        ($opcode:expr, $func:ident, $set_reg_to:ident, $get_reg_to:ident, $carry:expr) => {
+            #[test]
+            fn $func() {
+                let mut test_value_1: u8 = 0xC4;
+                let mut test_value_2: u8 = 0x13;
+                let mut expected_value: u8 = test_value_1.wrapping_sub(test_value_2 + $carry as u8);
+                let mut cpu_1 = CPU::new();
+                let mut program_1: Vec<u8> = vec![$opcode, test_value_2];
+                cpu_1.load(&program_1);
+                cpu_1.registers.set_a(test_value_1);
+                cpu_1.registers.set_carry_flag($carry);
+                let mut cycles = cpu_1.execute_next();
+                assert_eq!(cycles, 2);
+                assert_eq!(cpu_1.registers.get_a(), expected_value);
+                // N Flags
+                test_flags!(cpu_1, false, true, false, false);
+
+                test_value_1 = 0x10;
+                test_value_2 = 0x0E;
+                expected_value = test_value_1.wrapping_sub(test_value_2 + $carry as u8);
+                program_1[1] = test_value_2;
+                cpu_1 = CPU::new();
+                cpu_1.load(&program_1);
+                cpu_1.registers.set_a(test_value_1);
+                cpu_1.registers.set_carry_flag($carry);
+                cycles = cpu_1.execute_next();
+                assert_eq!(cycles, 2);
+                assert_eq!(cpu_1.registers.get_a(), expected_value);
+                // H Flags
+                test_flags!(cpu_1, false, true, true, false);
+
+                test_value_1 = 0x10;
+                test_value_2 = 0x0F;
+                expected_value = test_value_1.wrapping_sub(test_value_2).wrapping_sub($carry as u8);
+                program_1[1] = test_value_2;
+                cpu_1 = CPU::new();
+                cpu_1.load(&program_1);
+                cpu_1.registers.set_a(test_value_1);
+                cpu_1.registers.set_carry_flag($carry);
+                cycles = cpu_1.execute_next();
+                assert_eq!(cycles, 2);
+                assert_eq!(cpu_1.registers.get_a(), expected_value);
+                // Z/H Flag
+                test_flags!(cpu_1, $carry, true, true, false);
+
+                test_value_1 = 0x00;
+                test_value_2 = 0;
+                expected_value = test_value_1.wrapping_sub($carry as u8);
+                program_1[1] = test_value_2;
+                cpu_1 = CPU::new();
+                cpu_1.load(&program_1);
+                cpu_1.registers.set_a(test_value_1);
+                cpu_1.registers.set_carry_flag($carry);
+                cycles = cpu_1.execute_next();
+                assert_eq!(cycles, 2);
+                assert_eq!(cpu_1.registers.get_a(), expected_value);
+                // H/C Flag
+                test_flags!(cpu_1, !$carry, true, $carry, $carry);
             }
         };
     }
@@ -8217,4 +8313,10 @@ mod test {
     }
     test_rst!(0xD7, test_0xd7_rst_10);
     test_ret!(0xD8, test_0xd8_ret_c, false, set_carry_flag, get_carry_flag);
+    // TODO: test for RETI
+    test_jump!(0xDA, test_0xda_jp_c_imm16, false, set_carry_flag, get_carry_flag);
+    test_call!(0xDC, test_0xdc_call_c_imm16, false, set_carry_flag, get_carry_flag);
+    test_sbc_r8_imm8!(0xDE, test_0xde_sbc_a_imm8__c_off, set_a, get_a, false);
+    test_sbc_r8_imm8!(0xDE, test_0xde_sbc_a_imm8__c_on, set_a, get_a, true);
+    test_rst!(0xDF, test_0xcf_rst_18);
 }
