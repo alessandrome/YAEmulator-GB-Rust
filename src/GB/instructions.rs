@@ -3231,6 +3231,86 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
             opcode.cycles as u64
         },
     });
+    opcodes[0xE0] = Some(&Instruction {
+        opcode: 0xE0,
+        name: "LDH [imm8], A",
+        cycles: 3,
+        size: 2,
+        flags: &[],
+        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
+            let byte = (cpu.fetch_next() as u16) & 0xFF;
+            let mem_addr = 0xFF00 | byte;
+            cpu.ram.write(mem_addr, cpu.registers.get_a());
+            opcode.cycles as u64
+        },
+    });
+    opcodes[0xE1] = Some(&Instruction {
+        opcode: 0xE1,
+        name: "POP HL",
+        cycles: 3,
+        size: 1,
+        flags: &[],
+        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
+            let mut byte = cpu.pop();
+            cpu.registers.set_l(byte);
+            byte = cpu.pop();
+            cpu.registers.set_h(byte);
+            opcode.cycles as u64
+        },
+    });
+    opcodes[0xE2] = Some(&Instruction {
+        opcode: 0xE2,
+        name: "LDH [C], A",
+        cycles: 2,
+        size: 1,
+        flags: &[],
+        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
+            let byte = (cpu.registers.get_c() as u16) & 0xFF;
+            let mem_addr = 0xFF00 | byte;
+            cpu.ram.write(mem_addr, cpu.registers.get_a());
+            opcode.cycles as u64
+        },
+    });
+    opcodes[0xF0] = Some(&Instruction {
+        opcode: 0xF0,
+        name: "LDH A, [imm8]",
+        cycles: 3,
+        size: 2,
+        flags: &[],
+        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
+            let byte = (cpu.fetch_next() as u16) & 0xFF;
+            let mem_addr = 0xFF00 | byte;
+            cpu.registers.set_a(cpu.ram.read(mem_addr));
+            opcode.cycles as u64
+        },
+    });
+    opcodes[0xF1] = Some(&Instruction {
+        opcode: 0xF1,
+        name: "POP AF",
+        cycles: 3,
+        size: 1,
+        flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
+        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
+            let mut byte = cpu.pop();
+            cpu.registers.set_f(byte);
+            byte = cpu.pop();
+            cpu.registers.set_a(byte);
+            opcode.cycles as u64
+        },
+    });
+    opcodes[0xF2] = Some(&Instruction {
+        opcode: 0xF2,
+        name: "LDH A, [C]",
+        cycles: 2,
+        size: 1,
+        flags: &[],
+        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
+            let byte = (cpu.registers.get_c() as u16) & 0xFF;
+            let mem_addr = 0xFF00 | byte;
+            cpu.registers.set_a(cpu.ram.read(mem_addr));
+            opcode.cycles as u64
+        },
+    });
     opcodes
 }
 
@@ -3462,6 +3542,36 @@ mod test {
                     register_copy.get_negative_flag(),
                     register_copy.get_half_carry_flag(),
                     register_copy.get_carry_flag()
+                );
+            }
+        };
+    }
+
+    macro_rules! test_ldh_r8_imm8 {
+        // $byte_is_src = true -> LDH A, [imm8] else -> LDH [imm8], A
+        ($opcode:expr, $func:ident, $set_reg:ident, $get_reg:ident, $byte_is_src:expr) => {
+            #[test]
+            fn $func() {
+                let test_value: u8 = 0xD8;
+                let test_addr_low: u8 = 0x5A;
+                let test_addr: u16 = 0xFF00 | (test_addr_low as u16 & 0xFF);
+                let mut cpu = CPU::new();
+                let program: Vec<u8> = vec![$opcode, 0x5A];
+                cpu.load(&program);
+                let registers_copy = cpu.registers;
+                cpu.ram.write(test_addr, if $byte_is_src {test_value} else {0});
+                cpu.registers.$set_reg(if !$byte_is_src {test_value} else {0});
+                let cycles = cpu.execute_next();
+                assert_eq!(cycles, 3);
+                assert_eq!(cpu.registers.$get_reg(), test_value);
+                assert_eq!(cpu.ram.read(test_addr), test_value);
+                // Flags untouched
+                test_flags!(
+                    cpu,
+                    registers_copy.get_zero_flag(),
+                    registers_copy.get_negative_flag(),
+                    registers_copy.get_half_carry_flag(),
+                    registers_copy.get_carry_flag()
                 );
             }
         };
@@ -8323,4 +8433,12 @@ mod test {
     test_sbc_r8_imm8!(0xDE, test_0xde_sbc_a_imm8__c_off, set_a, get_a, false);
     test_sbc_r8_imm8!(0xDE, test_0xde_sbc_a_imm8__c_on, set_a, get_a, true);
     test_rst!(0xDF, test_0xcf_rst_18);
+
+    // 0XE* Row
+    test_ldh_r8_imm8!(0xE0, test_0xe0_ldh__imm8__a, set_a, get_a, false);
+    test_pop!(0xE1, test_0xe1_pop_hl, set_hl, get_hl);
+
+    // 0XF* Row
+    test_ldh_r8_imm8!(0xF0, test_0xf0_ldh_a__imm8_, set_a, get_a, true);
+    test_pop!(0xF1, test_0xf1_pop_af, set_af, get_af);
 }
