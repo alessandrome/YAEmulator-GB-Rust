@@ -4823,7 +4823,11 @@ mod test {
                 cpu.push(test_low_byte);
                 let mut cycles = cpu.execute_next();
                 assert_eq!(cycles, 3);
-                assert_eq!(cpu.registers.$get_reg(), test_value);
+                if (stringify!($get_reg) == "get_af") {
+                    assert_eq!(cpu.registers.$get_reg(), test_value & 0xFFF0);
+                } else{
+                    assert_eq!(cpu.registers.$get_reg(), test_value);
+                }
                 assert_eq!(cpu.registers.get_sp(), registers_copy.get_sp());
             }
         };
