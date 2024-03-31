@@ -5275,7 +5275,7 @@ mod test {
     }
 
     macro_rules! test_cp_a_imm8 {
-        ($opcode:expr, $func:ident, $set_reg:ident, $get_reg:ident) => {
+        ($opcode:expr, $func:ident) => {
             #[test]
             fn $func() {
                 let mut test_value_1: u8 = 0xC4;
@@ -5294,7 +5294,7 @@ mod test {
                 test_value_1 = 0xF0;
                 test_value_2 = 0xF0;
                 expected_value = 0x00;
-                program_1[1] = test_value_2
+                program_1[1] = test_value_2;
                 cpu_1 = CPU::new();
                 cpu_1.load(&program_1);
                 cpu_1.registers.set_a(test_value_1);
@@ -5307,7 +5307,7 @@ mod test {
                 test_value_1 = 0x10;
                 test_value_2 = 0x01;
                 expected_value = 0x0F;
-                program_1[1] = test_value_2
+                program_1[1] = test_value_2;
                 cpu_1 = CPU::new();
                 cpu_1.load(&program_1);
                 cpu_1.registers.set_a(test_value_1);
@@ -5320,7 +5320,7 @@ mod test {
                 test_value_1 = 0x10;
                 test_value_2 = 0x20;
                 expected_value = test_value_1.wrapping_sub(test_value_2);
-                program_1[1] = test_value_2
+                program_1[1] = test_value_2;
                 cpu_1 = CPU::new();
                 cpu_1.load(&program_1);
                 cpu_1.registers.set_a(test_value_1);
@@ -5333,7 +5333,7 @@ mod test {
                 test_value_1 = 0x00;
                 test_value_2 = 0x01;
                 expected_value = 0xFF;
-                program_1[1] = test_value_2
+                program_1[1] = test_value_2;
                 cpu_1 = CPU::new();
                 cpu_1.load(&program_1);
                 cpu_1.registers.set_a(test_value_1);
@@ -9319,4 +9319,16 @@ mod test {
         assert_eq!(cpu_1.registers.get_carry_flag(), true);
     }
     test_ld_r16!(0xF9, test_0xf9_ld_sp_hl, set_sp, get_sp, set_hl, get_hl);
+    test_ld_r8_imm16!(0xFA, test_0xfa_ld__imm16__a, set_a, get_a);
+    #[test]
+    fn test_0xfb_ei() {
+        let mut cpu_1 = CPU::new();
+        let mut program_1: Vec<u8> = vec![0xFB];
+        cpu_1.load(&program_1);
+        let mut cycles = cpu_1.execute_next();
+        assert_eq!(cycles, 1);
+        assert_eq!(cpu_1.interrupts_enabled, true);
+    }
+    test_cp_a_imm8!(0xFE, test_0xfe_cp_a_imm8);
+    test_rst!(0xFF, test_0xef_rst_38);
 }
