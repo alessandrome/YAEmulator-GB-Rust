@@ -9,6 +9,7 @@ pub const INTERNAL_RAM_ADDRESS: usize = 0xFF00; // Instruction Registers & Flags
 pub const HRAM_ADDRESS: usize = 0xFF80; // High RAM 127B (Memory w/ direct access from CPU)
 
 pub const RST_MEM_SIZE: usize = 0x0100;
+pub const USER_PROGRAM_MEM_SIZE: usize = VRAM_ADDRESS - USER_PROGRAM_ADDRESS;
 pub const WRAM_SIZE: usize = 0x2000;
 pub const HRAM_SIZE: usize = 127;
 
