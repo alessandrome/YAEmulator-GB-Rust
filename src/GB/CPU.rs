@@ -80,7 +80,7 @@ impl CPU {
         Self {
             registers: registers::Registers::new(),
             ram: RAM::RAM::new(),
-            ime: true,
+            ime: false,
             opcode: 0,
             cycles: 0,
         }
