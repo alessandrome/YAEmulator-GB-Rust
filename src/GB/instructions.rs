@@ -3683,7 +3683,6 @@ const fn create_cb_opcodes() -> [Option<&'static Instruction>; 256] {
                 flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
                 execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
                     let old_val = cpu.registers.$get_reg();
-                    let old_carry = cpu.registers.get_carry_flag() as u8;
                     cpu.registers.set_carry_flag((old_val & 0b1000_0000) != 0);
                     let new_val = old_val.wrapping_shl(1);
                     cpu.registers.$set_reg(new_val);
@@ -3703,7 +3702,6 @@ const fn create_cb_opcodes() -> [Option<&'static Instruction>; 256] {
                 flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
                 execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
                     let old_val = cpu.ram.read(cpu.registers.$get_reg());
-                    let old_carry = cpu.registers.get_carry_flag() as u8;
                     cpu.registers.set_carry_flag((old_val & 0b1000_0000) != 0);
                     let new_val = old_val.wrapping_shl(1);
                     cpu.ram.write(cpu.registers.$get_reg(), new_val);
@@ -3808,7 +3806,46 @@ const fn create_cb_opcodes() -> [Option<&'static Instruction>; 256] {
                 flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
                 execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
                     let old_val = cpu.registers.$get_reg();
-                    let old_carry = cpu.registers.get_carry_flag() as u8;
+                    cpu.registers.set_carry_flag((old_val & 0b0000_0001) != 0);
+                    let new_val = old_val.wrapping_shr(1) | (old_val & 0b1000_0000);
+                    cpu.registers.$set_reg(new_val);
+                    cpu.registers.set_zero_flag(new_val == 0);
+                    cpu.registers.set_negative_flag(false);
+                    cpu.registers.set_half_carry_flag(false);
+                    opcode.cycles as u64
+                }
+            })
+        };
+        ($opcode:expr, $name:expr, ar16, $set_reg:ident, $get_reg:ident) => {
+            Some(&Instruction {
+                opcode: $opcode,
+                name: $name,
+                cycles: 4,
+                size: 2,
+                flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
+                execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
+                    let old_val = cpu.ram.read(cpu.registers.$get_reg());
+                    cpu.registers.set_carry_flag((old_val & 0b0000_0001) != 0);
+                    let new_val = old_val.wrapping_shr(1) | (old_val & 0b1000_0000);
+                    cpu.ram.write(cpu.registers.$get_reg(), new_val);
+                    cpu.registers.set_zero_flag(new_val == 0);
+                    cpu.registers.set_negative_flag(false);
+                    cpu.registers.set_half_carry_flag(false);
+                    opcode.cycles as u64
+                }
+            })
+        };
+    }
+    macro_rules! srl {
+        ($opcode:expr, $name:expr, r8, $set_reg:ident, $get_reg:ident) => {
+            Some(&Instruction {
+                opcode: $opcode,
+                name: $name,
+                cycles: 2,
+                size: 2,
+                flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
+                execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
+                    let old_val = cpu.registers.$get_reg();
                     cpu.registers.set_carry_flag((old_val & 0b0000_0001) != 0);
                     let new_val = old_val.wrapping_shr(1);
                     cpu.registers.$set_reg(new_val);
@@ -3828,7 +3865,6 @@ const fn create_cb_opcodes() -> [Option<&'static Instruction>; 256] {
                 flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
                 execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
                     let old_val = cpu.ram.read(cpu.registers.$get_reg());
-                    let old_carry = cpu.registers.get_carry_flag() as u8;
                     cpu.registers.set_carry_flag((old_val & 0b0000_0001) != 0);
                     let new_val = old_val.wrapping_shr(1);
                     cpu.ram.write(cpu.registers.$get_reg(), new_val);
@@ -3949,6 +3985,15 @@ const fn create_cb_opcodes() -> [Option<&'static Instruction>; 256] {
     opcodes[0x35] = swap!(0x35, "SWAP L", r8, set_l, get_l);
     opcodes[0x36] = swap!(0x36, "SWAP [HL]", ar16, set_hl, get_hl);
     opcodes[0x37] = swap!(0x37, "SWAP A", r8, set_a, get_a);
+
+    opcodes[0x38] = srl!(0x38, "SRL B", r8, set_b, get_b);
+    opcodes[0x39] = srl!(0x39, "SRL C", r8, set_c, get_c);
+    opcodes[0x3A] = srl!(0x3a, "SRL D", r8, set_d, get_d);
+    opcodes[0x3B] = srl!(0x3b, "SRL E", r8, set_e, get_e);
+    opcodes[0x3C] = srl!(0x3c, "SRL H", r8, set_h, get_h);
+    opcodes[0x3D] = srl!(0x3d, "SRL L", r8, set_l, get_l);
+    opcodes[0x3E] = srl!(0x3e, "SRL [HL]", ar16, set_hl, get_hl);
+    opcodes[0x3F] = srl!(0x3f, "SRL A", r8, set_a, get_a);
     opcodes
 }
 
@@ -9897,6 +9942,49 @@ mod test_cb {
         ($opcode:expr, $func:ident, $set_reg_src:ident, $get_reg_src:ident) => {
             #[test]
             fn $func() {
+                let test_value_1: u8 = 0b1001_0001;
+                let test_addr: u16 = WRAM_ADDRESS as u16 + 0xC6;
+                let mut cpu_1 = CPU::new();
+                let program_1: Vec<u8> = vec![0xCB, $opcode, 0xCB, $opcode];
+                cpu_1.load(&program_1);
+                cpu_1.registers.$set_reg_src(test_value_1);
+                cpu_1.registers.set_carry_flag(false);
+                let mut cycles = cpu_1.execute_next();
+                assert_eq!(cycles, 2);
+                assert_eq!(cpu_1.registers.$get_reg_src(), 0b1100_1000);
+                test_flags!(cpu_1, false, false, false, true);
+                cycles = cpu_1.execute_next();
+                assert_eq!(cycles, 2);
+                assert_eq!(cpu_1.registers.$get_reg_src(), 0b1110_0100);
+                test_flags!(cpu_1, false, false, false, false);
+            }
+        };
+        ($opcode:expr, $func:ident, $set_reg_src:ident, $get_reg_src:ident, memory) => {
+            #[test]
+            fn $func() {
+                let test_value_1: u8 = 0b1001_0001;
+                let test_addr: u16 = WRAM_ADDRESS as u16 + 0xC6;
+                let mut cpu_1 = CPU::new();
+                let program_1: Vec<u8> = vec![0xCB, $opcode, 0xCB, $opcode];
+                cpu_1.load(&program_1);
+                cpu_1.ram.write(test_addr, test_value_1);
+                cpu_1.registers.set_hl(test_addr);
+                cpu_1.registers.set_carry_flag(false);
+                let mut cycles = cpu_1.execute_next();
+                assert_eq!(cycles, 4);
+                assert_eq!(cpu_1.ram.read(test_addr), 0b1100_1000);
+                test_flags!(cpu_1, false, false, false, true);
+                cycles = cpu_1.execute_next();
+                assert_eq!(cycles, 4);
+                assert_eq!(cpu_1.ram.read(test_addr), 0b1110_0100);
+                test_flags!(cpu_1, false, false, false, false);
+            }
+        };
+    }
+    macro_rules! test_srl {
+        ($opcode:expr, $func:ident, $set_reg_src:ident, $get_reg_src:ident) => {
+            #[test]
+            fn $func() {
                 let test_value_1: u8 = 0b0001_0001;
                 let test_addr: u16 = WRAM_ADDRESS as u16 + 0xC6;
                 let mut cpu_1 = CPU::new();
@@ -10043,4 +10131,13 @@ mod test_cb {
     test_swap!(0x35, test_0x35_swap_l, set_l, get_l);
     test_swap!(0x36, test_0x36_swap__hl_, set_hl, get_hl, memory);
     test_swap!(0x37, test_0x37_swap_a, set_a, get_a);
+
+    test_srl!(0x38, test_0x38_srl_b, set_b, get_b);
+    test_srl!(0x39, test_0x39_srl_c, set_c, get_c);
+    test_srl!(0x3A, test_0x3a_srl_d, set_d, get_d);
+    test_srl!(0x3B, test_0x3b_srl_e, set_e, get_e);
+    test_srl!(0x3C, test_0x3c_srl_h, set_h, get_h);
+    test_srl!(0x3D, test_0x3d_srl_l, set_l, get_l);
+    test_srl!(0x3E, test_0x3e_srl__hl_, set_hl, get_hl, memory);
+    test_srl!(0x3F, test_0x3f_srl_a, set_a, get_a);
 }
