@@ -3922,6 +3922,43 @@ const fn create_cb_opcodes() -> [Option<&'static Instruction>; 256] {
         };
     }
 
+    macro_rules! bit {
+        ($opcode:expr, $name:expr, r8, $bit:expr, $get_reg:ident) => {
+            Some(&Instruction {
+                opcode: $opcode,
+                name: $name,
+                cycles: 2,
+                size: 2,
+                flags: &[FlagBits::Z, FlagBits::N, FlagBits::H],
+                execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
+                    let val = cpu.registers.$get_reg() & (1 << $bit);
+                    cpu.registers.set_zero_flag(val == 0);
+                    cpu.registers.set_negative_flag(false);
+                    cpu.registers.set_half_carry_flag(true);
+                    cpu.registers.set_carry_flag(false);
+                    opcode.cycles as u64
+                }
+            })
+        };
+        ($opcode:expr, $name:expr, ar16, $bit:expr, $get_reg:ident) => {
+            Some(&Instruction {
+                opcode: $opcode,
+                name: $name,
+                cycles: 4,
+                size: 2,
+                flags: &[FlagBits::Z, FlagBits::N, FlagBits::H],
+                execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
+                    let val = cpu.ram.read(cpu.registers.$get_reg()) & (1 << $bit);
+                    cpu.registers.set_zero_flag(val == 0);
+                    cpu.registers.set_negative_flag(false);
+                    cpu.registers.set_half_carry_flag(true);
+                    cpu.registers.set_carry_flag(false);
+                    opcode.cycles as u64
+                }
+            })
+        };
+    }
+
     let mut opcodes = [None; 256];
     opcodes[0x00] = rlc!(0x00, "RLC B", r8, set_b, get_b);
     opcodes[0x01] = rlc!(0x01, "RLC C", r8, set_c, get_c);
@@ -3994,6 +4031,24 @@ const fn create_cb_opcodes() -> [Option<&'static Instruction>; 256] {
     opcodes[0x3D] = srl!(0x3d, "SRL L", r8, set_l, get_l);
     opcodes[0x3E] = srl!(0x3e, "SRL [HL]", ar16, set_hl, get_hl);
     opcodes[0x3F] = srl!(0x3f, "SRL A", r8, set_a, get_a);
+
+    opcodes[0x40] = bit!(0x40, "BIT 0, B", r8, 0, get_b);
+    opcodes[0x41] = bit!(0x41, "BIT 0, C", r8, 0, get_c);
+    opcodes[0x42] = bit!(0x42, "BIT 0, D", r8, 0, get_d);
+    opcodes[0x43] = bit!(0x43, "BIT 0, E", r8, 0, get_e);
+    opcodes[0x44] = bit!(0x44, "BIT 0, H", r8, 0, get_h);
+    opcodes[0x45] = bit!(0x45, "BIT 0, L", r8, 0, get_l);
+    opcodes[0x46] = bit!(0x46, "BIT 0, [HL]", ar16, 0, get_hl);
+    opcodes[0x47] = bit!(0x47, "BIT 0, A", r8, 0, get_a);
+
+    opcodes[0x48] = bit!(0x48, "BIT 1, B", r8, 1, get_b);
+    opcodes[0x49] = bit!(0x49, "BIT 1, C", r8, 1, get_c);
+    opcodes[0x4A] = bit!(0x4a, "BIT 1, D", r8, 1, get_d);
+    opcodes[0x4B] = bit!(0x4b, "BIT 1, E", r8, 1, get_e);
+    opcodes[0x4C] = bit!(0x4c, "BIT 1, H", r8, 1, get_h);
+    opcodes[0x4D] = bit!(0x4d, "BIT 1, L", r8, 1, get_l);
+    opcodes[0x4E] = bit!(0x4e, "BIT 1, [HL]", ar16, 1, get_hl);
+    opcodes[0x4F] = bit!(0x4f, "BIT 1, A", r8, 1, get_a);
     opcodes
 }
 
@@ -10069,6 +10124,61 @@ mod test_cb {
         };
     }
 
+    macro_rules! test_bit {
+        ($opcode:expr, $func:ident, $bit:expr, $set_reg_src:ident, $get_reg_src:ident) => {
+            #[test]
+            fn $func() {
+                let test_value_1: u8 = !(1 << $bit);
+                let mut cpu_1 = CPU::new();
+                let program_1: Vec<u8> = vec![0xCB, $opcode, 0xCB, $opcode];
+                cpu_1.load(&program_1);
+                cpu_1.registers.$set_reg_src(test_value_1);
+                cpu_1.registers.set_zero_flag(false);
+                cpu_1.registers.set_negative_flag(true);
+                cpu_1.registers.set_half_carry_flag(false);
+                cpu_1.registers.set_carry_flag(false);
+                let registers_copy = cpu_1.registers;
+                let mut cycles = cpu_1.execute_next();
+                assert_eq!(cycles, 2);
+                assert_eq!(cpu_1.registers.$get_reg_src(), test_value_1);
+                test_flags!(cpu_1, true, false, true, registers_copy.get_carry_flag());
+                cpu_1.registers.$set_reg_src(!test_value_1);
+                cycles = cpu_1.execute_next();
+                assert_eq!(cycles, 2);
+                assert_eq!(cpu_1.registers.$get_reg_src(), !test_value_1);
+                test_flags!(cpu_1, false, false, true, registers_copy.get_carry_flag());
+            }
+        };
+        ($opcode:expr, $func:ident, $bit:expr, $set_reg_src:ident, $get_reg_src:ident, memory) => {
+            #[test]
+            fn $func() {
+                let test_value_1: u8 = !(1 << $bit);
+                let test_addr: u16 = WRAM_ADDRESS as u16 + 0xC6;
+                let mut cpu_1 = CPU::new();
+                let program_1: Vec<u8> = vec![0xCB, $opcode, 0xCB, $opcode];
+                cpu_1.load(&program_1);
+                cpu_1.ram.write(test_addr, test_value_1);
+                cpu_1.registers.$set_reg_src(test_addr);
+                cpu_1.registers.set_zero_flag(false);
+                cpu_1.registers.set_negative_flag(true);
+                cpu_1.registers.set_half_carry_flag(false);
+                cpu_1.registers.set_carry_flag(false);
+                let registers_copy = cpu_1.registers;
+                let mut cycles = cpu_1.execute_next();
+                assert_eq!(cycles, 4);
+                assert_eq!(cpu_1.ram.read(test_addr), test_value_1);
+                assert_eq!(cpu_1.registers.$get_reg_src(), test_addr);
+                test_flags!(cpu_1, true, false, true, registers_copy.get_carry_flag());
+                cpu_1.ram.write(test_addr, !test_value_1);
+                cycles = cpu_1.execute_next();
+                assert_eq!(cycles, 4);
+                assert_eq!(cpu_1.ram.read(test_addr), !test_value_1);
+                assert_eq!(cpu_1.registers.$get_reg_src(), test_addr);
+                test_flags!(cpu_1, false, false, true, registers_copy.get_carry_flag());
+            }
+        };
+    }
+
     test_rlc!(0x00, test_0x00_rlc_b, set_b, get_b);
     test_rlc!(0x01, test_0x01_rlc_c, set_c, get_c);
     test_rlc!(0x02, test_0x02_rlc_d, set_d, get_d);
@@ -10140,4 +10250,22 @@ mod test_cb {
     test_srl!(0x3D, test_0x3d_srl_l, set_l, get_l);
     test_srl!(0x3E, test_0x3e_srl__hl_, set_hl, get_hl, memory);
     test_srl!(0x3F, test_0x3f_srl_a, set_a, get_a);
+
+    test_bit!(0x40, test_0x40_bit_0_b, 0, set_b, get_b);
+    test_bit!(0x41, test_0x41_bit_0_c, 0, set_c, get_c);
+    test_bit!(0x42, test_0x42_bit_0_d, 0, set_d, get_d);
+    test_bit!(0x43, test_0x43_bit_0_e, 0, set_e, get_e);
+    test_bit!(0x44, test_0x44_bit_0_h, 0, set_h, get_h);
+    test_bit!(0x45, test_0x45_bit_0_l, 0, set_l, get_l);
+    test_bit!(0x46, test_0x46_bit_0__hl_, 0, set_hl, get_hl, memory);
+    test_bit!(0x47, test_0x47_bit_0_a, 0, set_a, get_a);
+
+    test_bit!(0x48, test_0x48_bit_1_b, 1, set_b, get_b);
+    test_bit!(0x49, test_0x49_bit_1_c, 1, set_c, get_c);
+    test_bit!(0x4A, test_0x4a_bit_1_d, 1, set_d, get_d);
+    test_bit!(0x4B, test_0x4b_bit_1_e, 1, set_e, get_e);
+    test_bit!(0x4C, test_0x4c_bit_1_h, 1, set_h, get_h);
+    test_bit!(0x4D, test_0x4d_bit_1_l, 1, set_l, get_l);
+    test_bit!(0x4E, test_0x4e_bit_1__hl_, 1, set_hl, get_hl, memory);
+    test_bit!(0x4F, test_0x4f_bit_1_a, 1, set_a, get_a);
 }
