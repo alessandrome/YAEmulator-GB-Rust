@@ -3605,6 +3605,8 @@ const fn create_cb_opcodes() -> [Option<&'static Instruction>; 256] {
                     let new_val = old_val.wrapping_shl(1) | cpu.registers.get_carry_flag() as u8;
                     cpu.registers.$set_reg(new_val);
                     cpu.registers.set_zero_flag(new_val == 0);
+                    cpu.registers.set_negative_flag(false);
+                    cpu.registers.set_half_carry_flag(false);
                     opcode.cycles as u64
                 }
             })
@@ -3622,6 +3624,8 @@ const fn create_cb_opcodes() -> [Option<&'static Instruction>; 256] {
                     let new_val = old_val.wrapping_shl(1) | cpu.registers.get_carry_flag() as u8;
                     cpu.ram.write(cpu.registers.$get_reg(), new_val);
                     cpu.registers.set_zero_flag(new_val == 0);
+                    cpu.registers.set_negative_flag(false);
+                    cpu.registers.set_half_carry_flag(false);
                     opcode.cycles as u64
                 }
             })
@@ -3642,6 +3646,8 @@ const fn create_cb_opcodes() -> [Option<&'static Instruction>; 256] {
                     let new_val = old_val.wrapping_shl(1) | old_carry;
                     cpu.registers.$set_reg(new_val);
                     cpu.registers.set_zero_flag(new_val == 0);
+                    cpu.registers.set_negative_flag(false);
+                    cpu.registers.set_half_carry_flag(false);
                     opcode.cycles as u64
                 }
             })
@@ -3660,6 +3666,8 @@ const fn create_cb_opcodes() -> [Option<&'static Instruction>; 256] {
                     let new_val = old_val.wrapping_shl(1) | old_carry as u8;
                     cpu.ram.write(cpu.registers.$get_reg(), new_val);
                     cpu.registers.set_zero_flag(new_val == 0);
+                    cpu.registers.set_negative_flag(false);
+                    cpu.registers.set_half_carry_flag(false);
                     opcode.cycles as u64
                 }
             })
@@ -3680,6 +3688,8 @@ const fn create_cb_opcodes() -> [Option<&'static Instruction>; 256] {
                     let new_val = old_val.wrapping_shl(1);
                     cpu.registers.$set_reg(new_val);
                     cpu.registers.set_zero_flag(new_val == 0);
+                    cpu.registers.set_negative_flag(false);
+                    cpu.registers.set_half_carry_flag(false);
                     opcode.cycles as u64
                 }
             })
@@ -3698,6 +3708,8 @@ const fn create_cb_opcodes() -> [Option<&'static Instruction>; 256] {
                     let new_val = old_val.wrapping_shl(1);
                     cpu.ram.write(cpu.registers.$get_reg(), new_val);
                     cpu.registers.set_zero_flag(new_val == 0);
+                    cpu.registers.set_negative_flag(false);
+                    cpu.registers.set_half_carry_flag(false);
                     opcode.cycles as u64
                 }
             })
@@ -3718,6 +3730,8 @@ const fn create_cb_opcodes() -> [Option<&'static Instruction>; 256] {
                     let new_val = old_val.wrapping_shr(1) | ((cpu.registers.get_carry_flag() as u8) << 7);
                     cpu.registers.$set_reg(new_val);
                     cpu.registers.set_zero_flag(new_val == 0);
+                    cpu.registers.set_negative_flag(false);
+                    cpu.registers.set_half_carry_flag(false);
                     opcode.cycles as u64
                 }
             })
@@ -3735,6 +3749,8 @@ const fn create_cb_opcodes() -> [Option<&'static Instruction>; 256] {
                     let new_val = old_val.wrapping_shr(1) | ((cpu.registers.get_carry_flag() as u8) << 7);
                     cpu.ram.write(cpu.registers.$get_reg(), new_val);
                     cpu.registers.set_zero_flag(new_val == 0);
+                    cpu.registers.set_negative_flag(false);
+                    cpu.registers.set_half_carry_flag(false);
                     opcode.cycles as u64
                 }
             })
@@ -3755,6 +3771,8 @@ const fn create_cb_opcodes() -> [Option<&'static Instruction>; 256] {
                     let new_val = old_val.wrapping_shr(1) | (old_carry << 7);
                     cpu.registers.$set_reg(new_val);
                     cpu.registers.set_zero_flag(new_val == 0);
+                    cpu.registers.set_negative_flag(false);
+                    cpu.registers.set_half_carry_flag(false);
                     opcode.cycles as u64
                 }
             })
@@ -3773,6 +3791,8 @@ const fn create_cb_opcodes() -> [Option<&'static Instruction>; 256] {
                     let new_val = old_val.wrapping_shr(1) | (old_carry << 7);
                     cpu.ram.write(cpu.registers.$get_reg(), new_val);
                     cpu.registers.set_zero_flag(new_val == 0);
+                    cpu.registers.set_negative_flag(false);
+                    cpu.registers.set_half_carry_flag(false);
                     opcode.cycles as u64
                 }
             })
@@ -3793,6 +3813,8 @@ const fn create_cb_opcodes() -> [Option<&'static Instruction>; 256] {
                     let new_val = old_val.wrapping_shr(1);
                     cpu.registers.$set_reg(new_val);
                     cpu.registers.set_zero_flag(new_val == 0);
+                    cpu.registers.set_negative_flag(false);
+                    cpu.registers.set_half_carry_flag(false);
                     opcode.cycles as u64
                 }
             })
@@ -3811,6 +3833,8 @@ const fn create_cb_opcodes() -> [Option<&'static Instruction>; 256] {
                     let new_val = old_val.wrapping_shr(1);
                     cpu.ram.write(cpu.registers.$get_reg(), new_val);
                     cpu.registers.set_zero_flag(new_val == 0);
+                    cpu.registers.set_negative_flag(false);
+                    cpu.registers.set_half_carry_flag(false);
                     opcode.cycles as u64
                 }
             })
