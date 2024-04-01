@@ -4237,6 +4237,78 @@ const fn create_cb_opcodes() -> [Option<&'static Instruction>; 256] {
     opcodes[0xBD] = res!(0xBd, "RES 7, L", r8, 7, set_l, get_l);
     opcodes[0xBE] = res!(0xBe, "RES 7, [HL]", ar16, 7, get_hl);
     opcodes[0xBF] = res!(0xBf, "RES 7, A", r8, 7, set_a, get_a);
+
+    opcodes[0xC0] = set!(0xC0, "SET 0, B", r8, 0, set_b, get_b);
+    opcodes[0xC1] = set!(0xC1, "SET 0, C", r8, 0, set_c, get_c);
+    opcodes[0xC2] = set!(0xC2, "SET 0, D", r8, 0, set_d, get_d);
+    opcodes[0xC3] = set!(0xC3, "SET 0, E", r8, 0, set_e, get_e);
+    opcodes[0xC4] = set!(0xC4, "SET 0, H", r8, 0, set_h, get_h);
+    opcodes[0xC5] = set!(0xC5, "SET 0, L", r8, 0, set_l, get_l);
+    opcodes[0xC6] = set!(0xC6, "SET 0, [HL]", ar16, 0, get_hl);
+    opcodes[0xC7] = set!(0xC7, "SET 0, A", r8, 0, set_a, get_a);
+
+    opcodes[0xC8] = set!(0xc8, "SET 1, B", r8, 1, set_b, get_b);
+    opcodes[0xC9] = set!(0xc9, "SET 1, C", r8, 1, set_c, get_c);
+    opcodes[0xCA] = set!(0xca, "SET 1, D", r8, 1, set_d, get_d);
+    opcodes[0xCB] = set!(0xcb, "SET 1, E", r8, 1, set_e, get_e);
+    opcodes[0xCC] = set!(0xcc, "SET 1, H", r8, 1, set_h, get_h);
+    opcodes[0xCD] = set!(0xcd, "SET 1, L", r8, 1, set_l, get_l);
+    opcodes[0xCE] = set!(0xce, "SET 1, [HL]", ar16, 1, get_hl);
+    opcodes[0xCF] = set!(0xcf, "SET 1, A", r8, 1, set_a, get_a);
+
+    opcodes[0xD0] = set!(0xd0, "SET 2, B", r8, 2, set_b, get_b);
+    opcodes[0xD1] = set!(0xd1, "SET 2, C", r8, 2, set_c, get_c);
+    opcodes[0xD2] = set!(0xd2, "SET 2, D", r8, 2, set_d, get_d);
+    opcodes[0xD3] = set!(0xd3, "SET 2, E", r8, 2, set_e, get_e);
+    opcodes[0xD4] = set!(0xd4, "SET 2, H", r8, 2, set_h, get_h);
+    opcodes[0xD5] = set!(0xd5, "SET 2, L", r8, 2, set_l, get_l);
+    opcodes[0xD6] = set!(0xd6, "SET 2, [HL]", ar16, 2, get_hl);
+    opcodes[0xD7] = set!(0xd7, "SET 2, A", r8, 2, set_a, get_a);
+
+    opcodes[0xD8] = set!(0xd8, "SET 3, B", r8, 3, set_b, get_b);
+    opcodes[0xD9] = set!(0xd9, "SET 3, C", r8, 3, set_c, get_c);
+    opcodes[0xDA] = set!(0xda, "SET 3, D", r8, 3, set_d, get_d);
+    opcodes[0xDB] = set!(0xdb, "SET 3, E", r8, 3, set_e, get_e);
+    opcodes[0xDC] = set!(0xdc, "SET 3, H", r8, 3, set_h, get_h);
+    opcodes[0xDD] = set!(0xdd, "SET 3, L", r8, 3, set_l, get_l);
+    opcodes[0xDE] = set!(0xde, "SET 3, [HL]", ar16, 3, get_hl);
+    opcodes[0xDF] = set!(0xdf, "SET 3, A", r8, 3, set_a, get_a);
+
+    opcodes[0xE0] = set!(0xe0, "SET 4, B", r8, 4, set_b, get_b);
+    opcodes[0xE1] = set!(0xe1, "SET 4, C", r8, 4, set_c, get_c);
+    opcodes[0xE2] = set!(0xe2, "SET 4, D", r8, 4, set_d, get_d);
+    opcodes[0xE3] = set!(0xe3, "SET 4, E", r8, 4, set_e, get_e);
+    opcodes[0xE4] = set!(0xe4, "SET 4, H", r8, 4, set_h, get_h);
+    opcodes[0xE5] = set!(0xe5, "SET 4, L", r8, 4, set_l, get_l);
+    opcodes[0xE6] = set!(0xe6, "SET 4, [HL]", ar16, 4, get_hl);
+    opcodes[0xE7] = set!(0xe7, "SET 4, A", r8, 4, set_a, get_a);
+
+    opcodes[0xE8] = set!(0xe8, "SET 5, B", r8, 5, set_b, get_b);
+    opcodes[0xE9] = set!(0xe9, "SET 5, C", r8, 5, set_c, get_c);
+    opcodes[0xEA] = set!(0xea, "SET 5, D", r8, 5, set_d, get_d);
+    opcodes[0xEB] = set!(0xeb, "SET 5, E", r8, 5, set_e, get_e);
+    opcodes[0xEC] = set!(0xec, "SET 5, H", r8, 5, set_h, get_h);
+    opcodes[0xED] = set!(0xed, "SET 5, L", r8, 5, set_l, get_l);
+    opcodes[0xEE] = set!(0xee, "SET 5, [HL]", ar16, 5, get_hl);
+    opcodes[0xEF] = set!(0xef, "SET 5, A", r8, 5, set_a, get_a);
+
+    opcodes[0xF0] = set!(0xF0, "SET 6, B", r8, 6, set_b, get_b);
+    opcodes[0xF1] = set!(0xF1, "SET 6, C", r8, 6, set_c, get_c);
+    opcodes[0xF2] = set!(0xF2, "SET 6, D", r8, 6, set_d, get_d);
+    opcodes[0xF3] = set!(0xF3, "SET 6, E", r8, 6, set_e, get_e);
+    opcodes[0xF4] = set!(0xF4, "SET 6, H", r8, 6, set_h, get_h);
+    opcodes[0xF5] = set!(0xF5, "SET 6, L", r8, 6, set_l, get_l);
+    opcodes[0xF6] = set!(0xF6, "SET 6, [HL]", ar16, 6, get_hl);
+    opcodes[0xF7] = set!(0xF7, "SET 6, A", r8, 6, set_a, get_a);
+
+    opcodes[0xF8] = set!(0xF8, "SET 7, B", r8, 7, set_b, get_b);
+    opcodes[0xF9] = set!(0xF9, "SET 7, C", r8, 7, set_c, get_c);
+    opcodes[0xFA] = set!(0xFa, "SET 7, D", r8, 7, set_d, get_d);
+    opcodes[0xFB] = set!(0xFb, "SET 7, E", r8, 7, set_e, get_e);
+    opcodes[0xFC] = set!(0xFc, "SET 7, H", r8, 7, set_h, get_h);
+    opcodes[0xFD] = set!(0xFd, "SET 7, L", r8, 7, set_l, get_l);
+    opcodes[0xFE] = set!(0xFe, "SET 7, [HL]", ar16, 7, get_hl);
+    opcodes[0xFF] = set!(0xFf, "SET 7, A", r8, 7, set_a, get_a);
     opcodes
 }
 
@@ -10423,6 +10495,62 @@ mod test_cb {
         };
     }
 
+    macro_rules! test_set {
+        ($opcode:expr, $func:ident, $bit:expr, $set_reg_src:ident, $get_reg_src:ident) => {
+            #[test]
+            fn $func() {
+                let test_value_1: u8 = 0x0;
+                let test_mask: u8 = (1 << $bit);
+                let mut cpu_1 = CPU::new();
+                let program_1: Vec<u8> = vec![0xCB, $opcode];
+                cpu_1.load(&program_1);
+                cpu_1.registers.$set_reg_src(test_value_1);
+                cpu_1.registers.set_zero_flag(false);
+                cpu_1.registers.set_negative_flag(true);
+                cpu_1.registers.set_half_carry_flag(false);
+                cpu_1.registers.set_carry_flag(false);
+                let registers_copy = cpu_1.registers;
+                let mut cycles = cpu_1.execute_next();
+                assert_eq!(cycles, 2);
+                assert_eq!(cpu_1.registers.$get_reg_src(), test_value_1 | test_mask);
+                test_flags!(
+                    cpu_1,
+                    registers_copy.get_zero_flag(),
+                    registers_copy.get_negative_flag(),
+                    registers_copy.get_half_carry_flag(),
+                    registers_copy.get_carry_flag());
+            }
+        };
+        ($opcode:expr, $func:ident, $bit:expr, $set_reg_src:ident, $get_reg_src:ident, memory) => {
+            #[test]
+            fn $func() {
+                let test_value_1: u8 = 0x0;
+                let test_mask: u8 = (1 << $bit);
+                let test_addr: u16 = WRAM_ADDRESS as u16 + 0xC6;
+                let mut cpu_1 = CPU::new();
+                let program_1: Vec<u8> = vec![0xCB, $opcode];
+                cpu_1.load(&program_1);
+                cpu_1.ram.write(test_addr, test_value_1);
+                cpu_1.registers.$set_reg_src(test_addr);
+                cpu_1.registers.set_zero_flag(false);
+                cpu_1.registers.set_negative_flag(true);
+                cpu_1.registers.set_half_carry_flag(false);
+                cpu_1.registers.set_carry_flag(false);
+                let registers_copy = cpu_1.registers;
+                let mut cycles = cpu_1.execute_next();
+                assert_eq!(cycles, 4);
+                assert_eq!(cpu_1.ram.read(test_addr), test_value_1 | test_mask);
+                assert_eq!(cpu_1.registers.$get_reg_src(), test_addr);
+                test_flags!(
+                    cpu_1,
+                    registers_copy.get_zero_flag(),
+                    registers_copy.get_negative_flag(),
+                    registers_copy.get_half_carry_flag(),
+                    registers_copy.get_carry_flag());
+            }
+        };
+    }
+
     test_rlc!(0x00, test_0x00_rlc_b, set_b, get_b);
     test_rlc!(0x01, test_0x01_rlc_c, set_c, get_c);
     test_rlc!(0x02, test_0x02_rlc_d, set_d, get_d);
@@ -10640,4 +10768,77 @@ mod test_cb {
     test_res!(0xBD, test_0xbd_res_7_l, 7, set_l, get_l);
     test_res!(0xBE, test_0xbe_res_7__hl_, 7, set_hl, get_hl, memory);
     test_res!(0xBF, test_0xbf_res_7_a, 7, set_a, get_a);
+
+    // SET instruction tests
+    test_set!(0xC0, test_0xc0_set_0_b, 0, set_b, get_b);
+    test_set!(0xC1, test_0xc1_set_0_c, 0, set_c, get_c);
+    test_set!(0xC2, test_0xc2_set_0_d, 0, set_d, get_d);
+    test_set!(0xC3, test_0xc3_set_0_e, 0, set_e, get_e);
+    test_set!(0xC4, test_0xc4_set_0_h, 0, set_h, get_h);
+    test_set!(0xC5, test_0xc5_set_0_l, 0, set_l, get_l);
+    test_set!(0xC6, test_0xc6_set_0__hl_, 0, set_hl, get_hl, memory);
+    test_set!(0xC7, test_0xc7_set_0_a, 0, set_a, get_a);
+
+    test_set!(0xC8, test_0xc8_set_1_b, 1, set_b, get_b);
+    test_set!(0xC9, test_0xc9_set_1_c, 1, set_c, get_c);
+    test_set!(0xCA, test_0xca_set_1_d, 1, set_d, get_d);
+    test_set!(0xCB, test_0xcb_set_1_e, 1, set_e, get_e);
+    test_set!(0xCC, test_0xcc_set_1_h, 1, set_h, get_h);
+    test_set!(0xCD, test_0xcd_set_1_l, 1, set_l, get_l);
+    test_set!(0xCE, test_0xce_set_1__hl_, 1, set_hl, get_hl, memory);
+    test_set!(0xCF, test_0xcf_set_1_a, 1, set_a, get_a);
+
+    test_set!(0xD0, test_0xd0_set_2_b, 2, set_b, get_b);
+    test_set!(0xD1, test_0xd1_set_2_c, 2, set_c, get_c);
+    test_set!(0xD2, test_0xd2_set_2_d, 2, set_d, get_d);
+    test_set!(0xD3, test_0xd3_set_2_e, 2, set_e, get_e);
+    test_set!(0xD4, test_0xd4_set_2_h, 2, set_h, get_h);
+    test_set!(0xD5, test_0xd5_set_2_l, 2, set_l, get_l);
+    test_set!(0xD6, test_0xd6_set_2__hl_, 2, set_hl, get_hl, memory);
+    test_set!(0xD7, test_0xd7_set_2_a, 2, set_a, get_a);
+
+    test_set!(0xD8, test_0xd8_set_3_b, 3, set_b, get_b);
+    test_set!(0xD9, test_0xd9_set_3_c, 3, set_c, get_c);
+    test_set!(0xDA, test_0xda_set_3_d, 3, set_d, get_d);
+    test_set!(0xDB, test_0xdb_set_3_e, 3, set_e, get_e);
+    test_set!(0xDC, test_0xdc_set_3_h, 3, set_h, get_h);
+    test_set!(0xDD, test_0xdd_set_3_l, 3, set_l, get_l);
+    test_set!(0xDE, test_0xde_set_3__hl_, 3, set_hl, get_hl, memory);
+    test_set!(0xDF, test_0xdf_set_3_a, 3, set_a, get_a);
+
+    test_set!(0xE0, test_0xe0_set_4_b, 4, set_b, get_b);
+    test_set!(0xE1, test_0xe1_set_4_c, 4, set_c, get_c);
+    test_set!(0xE2, test_0xe2_set_4_d, 4, set_d, get_d);
+    test_set!(0xE3, test_0xe3_set_4_e, 4, set_e, get_e);
+    test_set!(0xE4, test_0xe4_set_4_h, 4, set_h, get_h);
+    test_set!(0xE5, test_0xe5_set_4_l, 4, set_l, get_l);
+    test_set!(0xE6, test_0xe6_set_4__hl_, 4, set_hl, get_hl, memory);
+    test_set!(0xE7, test_0xe7_set_4_a, 4, set_a, get_a);
+
+    test_set!(0xE8, test_0xe8_set_5_b, 5, set_b, get_b);
+    test_set!(0xE9, test_0xe9_set_5_c, 5, set_c, get_c);
+    test_set!(0xEA, test_0xea_set_5_d, 5, set_d, get_d);
+    test_set!(0xEB, test_0xeb_set_5_e, 5, set_e, get_e);
+    test_set!(0xEC, test_0xec_set_5_h, 5, set_h, get_h);
+    test_set!(0xED, test_0xed_set_5_l, 5, set_l, get_l);
+    test_set!(0xEE, test_0xee_set_5__hl_, 5, set_hl, get_hl, memory);
+    test_set!(0xEF, test_0xef_set_5_a, 5, set_a, get_a);
+
+    test_set!(0xF0, test_0xf0_set_6_b, 6, set_b, get_b);
+    test_set!(0xF1, test_0xf1_set_6_c, 6, set_c, get_c);
+    test_set!(0xF2, test_0xf2_set_6_d, 6, set_d, get_d);
+    test_set!(0xF3, test_0xf3_set_6_e, 6, set_e, get_e);
+    test_set!(0xF4, test_0xf4_set_6_h, 6, set_h, get_h);
+    test_set!(0xF5, test_0xf5_set_6_l, 6, set_l, get_l);
+    test_set!(0xF6, test_0xf6_set_6__hl_, 6, set_hl, get_hl, memory);
+    test_set!(0xF7, test_0xf7_set_6_a, 6, set_a, get_a);
+
+    test_set!(0xF8, test_0xf8_set_7_b, 7, set_b, get_b);
+    test_set!(0xF9, test_0xf9_set_7_c, 7, set_c, get_c);
+    test_set!(0xFA, test_0xfa_set_7_d, 7, set_d, get_d);
+    test_set!(0xFB, test_0xfb_set_7_e, 7, set_e, get_e);
+    test_set!(0xFC, test_0xfc_set_7_h, 7, set_h, get_h);
+    test_set!(0xFD, test_0xfd_set_7_l, 7, set_l, get_l);
+    test_set!(0xFE, test_0xfe_set_7__hl_, 7, set_hl, get_hl, memory);
+    test_set!(0xFF, test_0xff_set_7_a, 7, set_a, get_a);
 }
