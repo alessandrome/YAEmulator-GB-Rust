@@ -4049,6 +4049,60 @@ const fn create_cb_opcodes() -> [Option<&'static Instruction>; 256] {
     opcodes[0x4D] = bit!(0x4d, "BIT 1, L", r8, 1, get_l);
     opcodes[0x4E] = bit!(0x4e, "BIT 1, [HL]", ar16, 1, get_hl);
     opcodes[0x4F] = bit!(0x4f, "BIT 1, A", r8, 1, get_a);
+
+    opcodes[0x50] = bit!(0x50, "BIT 2, B", r8, 2, get_b);
+    opcodes[0x51] = bit!(0x51, "BIT 2, C", r8, 2, get_c);
+    opcodes[0x52] = bit!(0x52, "BIT 2, D", r8, 2, get_d);
+    opcodes[0x53] = bit!(0x53, "BIT 2, E", r8, 2, get_e);
+    opcodes[0x54] = bit!(0x54, "BIT 2, H", r8, 2, get_h);
+    opcodes[0x55] = bit!(0x55, "BIT 2, L", r8, 2, get_l);
+    opcodes[0x56] = bit!(0x56, "BIT 2, [HL]", ar16, 2, get_hl);
+    opcodes[0x57] = bit!(0x57, "BIT 2, A", r8, 2, get_a);
+
+    opcodes[0x58] = bit!(0x58, "BIT 3, B", r8, 3, get_b);
+    opcodes[0x59] = bit!(0x59, "BIT 3, C", r8, 3, get_c);
+    opcodes[0x5A] = bit!(0x5a, "BIT 3, D", r8, 3, get_d);
+    opcodes[0x5B] = bit!(0x5b, "BIT 3, E", r8, 3, get_e);
+    opcodes[0x5C] = bit!(0x5c, "BIT 3, H", r8, 3, get_h);
+    opcodes[0x5D] = bit!(0x5d, "BIT 3, L", r8, 3, get_l);
+    opcodes[0x5E] = bit!(0x5e, "BIT 3, [HL]", ar16, 3, get_hl);
+    opcodes[0x5F] = bit!(0x5f, "BIT 3, A", r8, 3, get_a);
+
+    opcodes[0x60] = bit!(0x60, "BIT 4, B", r8, 4, get_b);
+    opcodes[0x61] = bit!(0x61, "BIT 4, C", r8, 4, get_c);
+    opcodes[0x62] = bit!(0x62, "BIT 4, D", r8, 4, get_d);
+    opcodes[0x63] = bit!(0x63, "BIT 4, E", r8, 4, get_e);
+    opcodes[0x64] = bit!(0x64, "BIT 4, H", r8, 4, get_h);
+    opcodes[0x65] = bit!(0x65, "BIT 4, L", r8, 4, get_l);
+    opcodes[0x66] = bit!(0x66, "BIT 4, [HL]", ar16, 4, get_hl);
+    opcodes[0x67] = bit!(0x67, "BIT 4, A", r8, 4, get_a);
+
+    opcodes[0x68] = bit!(0x68, "BIT 5, B", r8, 5, get_b);
+    opcodes[0x69] = bit!(0x69, "BIT 5, C", r8, 5, get_c);
+    opcodes[0x6A] = bit!(0x6a, "BIT 5, D", r8, 5, get_d);
+    opcodes[0x6B] = bit!(0x6b, "BIT 5, E", r8, 5, get_e);
+    opcodes[0x6C] = bit!(0x6c, "BIT 5, H", r8, 5, get_h);
+    opcodes[0x6D] = bit!(0x6d, "BIT 5, L", r8, 5, get_l);
+    opcodes[0x6E] = bit!(0x6e, "BIT 5, [HL]", ar16, 5, get_hl);
+    opcodes[0x6F] = bit!(0x6f, "BIT 5, A", r8, 5, get_a);
+
+    opcodes[0x70] = bit!(0x70, "BIT 6, B", r8, 6, get_b);
+    opcodes[0x71] = bit!(0x71, "BIT 6, C", r8, 6, get_c);
+    opcodes[0x72] = bit!(0x72, "BIT 6, D", r8, 6, get_d);
+    opcodes[0x73] = bit!(0x73, "BIT 6, E", r8, 6, get_e);
+    opcodes[0x74] = bit!(0x74, "BIT 6, H", r8, 6, get_h);
+    opcodes[0x75] = bit!(0x75, "BIT 6, L", r8, 6, get_l);
+    opcodes[0x76] = bit!(0x76, "BIT 6, [HL]", ar16, 6, get_hl);
+    opcodes[0x77] = bit!(0x77, "BIT 6, A", r8, 6, get_a);
+
+    opcodes[0x78] = bit!(0x78, "BIT 7, B", r8, 7, get_b);
+    opcodes[0x79] = bit!(0x79, "BIT 7, C", r8, 7, get_c);
+    opcodes[0x7A] = bit!(0x7a, "BIT 7, D", r8, 7, get_d);
+    opcodes[0x7B] = bit!(0x7b, "BIT 7, E", r8, 7, get_e);
+    opcodes[0x7C] = bit!(0x7c, "BIT 7, H", r8, 7, get_h);
+    opcodes[0x7D] = bit!(0x7d, "BIT 7, L", r8, 7, get_l);
+    opcodes[0x7E] = bit!(0x7e, "BIT 7, [HL]", ar16, 7, get_hl);
+    opcodes[0x7F] = bit!(0x7f, "BIT 7, A", r8, 7, get_a);
     opcodes
 }
 
@@ -10268,4 +10322,58 @@ mod test_cb {
     test_bit!(0x4D, test_0x4d_bit_1_l, 1, set_l, get_l);
     test_bit!(0x4E, test_0x4e_bit_1__hl_, 1, set_hl, get_hl, memory);
     test_bit!(0x4F, test_0x4f_bit_1_a, 1, set_a, get_a);
+
+    test_bit!(0x50, test_0x50_bit_2_b, 2, set_b, get_b);
+    test_bit!(0x51, test_0x51_bit_2_c, 2, set_c, get_c);
+    test_bit!(0x52, test_0x52_bit_2_d, 2, set_d, get_d);
+    test_bit!(0x53, test_0x53_bit_2_e, 2, set_e, get_e);
+    test_bit!(0x54, test_0x54_bit_2_h, 2, set_h, get_h);
+    test_bit!(0x55, test_0x55_bit_2_l, 2, set_l, get_l);
+    test_bit!(0x56, test_0x56_bit_2__hl_, 2, set_hl, get_hl, memory);
+    test_bit!(0x57, test_0x57_bit_2_a, 2, set_a, get_a);
+
+    test_bit!(0x58, test_0x58_bit_3_b, 3, set_b, get_b);
+    test_bit!(0x59, test_0x59_bit_3_c, 3, set_c, get_c);
+    test_bit!(0x5A, test_0x5a_bit_3_d, 3, set_d, get_d);
+    test_bit!(0x5B, test_0x5b_bit_3_e, 3, set_e, get_e);
+    test_bit!(0x5C, test_0x5c_bit_3_h, 3, set_h, get_h);
+    test_bit!(0x5D, test_0x5d_bit_3_l, 3, set_l, get_l);
+    test_bit!(0x5E, test_0x5e_bit_3__hl_, 3, set_hl, get_hl, memory);
+    test_bit!(0x5F, test_0x5f_bit_3_a, 3, set_a, get_a);
+
+    test_bit!(0x60, test_0x60_bit_4_b, 4, set_b, get_b);
+    test_bit!(0x61, test_0x61_bit_4_c, 4, set_c, get_c);
+    test_bit!(0x62, test_0x62_bit_4_d, 4, set_d, get_d);
+    test_bit!(0x63, test_0x63_bit_4_e, 4, set_e, get_e);
+    test_bit!(0x64, test_0x64_bit_4_h, 4, set_h, get_h);
+    test_bit!(0x65, test_0x65_bit_4_l, 4, set_l, get_l);
+    test_bit!(0x66, test_0x66_bit_4__hl_, 4, set_hl, get_hl, memory);
+    test_bit!(0x67, test_0x67_bit_4_a, 4, set_a, get_a);
+
+    test_bit!(0x68, test_0x68_bit_5_b, 5, set_b, get_b);
+    test_bit!(0x69, test_0x69_bit_5_c, 5, set_c, get_c);
+    test_bit!(0x6A, test_0x6a_bit_5_d, 5, set_d, get_d);
+    test_bit!(0x6B, test_0x6b_bit_5_e, 5, set_e, get_e);
+    test_bit!(0x6C, test_0x6c_bit_5_h, 5, set_h, get_h);
+    test_bit!(0x6D, test_0x6d_bit_5_l, 5, set_l, get_l);
+    test_bit!(0x6E, test_0x6e_bit_5__hl_, 5, set_hl, get_hl, memory);
+    test_bit!(0x6F, test_0x6f_bit_5_a, 5, set_a, get_a);
+
+    test_bit!(0x70, test_0x70_bit_6_b, 6, set_b, get_b);
+    test_bit!(0x71, test_0x71_bit_6_c, 6, set_c, get_c);
+    test_bit!(0x72, test_0x72_bit_6_d, 6, set_d, get_d);
+    test_bit!(0x73, test_0x73_bit_6_e, 6, set_e, get_e);
+    test_bit!(0x74, test_0x74_bit_6_h, 6, set_h, get_h);
+    test_bit!(0x75, test_0x75_bit_6_l, 6, set_l, get_l);
+    test_bit!(0x76, test_0x76_bit_6__hl_, 6, set_hl, get_hl, memory);
+    test_bit!(0x77, test_0x77_bit_6_a, 6, set_a, get_a);
+
+    test_bit!(0x78, test_0x78_bit_7_b, 7, set_b, get_b);
+    test_bit!(0x79, test_0x79_bit_7_c, 7, set_c, get_c);
+    test_bit!(0x7A, test_0x7a_bit_7_d, 7, set_d, get_d);
+    test_bit!(0x7B, test_0x7b_bit_7_e, 7, set_e, get_e);
+    test_bit!(0x7C, test_0x7c_bit_7_h, 7, set_h, get_h);
+    test_bit!(0x7D, test_0x7d_bit_7_l, 7, set_l, get_l);
+    test_bit!(0x7E, test_0x7e_bit_7__hl_, 7, set_hl, get_hl, memory);
+    test_bit!(0x7F, test_0x7f_bit_7_a, 7, set_a, get_a);
 }
