@@ -3613,7 +3613,7 @@ const fn create_cb_opcodes() -> [Option<&'static Instruction>; 256] {
             Some(&Instruction {
                 opcode: $opcode,
                 name: $name,
-                cycles: 2,
+                cycles: 4,
                 size: 2,
                 flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
                 execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
@@ -3649,7 +3649,7 @@ const fn create_cb_opcodes() -> [Option<&'static Instruction>; 256] {
             Some(&Instruction {
                 opcode: $opcode,
                 name: $name,
-                cycles: 2,
+                cycles: 4,
                 size: 2,
                 flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
                 execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
@@ -9445,11 +9445,11 @@ mod test_cb {
                 cpu_1.ram.write(test_addr, test_value_1);
                 cpu_1.registers.set_hl(test_addr);
                 let mut cycles = cpu_1.execute_next();
-                assert_eq!(cycles, 2);
+                assert_eq!(cycles, 4);
                 assert_eq!(cpu_1.ram.read(test_addr), 0b0001_0001);
                 test_flags!(cpu_1, false, false, false, true);
                 cycles = cpu_1.execute_next();
-                assert_eq!(cycles, 2);
+                assert_eq!(cycles, 4);
                 assert_eq!(cpu_1.ram.read(test_addr), 0b0010_0010);
                 test_flags!(cpu_1, false, false, false, false);
             }
@@ -9487,11 +9487,11 @@ mod test_cb {
                 cpu_1.ram.write(test_addr, test_value_1);
                 cpu_1.registers.set_hl(test_addr);
                 let mut cycles = cpu_1.execute_next();
-                assert_eq!(cycles, 2);
+                assert_eq!(cycles, 4);
                 assert_eq!(cpu_1.ram.read(test_addr), 0b1000_1000);
                 test_flags!(cpu_1, false, false, false, true);
                 cycles = cpu_1.execute_next();
-                assert_eq!(cycles, 2);
+                assert_eq!(cycles, 4);
                 assert_eq!(cpu_1.ram.read(test_addr), 0b0100_0100);
                 test_flags!(cpu_1, false, false, false, false);
             }
