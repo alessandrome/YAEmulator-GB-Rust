@@ -3959,6 +3959,68 @@ const fn create_cb_opcodes() -> [Option<&'static Instruction>; 256] {
         };
     }
 
+    macro_rules! res {
+        ($opcode:expr, $name:expr, r8, $bit:expr, $set_reg:ident, $get_reg:ident) => {
+            Some(&Instruction {
+                opcode: $opcode,
+                name: $name,
+                cycles: 2,
+                size: 2,
+                flags: &[],
+                execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
+                    let mask: u8 = !(1 << $bit);
+                    cpu.registers.$set_reg(cpu.registers.$get_reg() & mask);
+                    opcode.cycles as u64
+                }
+            })
+        };
+        ($opcode:expr, $name:expr, ar16, $bit:expr, $get_reg:ident) => {
+            Some(&Instruction {
+                opcode: $opcode,
+                name: $name,
+                cycles: 4,
+                size: 2,
+                flags: &[],
+                execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
+                    let mask: u8 = !(1 << $bit);
+                    cpu.ram.write(cpu.registers.$get_reg(), cpu.ram.read(cpu.registers.$get_reg()) & mask);
+                    opcode.cycles as u64
+                }
+            })
+        };
+    }
+
+    macro_rules! set {
+        ($opcode:expr, $name:expr, r8, $bit:expr, $set_reg:ident, $get_reg:ident) => {
+            Some(&Instruction {
+                opcode: $opcode,
+                name: $name,
+                cycles: 2,
+                size: 2,
+                flags: &[],
+                execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
+                    let mask: u8 = (1 << $bit);
+                    cpu.registers.$set_reg(cpu.registers.$get_reg() | mask);
+                    opcode.cycles as u64
+                }
+            })
+        };
+        ($opcode:expr, $name:expr, ar16, $bit:expr, $get_reg:ident) => {
+            Some(&Instruction {
+                opcode: $opcode,
+                name: $name,
+                cycles: 4,
+                size: 2,
+                flags: &[],
+                execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
+                    let mask: u8 = (1 << $bit);
+                    cpu.ram.write(cpu.registers.$get_reg(), cpu.ram.read(cpu.registers.$get_reg()) | mask);
+                    opcode.cycles as u64
+                }
+            })
+        };
+    }
+
     let mut opcodes = [None; 256];
     opcodes[0x00] = rlc!(0x00, "RLC B", r8, set_b, get_b);
     opcodes[0x01] = rlc!(0x01, "RLC C", r8, set_c, get_c);
@@ -4103,6 +4165,78 @@ const fn create_cb_opcodes() -> [Option<&'static Instruction>; 256] {
     opcodes[0x7D] = bit!(0x7d, "BIT 7, L", r8, 7, get_l);
     opcodes[0x7E] = bit!(0x7e, "BIT 7, [HL]", ar16, 7, get_hl);
     opcodes[0x7F] = bit!(0x7f, "BIT 7, A", r8, 7, get_a);
+
+    opcodes[0x80] = res!(0x80, "RES 0, B", r8, 0, set_b, get_b);
+    opcodes[0x81] = res!(0x81, "RES 0, C", r8, 0, set_c, get_c);
+    opcodes[0x82] = res!(0x82, "RES 0, D", r8, 0, set_d, get_d);
+    opcodes[0x83] = res!(0x83, "RES 0, E", r8, 0, set_e, get_e);
+    opcodes[0x84] = res!(0x84, "RES 0, H", r8, 0, set_h, get_h);
+    opcodes[0x85] = res!(0x85, "RES 0, L", r8, 0, set_l, get_l);
+    opcodes[0x86] = res!(0x86, "RES 0, [HL]", ar16, 0, get_hl);
+    opcodes[0x87] = res!(0x87, "RES 0, A", r8, 0, set_a, get_a);
+
+    opcodes[0x88] = res!(0x88, "RES 1, B", r8, 1, set_b, get_b);
+    opcodes[0x89] = res!(0x89, "RES 1, C", r8, 1, set_c, get_c);
+    opcodes[0x8A] = res!(0x8a, "RES 1, D", r8, 1, set_d, get_d);
+    opcodes[0x8B] = res!(0x8b, "RES 1, E", r8, 1, set_e, get_e);
+    opcodes[0x8C] = res!(0x8c, "RES 1, H", r8, 1, set_h, get_h);
+    opcodes[0x8D] = res!(0x8d, "RES 1, L", r8, 1, set_l, get_l);
+    opcodes[0x8E] = res!(0x8e, "RES 1, [HL]", ar16, 1, get_hl);
+    opcodes[0x8F] = res!(0x8f, "RES 1, A", r8, 1, set_a, get_a);
+
+    opcodes[0x90] = res!(0x90, "RES 2, B", r8, 2, set_b, get_b);
+    opcodes[0x91] = res!(0x91, "RES 2, C", r8, 2, set_c, get_c);
+    opcodes[0x92] = res!(0x92, "RES 2, D", r8, 2, set_d, get_d);
+    opcodes[0x93] = res!(0x93, "RES 2, E", r8, 2, set_e, get_e);
+    opcodes[0x94] = res!(0x94, "RES 2, H", r8, 2, set_h, get_h);
+    opcodes[0x95] = res!(0x95, "RES 2, L", r8, 2, set_l, get_l);
+    opcodes[0x96] = res!(0x96, "RES 2, [HL]", ar16, 2, get_hl);
+    opcodes[0x97] = res!(0x97, "RES 2, A", r8, 2, set_a, get_a);
+
+    opcodes[0x98] = res!(0x98, "RES 3, B", r8, 3, set_b, get_b);
+    opcodes[0x99] = res!(0x99, "RES 3, C", r8, 3, set_c, get_c);
+    opcodes[0x9A] = res!(0x9a, "RES 3, D", r8, 3, set_d, get_d);
+    opcodes[0x9B] = res!(0x9b, "RES 3, E", r8, 3, set_e, get_e);
+    opcodes[0x9C] = res!(0x9c, "RES 3, H", r8, 3, set_h, get_h);
+    opcodes[0x9D] = res!(0x9d, "RES 3, L", r8, 3, set_l, get_l);
+    opcodes[0x9E] = res!(0x9e, "RES 3, [HL]", ar16, 3, get_hl);
+    opcodes[0x9F] = res!(0x9f, "RES 3, A", r8, 3, set_a, get_a);
+
+    opcodes[0xA0] = res!(0xA0, "RES 4, B", r8, 4, set_b, get_b);
+    opcodes[0xA1] = res!(0xA1, "RES 4, C", r8, 4, set_c, get_c);
+    opcodes[0xA2] = res!(0xA2, "RES 4, D", r8, 4, set_d, get_d);
+    opcodes[0xA3] = res!(0xA3, "RES 4, E", r8, 4, set_e, get_e);
+    opcodes[0xA4] = res!(0xA4, "RES 4, H", r8, 4, set_h, get_h);
+    opcodes[0xA5] = res!(0xA5, "RES 4, L", r8, 4, set_l, get_l);
+    opcodes[0xA6] = res!(0xA6, "RES 4, [HL]", ar16, 4, get_hl);
+    opcodes[0xA7] = res!(0xA7, "RES 4, A", r8, 4, set_a, get_a);
+
+    opcodes[0xA8] = res!(0xA8, "RES 5, B", r8, 5, set_b, get_b);
+    opcodes[0xA9] = res!(0xA9, "RES 5, C", r8, 5, set_c, get_c);
+    opcodes[0xAA] = res!(0xAa, "RES 5, D", r8, 5, set_d, get_d);
+    opcodes[0xAB] = res!(0xAb, "RES 5, E", r8, 5, set_e, get_e);
+    opcodes[0xAC] = res!(0xAc, "RES 5, H", r8, 5, set_h, get_h);
+    opcodes[0xAD] = res!(0xAd, "RES 5, L", r8, 5, set_l, get_l);
+    opcodes[0xAE] = res!(0xAe, "RES 5, [HL]", ar16, 5, get_hl);
+    opcodes[0xAF] = res!(0xAf, "RES 5, A", r8, 5, set_a, get_a);
+
+    opcodes[0xB0] = res!(0xB0, "RES 6, B", r8, 6, set_b, get_b);
+    opcodes[0xB1] = res!(0xB1, "RES 6, C", r8, 6, set_c, get_c);
+    opcodes[0xB2] = res!(0xB2, "RES 6, D", r8, 6, set_d, get_d);
+    opcodes[0xB3] = res!(0xB3, "RES 6, E", r8, 6, set_e, get_e);
+    opcodes[0xB4] = res!(0xB4, "RES 6, H", r8, 6, set_h, get_h);
+    opcodes[0xB5] = res!(0xB5, "RES 6, L", r8, 6, set_l, get_l);
+    opcodes[0xB6] = res!(0xB6, "RES 6, [HL]", ar16, 6, get_hl);
+    opcodes[0xB7] = res!(0xB7, "RES 6, A", r8, 6, set_a, get_a);
+
+    opcodes[0xB8] = res!(0xB8, "RES 7, B", r8, 7, set_b, get_b);
+    opcodes[0xB9] = res!(0xB9, "RES 7, C", r8, 7, set_c, get_c);
+    opcodes[0xBA] = res!(0xBa, "RES 7, D", r8, 7, set_d, get_d);
+    opcodes[0xBB] = res!(0xBb, "RES 7, E", r8, 7, set_e, get_e);
+    opcodes[0xBC] = res!(0xBc, "RES 7, H", r8, 7, set_h, get_h);
+    opcodes[0xBD] = res!(0xBd, "RES 7, L", r8, 7, set_l, get_l);
+    opcodes[0xBE] = res!(0xBe, "RES 7, [HL]", ar16, 7, get_hl);
+    opcodes[0xBF] = res!(0xBf, "RES 7, A", r8, 7, set_a, get_a);
     opcodes
 }
 
@@ -10233,6 +10367,62 @@ mod test_cb {
         };
     }
 
+    macro_rules! test_res {
+        ($opcode:expr, $func:ident, $bit:expr, $set_reg_src:ident, $get_reg_src:ident) => {
+            #[test]
+            fn $func() {
+                let test_value_1: u8 = 0xFF;
+                let test_mask: u8 = !(1 << $bit);
+                let mut cpu_1 = CPU::new();
+                let program_1: Vec<u8> = vec![0xCB, $opcode];
+                cpu_1.load(&program_1);
+                cpu_1.registers.$set_reg_src(test_value_1);
+                cpu_1.registers.set_zero_flag(false);
+                cpu_1.registers.set_negative_flag(true);
+                cpu_1.registers.set_half_carry_flag(false);
+                cpu_1.registers.set_carry_flag(false);
+                let registers_copy = cpu_1.registers;
+                let mut cycles = cpu_1.execute_next();
+                assert_eq!(cycles, 2);
+                assert_eq!(cpu_1.registers.$get_reg_src(), test_value_1 & test_mask);
+                test_flags!(
+                    cpu_1,
+                    registers_copy.get_zero_flag(),
+                    registers_copy.get_negative_flag(),
+                    registers_copy.get_half_carry_flag(),
+                    registers_copy.get_carry_flag());
+            }
+        };
+        ($opcode:expr, $func:ident, $bit:expr, $set_reg_src:ident, $get_reg_src:ident, memory) => {
+            #[test]
+            fn $func() {
+                let test_value_1: u8 = 0xFF;
+                let test_mask: u8 = !(1 << $bit);
+                let test_addr: u16 = WRAM_ADDRESS as u16 + 0xC6;
+                let mut cpu_1 = CPU::new();
+                let program_1: Vec<u8> = vec![0xCB, $opcode];
+                cpu_1.load(&program_1);
+                cpu_1.ram.write(test_addr, test_value_1);
+                cpu_1.registers.$set_reg_src(test_addr);
+                cpu_1.registers.set_zero_flag(false);
+                cpu_1.registers.set_negative_flag(true);
+                cpu_1.registers.set_half_carry_flag(false);
+                cpu_1.registers.set_carry_flag(false);
+                let registers_copy = cpu_1.registers;
+                let mut cycles = cpu_1.execute_next();
+                assert_eq!(cycles, 4);
+                assert_eq!(cpu_1.ram.read(test_addr), test_value_1 & test_mask);
+                assert_eq!(cpu_1.registers.$get_reg_src(), test_addr);
+                test_flags!(
+                    cpu_1,
+                    registers_copy.get_zero_flag(),
+                    registers_copy.get_negative_flag(),
+                    registers_copy.get_half_carry_flag(),
+                    registers_copy.get_carry_flag());
+            }
+        };
+    }
+
     test_rlc!(0x00, test_0x00_rlc_b, set_b, get_b);
     test_rlc!(0x01, test_0x01_rlc_c, set_c, get_c);
     test_rlc!(0x02, test_0x02_rlc_d, set_d, get_d);
@@ -10305,6 +10495,7 @@ mod test_cb {
     test_srl!(0x3E, test_0x3e_srl__hl_, set_hl, get_hl, memory);
     test_srl!(0x3F, test_0x3f_srl_a, set_a, get_a);
 
+    // BIT Instructions tests
     test_bit!(0x40, test_0x40_bit_0_b, 0, set_b, get_b);
     test_bit!(0x41, test_0x41_bit_0_c, 0, set_c, get_c);
     test_bit!(0x42, test_0x42_bit_0_d, 0, set_d, get_d);
@@ -10376,4 +10567,77 @@ mod test_cb {
     test_bit!(0x7D, test_0x7d_bit_7_l, 7, set_l, get_l);
     test_bit!(0x7E, test_0x7e_bit_7__hl_, 7, set_hl, get_hl, memory);
     test_bit!(0x7F, test_0x7f_bit_7_a, 7, set_a, get_a);
+
+    // RES instruction tests
+    test_res!(0x80, test_0x80_res_0_b, 0, set_b, get_b);
+    test_res!(0x81, test_0x81_res_0_c, 0, set_c, get_c);
+    test_res!(0x82, test_0x82_res_0_d, 0, set_d, get_d);
+    test_res!(0x83, test_0x83_res_0_e, 0, set_e, get_e);
+    test_res!(0x84, test_0x84_res_0_h, 0, set_h, get_h);
+    test_res!(0x85, test_0x85_res_0_l, 0, set_l, get_l);
+    test_res!(0x86, test_0x86_res_0__hl_, 0, set_hl, get_hl, memory);
+    test_res!(0x87, test_0x87_res_0_a, 0, set_a, get_a);
+
+    test_res!(0x88, test_0x88_res_1_b, 1, set_b, get_b);
+    test_res!(0x89, test_0x89_res_1_c, 1, set_c, get_c);
+    test_res!(0x8A, test_0x8a_res_1_d, 1, set_d, get_d);
+    test_res!(0x8B, test_0x8b_res_1_e, 1, set_e, get_e);
+    test_res!(0x8C, test_0x8c_res_1_h, 1, set_h, get_h);
+    test_res!(0x8D, test_0x8d_res_1_l, 1, set_l, get_l);
+    test_res!(0x8E, test_0x8e_res_1__hl_, 1, set_hl, get_hl, memory);
+    test_res!(0x8F, test_0x8f_res_1_a, 1, set_a, get_a);
+
+    test_res!(0x90, test_0x90_res_2_b, 2, set_b, get_b);
+    test_res!(0x91, test_0x91_res_2_c, 2, set_c, get_c);
+    test_res!(0x92, test_0x92_res_2_d, 2, set_d, get_d);
+    test_res!(0x93, test_0x93_res_2_e, 2, set_e, get_e);
+    test_res!(0x94, test_0x94_res_2_h, 2, set_h, get_h);
+    test_res!(0x95, test_0x95_res_2_l, 2, set_l, get_l);
+    test_res!(0x96, test_0x96_res_2__hl_, 2, set_hl, get_hl, memory);
+    test_res!(0x97, test_0x97_res_2_a, 2, set_a, get_a);
+
+    test_res!(0x98, test_0x98_res_3_b, 3, set_b, get_b);
+    test_res!(0x99, test_0x99_res_3_c, 3, set_c, get_c);
+    test_res!(0x9A, test_0x9a_res_3_d, 3, set_d, get_d);
+    test_res!(0x9B, test_0x9b_res_3_e, 3, set_e, get_e);
+    test_res!(0x9C, test_0x9c_res_3_h, 3, set_h, get_h);
+    test_res!(0x9D, test_0x9d_res_3_l, 3, set_l, get_l);
+    test_res!(0x9E, test_0x9e_res_3__hl_, 3, set_hl, get_hl, memory);
+    test_res!(0x9F, test_0x9f_res_3_a, 3, set_a, get_a);
+
+    test_res!(0xA0, test_0xa0_res_4_b, 4, set_b, get_b);
+    test_res!(0xA1, test_0xa1_res_4_c, 4, set_c, get_c);
+    test_res!(0xA2, test_0xa2_res_4_d, 4, set_d, get_d);
+    test_res!(0xA3, test_0xa3_res_4_e, 4, set_e, get_e);
+    test_res!(0xA4, test_0xa4_res_4_h, 4, set_h, get_h);
+    test_res!(0xA5, test_0xa5_res_4_l, 4, set_l, get_l);
+    test_res!(0xA6, test_0xa6_res_4__hl_, 4, set_hl, get_hl, memory);
+    test_res!(0xA7, test_0xa7_res_4_a, 4, set_a, get_a);
+
+    test_res!(0xA8, test_0xa8_res_5_b, 5, set_b, get_b);
+    test_res!(0xA9, test_0xa9_res_5_c, 5, set_c, get_c);
+    test_res!(0xAA, test_0xaa_res_5_d, 5, set_d, get_d);
+    test_res!(0xAB, test_0xab_res_5_e, 5, set_e, get_e);
+    test_res!(0xAC, test_0xac_res_5_h, 5, set_h, get_h);
+    test_res!(0xAD, test_0xad_res_5_l, 5, set_l, get_l);
+    test_res!(0xAE, test_0xae_res_5__hl_, 5, set_hl, get_hl, memory);
+    test_res!(0xAF, test_0xaf_res_5_a, 5, set_a, get_a);
+
+    test_res!(0xB0, test_0xb0_res_6_b, 6, set_b, get_b);
+    test_res!(0xB1, test_0xb1_res_6_c, 6, set_c, get_c);
+    test_res!(0xB2, test_0xb2_res_6_d, 6, set_d, get_d);
+    test_res!(0xB3, test_0xb3_res_6_e, 6, set_e, get_e);
+    test_res!(0xB4, test_0xb4_res_6_h, 6, set_h, get_h);
+    test_res!(0xB5, test_0xb5_res_6_l, 6, set_l, get_l);
+    test_res!(0xB6, test_0xb6_res_6__hl_, 6, set_hl, get_hl, memory);
+    test_res!(0xB7, test_0xb7_res_6_a, 6, set_a, get_a);
+
+    test_res!(0xB8, test_0xb8_res_7_b, 7, set_b, get_b);
+    test_res!(0xB9, test_0xb9_res_7_c, 7, set_c, get_c);
+    test_res!(0xBA, test_0xba_res_7_d, 7, set_d, get_d);
+    test_res!(0xBB, test_0xbb_res_7_e, 7, set_e, get_e);
+    test_res!(0xBC, test_0xbc_res_7_h, 7, set_h, get_h);
+    test_res!(0xBD, test_0xbd_res_7_l, 7, set_l, get_l);
+    test_res!(0xBE, test_0xbe_res_7__hl_, 7, set_hl, get_hl, memory);
+    test_res!(0xBF, test_0xbf_res_7_a, 7, set_a, get_a);
 }
