@@ -1,5 +1,5 @@
 pub const RST_INSTRUCTIONS: usize = 0x0000; // Location in RAM for RST instructions (not used on emulation)
-pub const ROM_METADATA: usize = 0x0100; // Location for ROM metadata (as name) (not used on emulation)
+pub const CARTRIDGE_HEADER_ADDRESS: usize = 0x0100; // Location for ROM metadata (as name) (not used on emulation)
 pub const USER_PROGRAM_ADDRESS: usize = 0x0150; // Location User Program (not used on emulation)
 pub const VRAM_ADDRESS: usize = 0x8000; // Video RAM
 pub const EXTERNAL_RAM_ADDRESS: usize = 0xA000; // External Extension RAM
@@ -8,7 +8,8 @@ pub const OAM_RAM_ADDRESS: usize = 0xFE00; // Up to 40 Display Object Data (512B
 pub const INTERNAL_RAM_ADDRESS: usize = 0xFF00; // Instruction Registers & Flags
 pub const HRAM_ADDRESS: usize = 0xFF80; // High RAM 127B (Memory w/ direct access from CPU)
 
-pub const RST_MEM_SIZE: usize = 0x0100;
+pub const RST_MEM_SIZE: usize = CARTRIDGE_HEADER_ADDRESS - RST_INSTRUCTIONS;
+pub const CARTRIDGE_HEADER_SIZE: usize = USER_PROGRAM_ADDRESS - CARTRIDGE_HEADER_ADDRESS;
 pub const USER_PROGRAM_MEM_SIZE: usize = VRAM_ADDRESS - USER_PROGRAM_ADDRESS;
 pub const WRAM_SIZE: usize = 0x2000;
 pub const HRAM_SIZE: usize = 127;

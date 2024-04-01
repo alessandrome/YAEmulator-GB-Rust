@@ -3447,7 +3447,7 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         size: 1,
         flags: &[],
         execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.interrupts_enabled = false;
+            cpu.ime = false;
             opcode.cycles as u64
         },
     });
@@ -3551,7 +3551,7 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         size: 1,
         flags: &[],
         execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.interrupts_enabled = true;
+            cpu.ime = true;
             opcode.cycles as u64
         },
     });
@@ -9899,10 +9899,10 @@ mod test {
         let mut cpu_1 = CPU::new();
         let mut program_1: Vec<u8> = vec![0xF3];
         cpu_1.load(&program_1);
-        cpu_1.interrupts_enabled = true;
+        cpu_1.ime = true;
         let mut cycles = cpu_1.execute_next();
         assert_eq!(cycles, 1);
-        assert_eq!(cpu_1.interrupts_enabled, false);
+        assert_eq!(cpu_1.ime, false);
     }
     test_push!(0xF5, test_0xf5_push_af, set_af, get_af);
     test_or_a_imm8!(0xF6, test_0xf6_or_a_imm8);
@@ -10020,7 +10020,7 @@ mod test {
         cpu_1.load(&program_1);
         let mut cycles = cpu_1.execute_next();
         assert_eq!(cycles, 1);
-        assert_eq!(cpu_1.interrupts_enabled, true);
+        assert_eq!(cpu_1.ime, true);
     }
     test_cp_a_imm8!(0xFE, test_0xfe_cp_a_imm8);
     test_rst!(0xFF, test_0xef_rst_38);

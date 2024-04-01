@@ -70,7 +70,7 @@ mod test {
 pub struct CPU {
     pub registers: registers::Registers,
     pub ram: RAM::RAM,
-    pub interrupts_enabled: bool,
+    pub ime: bool,      // Interrupt Master Enable - True if you want to enable and intercept interrupts
     pub opcode: u8,     // Running Instruction Opcode
     pub cycles: u64     // Total Cycles Count
 }
@@ -80,7 +80,7 @@ impl CPU {
         Self {
             registers: registers::Registers::new(),
             ram: RAM::RAM::new(),
-            interrupts_enabled: true,
+            ime: true,
             opcode: 0,
             cycles: 0,
         }
