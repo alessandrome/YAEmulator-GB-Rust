@@ -3162,7 +3162,7 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
             let mut return_addr = cpu.pop() as u16;
             return_addr |= (cpu.pop() as u16) << 8;
             cpu.registers.set_pc(return_addr);
-            // TODO: Also need to restore Interrupt Enable flag to pre-interrupt status
+            cpu.ime = true;
             opcode.cycles as u64
         },
     });
