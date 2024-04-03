@@ -3,6 +3,10 @@ use crate::GB::registers;
 use crate::GB::RAM;
 use crate::GB::RAM::USER_PROGRAM_ADDRESS;
 
+
+const CPU_CLOCK_SPEED: u64 = 4_194_304;
+const DIVIDER_FREQUENCY: u64 = 16384; // Divider Update Frequency in Hz
+
 #[cfg(test)]
 mod test {
     use crate::GB::CPU::CPU;
@@ -72,7 +76,8 @@ pub struct CPU {
     pub ram: RAM::RAM,
     pub ime: bool,      // Interrupt Master Enable - True if you want to enable and intercept interrupts
     pub opcode: u8,     // Running Instruction Opcode
-    pub cycles: u64     // Total Cycles Count
+    pub cycles: u64,     // Total Cycles Count
+    pub divider_counter: u8,     // Total Cycles Count
 }
 
 impl CPU {
@@ -83,6 +88,7 @@ impl CPU {
             ime: false,
             opcode: 0,
             cycles: 0,
+            divider_counter: 0,
         }
     }
     
@@ -138,5 +144,15 @@ impl CPU {
     pub fn pop(&mut self) -> u8 {
         self.registers.set_sp(self.registers.get_sp() + 1);
         self.ram.read(self.registers.get_sp())
+    }
+
+    pub fn update_divider(&mut self, cycles: u64) {
+        let cycles_per_update = CPU_CLOCK_SPEED / DIVIDER_FREQUENCY;
+
+        self.cycles += cycles;
+        while self.cycles >= cycles_per_update {
+            self.divider_counter = self.divider_counter.wrapping_add(1);
+            self.cycles -= cycles_per_update;
+        }
     }
 }
