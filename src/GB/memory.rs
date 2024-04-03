@@ -1,12 +1,12 @@
-pub const RST_INSTRUCTIONS: usize = 0x0000; // Location in RAM for RST instructions (not used on emulation)
+pub const RST_INSTRUCTIONS: usize = 0x0000; // Location in memory for RST instructions (not used on emulation)
 pub const CARTRIDGE_HEADER_ADDRESS: usize = 0x0100; // Location for ROM metadata (as name) (not used on emulation)
 pub const USER_PROGRAM_ADDRESS: usize = 0x0150; // Location User Program (not used on emulation)
-pub const VRAM_ADDRESS: usize = 0x8000; // Video RAM
-pub const EXTERNAL_RAM_ADDRESS: usize = 0xA000; // External Extension RAM
-pub const WRAM_ADDRESS: usize = 0xC000; // Working RAM
+pub const VRAM_ADDRESS: usize = 0x8000; // Video memory
+pub const EXTERNAL_RAM_ADDRESS: usize = 0xA000; // External Extension memory
+pub const WRAM_ADDRESS: usize = 0xC000; // Working memory
 pub const OAM_RAM_ADDRESS: usize = 0xFE00; // Up to 40 Display Object Data (512B)
 pub const INTERNAL_RAM_ADDRESS: usize = 0xFF00; // Instruction Registers & Flags
-pub const HRAM_ADDRESS: usize = 0xFF80; // High RAM 127B (Memory w/ direct access from CPU)
+pub const HRAM_ADDRESS: usize = 0xFF80; // High memory 127B (Memory w/ direct access from CPU)
 
 pub const RST_MEM_SIZE: usize = CARTRIDGE_HEADER_ADDRESS - RST_INSTRUCTIONS;
 pub const CARTRIDGE_HEADER_SIZE: usize = USER_PROGRAM_ADDRESS - CARTRIDGE_HEADER_ADDRESS;
@@ -66,7 +66,7 @@ impl RAM {
 
 #[cfg(test)]
 mod test {
-    use crate::GB::RAM::RAM;
+    use crate::GB::memory::RAM;
 
     #[test]
     fn test_memory_read() {
