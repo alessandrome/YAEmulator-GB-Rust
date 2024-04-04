@@ -1,7 +1,7 @@
 use std::fmt;
 use crate::GB;
 use crate::GB::debug_print;
-use crate::GB::RAM::{WRAM_ADDRESS, WRAM_SIZE};
+use crate::GB::memory::{WRAM_ADDRESS, WRAM_SIZE};
 
 macro_rules! get_set {
     ($reg:ident, $get_name:ident, $set_name:ident, $size:ty) => {

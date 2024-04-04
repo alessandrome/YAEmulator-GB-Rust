@@ -1,16 +1,16 @@
 use crate::GB::instructions;
 use crate::GB::registers;
-use crate::GB::RAM;
-use crate::GB::RAM::USER_PROGRAM_ADDRESS;
+use crate::GB::memory;
+use crate::GB::memory::USER_PROGRAM_ADDRESS;
 
 
-const CPU_CLOCK_SPEED: u64 = 4_194_304;
+const CPU_CLOCK_SPEED: u64 = 4_194_304; // In Hz - 4 Time System Clock
 const DIVIDER_FREQUENCY: u64 = 16384; // Divider Update Frequency in Hz
 
 #[cfg(test)]
 mod test {
     use crate::GB::CPU::CPU;
-    use crate::GB::RAM::{RAM, WRAM_ADDRESS, WRAM_SIZE};
+    use crate::GB::memory::{RAM, WRAM_ADDRESS, WRAM_SIZE};
 
     #[test]
     fn cpu_new_8bit_registers() {
@@ -73,7 +73,7 @@ mod test {
 
 pub struct CPU {
     pub registers: registers::Registers,
-    pub ram: RAM::RAM,
+    pub ram: memory::RAM,
     pub ime: bool,      // Interrupt Master Enable - True if you want to enable and intercept interrupts
     pub opcode: u8,     // Running Instruction Opcode
     pub cycles: u64,     // Total Cycles Count
@@ -84,7 +84,7 @@ impl CPU {
     pub fn new() -> Self {
         Self {
             registers: registers::Registers::new(),
-            ram: RAM::RAM::new(),
+            ram: memory::RAM::new(),
             ime: false,
             opcode: 0,
             cycles: 0,

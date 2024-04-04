@@ -4320,8 +4320,8 @@ pub const OPCODES_CB: [Option<&'static Instruction>; 256] = create_cb_opcodes();
 #[cfg(test)]
 mod test {
     use crate::GB::CPU::CPU;
-    use crate::GB::RAM;
-    use crate::GB::RAM::{USER_PROGRAM_ADDRESS, WRAM_ADDRESS};
+    use crate::GB::memory;
+    use crate::GB::memory::{USER_PROGRAM_ADDRESS, WRAM_ADDRESS};
 
     macro_rules! test_flags {
         ($cpu:ident, $zero:expr, $negative:expr, $half:expr, $carry:expr) => {
@@ -6723,7 +6723,7 @@ mod test {
     #[test]
     fn test_0x22_ld__hli__a() {
         let test_value: u8 = 0xF4;
-        let test_address: u16 = RAM::WRAM_ADDRESS as u16 + 0x0500;
+        let test_address: u16 = memory::WRAM_ADDRESS as u16 + 0x0500;
         let mut cpu = CPU::new();
         let program: Vec<u8> = vec![0x22];
         cpu.load(&program);
@@ -6906,7 +6906,7 @@ mod test {
     #[test]
     fn test_0x32_ld__hld__a() {
         let test_value: u8 = 0xF4;
-        let test_address: u16 = RAM::WRAM_ADDRESS as u16 + 0x0500;
+        let test_address: u16 = memory::WRAM_ADDRESS as u16 + 0x0500;
         let mut cpu = CPU::new();
         let program: Vec<u8> = vec![0x32];
         cpu.load(&program);
@@ -10029,8 +10029,8 @@ mod test {
 #[cfg(test)]
 mod test_cb {
     use crate::GB::CPU::CPU;
-    use crate::GB::RAM;
-    use crate::GB::RAM::{USER_PROGRAM_ADDRESS, WRAM_ADDRESS};
+    use crate::GB::memory;
+    use crate::GB::memory::{USER_PROGRAM_ADDRESS, WRAM_ADDRESS};
 
     macro_rules! test_flags {
         ($cpu:ident, $zero:expr, $negative:expr, $half:expr, $carry:expr) => {

@@ -1,3 +1,6 @@
+use std::fs::File;
+use std::io::Read;
+
 pub const RST_INSTRUCTIONS: usize = 0x0000; // Location in memory for RST instructions (not used on emulation)
 pub const CARTRIDGE_HEADER_ADDRESS: usize = 0x0100; // Location for ROM metadata (as name) (not used on emulation)
 pub const USER_PROGRAM_ADDRESS: usize = 0x0150; // Location User Program (not used on emulation)
@@ -29,16 +32,67 @@ macro_rules! write_ram_space {
     };
 }
 
+pub struct Memory<T, const N: usize> where T: Clone {
+    #[cfg(test)]
+    pub memory: [T; N],
+    #[cfg(not(test))]
+    memory: [T; N],
+}
+
+impl<T: Clone, const N: usize> std::ops::Index<usize> for Memory<T, N> {
+    type Output = T;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.memory[index]
+    }
+}
+
+impl<T: Clone, const N: usize> std::ops::IndexMut<usize> for Memory<T, N> {
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        &mut self.memory[index]
+    }
+}
+
+impl<T: Clone, const N: usize> std::ops::Index<std::ops::Range<usize>> for Memory<T, N> {
+    type Output = [T];
+
+    fn index(&self, index: std::ops::Range<usize>) -> &[T] {
+        &self.memory[index]
+    }
+}
+
+impl<T: Clone, const N: usize> std::ops::IndexMut<std::ops::Range<usize>> for Memory<T, N> {
+    fn index_mut(&mut self, index: std::ops::Range<usize>) -> &mut [T] {
+        &mut self.memory[index]
+    }
+}
+
+impl<T: Clone + std::marker::Copy, const N: usize>  Memory<T, N> {
+    pub fn len(&self) -> usize { self.memory.len() }
+    pub fn new(default: T) -> Self where T: Clone {
+        Self {
+            memory: [default; N]
+        }
+    }
+}
+
 pub struct RAM {
     #[cfg(test)]
-    pub memory: [u8; 65536],
+    pub memory: Memory<u8, 65536>,
     #[cfg(not(test))]
-    memory: [u8; 65536],
+    memory: Memory<u8, 65536>,
+}
+
+pub struct ROM {
+    #[cfg(test)]
+    pub memory: Memory<u8, 256>,
+    #[cfg(not(test))]
+    memory: Memory<u8, 256>,
 }
 
 impl RAM {
     pub fn new() -> Self {
-        RAM { memory: [0; 65536] }
+        RAM { memory: Memory::<u8, 65536>::new(0) }
     }
 
     pub fn read(&self, address: u16) -> u8 {
@@ -62,6 +116,16 @@ impl RAM {
     write_ram_space!(write_vram, VRAM_ADDRESS);
     write_ram_space!(write_hram, HRAM_ADDRESS);
     write_ram_space!(write_user_program, USER_PROGRAM_ADDRESS);
+}
+
+impl ROM {
+    pub fn load_bios(&mut self, path: &str) -> Result<(), std::io::Error> {
+        let mut file = File::open(path)?;
+        let mut buffer = [0u8; 256];
+        file.read_exact(&mut buffer)?;
+        self.memory = Memory { memory: buffer };
+        Ok(())
+    }
 }
 
 #[cfg(test)]
