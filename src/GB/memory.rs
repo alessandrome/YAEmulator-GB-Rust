@@ -126,6 +126,12 @@ impl ROM {
         self.memory = Memory { memory: buffer };
         Ok(())
     }
+
+    pub fn boot_load(&self, ram: &mut RAM) {
+        for i in 0..self.memory.len() {
+            ram.write(i as u16, self.memory[i]);
+        }
+    }
 }
 
 #[cfg(test)]
