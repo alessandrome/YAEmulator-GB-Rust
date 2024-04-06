@@ -7,7 +7,7 @@ edition = "2021"
 
 [dependencies]
 clap = { version = "4.5.4", features = ["derive"] }
-iced = { git = "https://github.com/iced-rs/iced.git", version = "0.13.0-dev" }
+iced = { git = "https://github.com/iced-rs/iced.git", version = "0.13.0-dev", features = ["advanced", "lazy", "canvas"] }
 
 [features]
 debug = []
