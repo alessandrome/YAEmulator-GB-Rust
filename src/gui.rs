@@ -1,18 +1,18 @@
 use std::fs::File;
 use std::io::Read;
-use iced::{widget::{Column, Text, Row, Scrollable, Button}, Element, Command, Alignment};
+use iced::{widget::{Column, Text, Row, Scrollable, Button}};
 use iced::{widget::{column, button, text, row, scrollable}};
-use iced::advanced::{Application};
-use iced::widget::keyed::column;
-use iced::widget::pane_grid::{Axis, Pane};
-use iced::widget::pane_grid::{self, PaneGrid};
-use iced::widget::{container, responsive};
-use iced::theme::{self, Theme};
+use iced::{Application, Command, Element, Settings, Alignment};
 use crate::GB::GB;
 use crate::GB::instructions::{Instruction};
 use crate::GB::memory::{ROM, RAM};
 
 // #[derive(Default)]
+// pub enum MainWindow {
+//     Window(State)
+// }
+
+#[derive(Default)]
 pub struct MainWindow {
     value: i32,
     gb: GB
@@ -22,25 +22,46 @@ pub struct MainWindow {
 pub enum Message {
     Increment,
     Decrement,
-    LoadBios(String)
+    LoadBios(Option<String>)
 }
 
-impl MainWindow {
-    pub fn new(gb: GB) -> Self {
-        MainWindow {value: 0, gb: gb}
+impl Application for MainWindow {
+    type Executor = iced::executor::Default;
+    type Message = Message;
+    type Theme = iced::Theme;
+    type Flags = Option<String>;
+
+    fn new(_flags: Self::Flags) -> (Self, Command<Self::Message>) {
+        let m;
+        match _flags {
+            Some(f) => m = Message::LoadBios(Some(f)),
+            None => m = Message::LoadBios(Some(String::from(".\\bios\\gb_bios.bin"))),
+        }
+        let mut gb = GB::default();
+        let status = MainWindow {
+            value: 0,
+            gb: gb
+        };
+        (status, Command::none())
     }
 
-    pub fn title(&self) -> String {
+    fn title(&self) -> String {
         String::from("Main")
     }
 
-    pub fn update(&mut self, message: Message) -> Command<Message> {
+    fn update(&mut self, message: Message) -> Command<Message> {
         match message {
             Message::Increment => {
                 self.value += 1;
             }
             Message::Decrement => {
                 self.value -= 1;
+            }
+            Message::LoadBios(bios) => {
+                // let _ = match bios {
+                //     Some(path) => self.gb.rom.load_bios(&path),
+                //     _ => Ok({})
+                // };
             }
             _ => {
 
@@ -49,7 +70,7 @@ impl MainWindow {
         Command::none()
     }
 
-    pub fn view(&self) -> Element<Message> {
+    fn view(&self) -> Element<Self::Message> {
         // let mut left_pane = Pane::new(
         //     Column::new()
         //         .push(Text::new("Hex & Assembly"))
@@ -63,7 +84,7 @@ impl MainWindow {
         //     .push(Text::new("Assembly")));
         // container(row).into()
         let r = row![Text::new("BIOS")];
-        column![r].into()
+        column![r, button("+").on_press(Message::Increment)].into()
     }
 }
 
