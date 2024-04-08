@@ -1,28 +1,38 @@
+use crate::GB::instructions::Instruction;
+use crate::GB::memory::{RAM, ROM};
+use crate::GB::GB;
+use iced::widget::container;
+use iced::widget::pane_grid::{self, Pane, PaneGrid};
+use iced::widget::{button, column, row, scrollable, text};
+use iced::widget::{Button, Column, Row, Scrollable, Text};
+use iced::{Alignment, Application, Command, Element, Settings};
 use std::fs::File;
 use std::io::Read;
-use iced::{widget::{Column, Text, Row, Scrollable, Button}};
-use iced::{widget::{column, button, text, row, scrollable}};
-use iced::{Application, Command, Element, Settings, Alignment};
-use crate::GB::GB;
-use crate::GB::instructions::{Instruction};
-use crate::GB::memory::{ROM, RAM};
 
 // #[derive(Default)]
 // pub enum MainWindow {
 //     Window(State)
 // }
 
-#[derive(Default)]
+struct PaneStatus {
+    id: usize,
+}
+
+impl PaneStatus {
+    pub fn new(id: usize) -> Self {
+        Self { id }
+    }
+}
+
+// #[derive(Default)]
 pub struct MainWindow {
-    value: i32,
-    gb: GB
+    panes: pane_grid::State<PaneStatus>,
+    gb: GB,
 }
 
 #[derive(Debug, Clone)]
 pub enum Message {
-    Increment,
-    Decrement,
-    LoadBios(Option<String>)
+    LoadBios(Option<String>),
 }
 
 impl Application for MainWindow {
@@ -32,15 +42,15 @@ impl Application for MainWindow {
     type Flags = Option<String>;
 
     fn new(_flags: Self::Flags) -> (Self, Command<Self::Message>) {
-        let m;
-        match _flags {
-            Some(f) => m = Message::LoadBios(Some(f)),
-            None => m = Message::LoadBios(Some(String::from(".\\bios\\gb_bios.bin"))),
-        }
-        let mut gb = GB::default();
+        // Init Pane with two vertical panes (Hex - Assembly)
+        let (mut panes, _pane) = pane_grid::State::new(PaneStatus::new(0));
+        panes.split(pane_grid::Axis::Vertical, _pane, PaneStatus::new(1));
+
+        // Init Status
+        let mut gb = GB::new(_flags.unwrap());
         let status = MainWindow {
-            value: 0,
-            gb: gb
+            panes: panes,
+            gb: gb,
         };
         (status, Command::none())
     }
@@ -51,21 +61,13 @@ impl Application for MainWindow {
 
     fn update(&mut self, message: Message) -> Command<Message> {
         match message {
-            Message::Increment => {
-                self.value += 1;
-            }
-            Message::Decrement => {
-                self.value -= 1;
-            }
             Message::LoadBios(bios) => {
-                // let _ = match bios {
-                //     Some(path) => self.gb.rom.load_bios(&path),
-                //     _ => Ok({})
-                // };
+                let _ = match bios {
+                    Some(path) => self.gb.rom.load_bios(&path),
+                    _ => Ok({}),
+                };
             }
-            _ => {
-
-            }
+            _ => {}
         }
         Command::none()
     }
@@ -83,8 +85,12 @@ impl Application for MainWindow {
         //     .push(Text::new("Hex"))
         //     .push(Text::new("Assembly")));
         // container(row).into()
-        let r = row![Text::new("BIOS")];
-        column![r, button("+").on_press(Message::Increment)].into()
+        // let r = row![Text::new("BIOS")];
+        // let c = column![r, button("+").on_press(Message::Increment)];
+        PaneGrid::new(&self.panes, |pane, state, maximized| {
+            let r1 = row![text("BIOS"), text(state.id)];
+            pane_grid::Content::new(r1)
+        }).into()
     }
 }
 
