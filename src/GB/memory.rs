@@ -34,9 +34,9 @@ macro_rules! write_ram_space {
 
 pub struct Memory<T, const N: usize> where T: Clone {
     #[cfg(test)]
-    pub memory: [T; N],
+    pub memory: Box<[T; N]>,
     #[cfg(not(test))]
-    memory: [T; N],
+    memory: Box<[T; N]>,
 }
 
 impl<T: Clone, const N: usize> std::ops::Index<usize> for Memory<T, N> {
@@ -71,9 +71,14 @@ impl<T: Clone + std::marker::Copy, const N: usize>  Memory<T, N> {
     pub fn len(&self) -> usize { self.memory.len() }
     pub fn new(default: T) -> Self where T: Clone {
         Self {
-            memory: [default; N]
+            memory: Box::new([default; N])
         }
     }
+}
+
+
+trait Length {
+    fn len(&self) -> usize;
 }
 
 pub struct RAM {
@@ -88,6 +93,7 @@ pub struct ROM {
     pub memory: Memory<u8, 256>,
     #[cfg(not(test))]
     memory: Memory<u8, 256>,
+    bios: String,
 }
 
 impl RAM {
@@ -107,6 +113,12 @@ impl RAM {
         &self.memory[start_address as usize..(start_address + length) as usize]
     }
 
+    pub fn boot_load(&mut self, rom: &ROM) {
+        for i in 0..rom.len() {
+            self.memory[i] = self.read(i as u16);
+        }
+    }
+
     read_ram_space!(read_wram, WRAM_ADDRESS);
     read_ram_space!(read_vram, VRAM_ADDRESS);
     read_ram_space!(read_hram, HRAM_ADDRESS);
@@ -118,19 +130,34 @@ impl RAM {
     write_ram_space!(write_user_program, USER_PROGRAM_ADDRESS);
 }
 
+impl Length for RAM {
+    fn len(&self) -> usize {
+        self.memory.len()
+    }
+}
+
 impl ROM {
-    pub fn load_bios(&mut self, path: &str) -> Result<(), std::io::Error> {
+    pub  fn new() -> Self {
+        ROM { memory: Memory::<u8, 256>::new(0), bios: String::from("") }
+    }
+
+    pub fn read(&self, address: u16) -> u8 {
+        self.memory[address as usize]
+    }
+
+    pub fn load_bios(&mut self, path: &String) -> Result<(), std::io::Error> {
         let mut file = File::open(path)?;
         let mut buffer = [0u8; 256];
         file.read_exact(&mut buffer)?;
-        self.memory = Memory { memory: buffer };
+        self.memory = Memory { memory: Box::new(buffer) };
+        self.bios = path.clone();
         Ok(())
     }
+}
 
-    pub fn boot_load(&self, ram: &mut RAM) {
-        for i in 0..self.memory.len() {
-            ram.write(i as u16, self.memory[i]);
-        }
+impl Length for ROM {
+    fn len(&self) -> usize {
+        self.memory.len()
     }
 }
 
