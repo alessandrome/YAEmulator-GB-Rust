@@ -24,10 +24,10 @@ pub struct GB {
 }
 
 impl GB {
-    pub fn new(bios: &str) -> Self{
+    pub fn new(bios: String) -> Self{
         let mut rom = ROM::new();
-        rom.load_bios(bios);
-        GB {
+        rom.load_bios(&bios);
+        Self {
             cpu: CPU::CPU::new(),
             rom: rom
         }
@@ -36,5 +36,14 @@ impl GB {
     pub fn boot(&mut self) {
         self.cpu.ram.boot_load(&self.rom);
         self.cpu.registers.set_pc(0);
+    }
+}
+
+impl Default for GB {
+    fn default() -> Self {
+        Self {
+            rom: ROM::new(),
+            cpu: CPU::CPU::new()
+        }
     }
 }
