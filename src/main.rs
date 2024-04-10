@@ -1,10 +1,10 @@
+#[macro_use]
+extern crate lazy_static;
+
 use std::fs;
 use std::env;
 use std::io::Read;
 use clap::Parser;
-use iced;
-use iced::advanced::Application;
-use iced::Settings;
 
 #[cfg(test)]
 mod tests;
@@ -12,7 +12,6 @@ mod GB;
 mod gui;
 
 use GB::CPU::{CPU};
-use crate::gui::MainWindow;
 
 
 #[derive(Parser, Debug)]
@@ -27,7 +26,7 @@ struct Args {
     count: u8,
 }
 
-fn main() -> iced::Result {
+fn main() {
     let args = Args::parse();
 
     let mut cpu = CPU::new();
@@ -51,13 +50,4 @@ fn main() -> iced::Result {
     } else {
         println!("Il file non esiste.");
     }
-
-    let mut gb = GB::GB::new(&args.bios);
-    println!("GB Created {}", gb.cpu.registers);
-    // gui::MainWindow::run(Settings::with_flags(4))
-    // gui::MainWindow::run(Settings::default())
-    let win_status = MainWindow::new(gb);
-    iced::program("Pane Grid - Iced", MainWindow::update, MainWindow::view)
-        // .subscription(Example::subscription)
-        .run()
 }
