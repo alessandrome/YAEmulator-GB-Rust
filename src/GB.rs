@@ -4,6 +4,7 @@ pub mod registers;
 pub mod instructions;
 pub mod CPU;
 pub mod memory;
+pub mod PPU;
 
 
 #[cfg(feature = "debug")]
