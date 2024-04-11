@@ -28,7 +28,16 @@ pub enum RGBPalette {
 }
 
 lazy_static! {
-    pub static ref  PALETTE_ID_REPR: HashMap<GbPaletteId, &'static str> = HashMap::from([
+pub static ref CONSOLE_PALETTE: HashMap<GbPalette, char> = HashMap::from([
+        (GbPalette::White, '█'),
+        (GbPalette::LightGray, '▓'),
+        (GbPalette::DarkGray, '▒'),
+        (GbPalette::Black, '░'),
+    ]);
+}
+
+lazy_static! {
+    pub static ref PALETTE_ID_REPR: HashMap<GbPaletteId, &'static str> = HashMap::from([
         (GbPaletteId::Id0, "█"),
         (GbPaletteId::Id1, "▓"),
         (GbPaletteId::Id2, "▒"),
