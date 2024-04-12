@@ -196,3 +196,8 @@ mod test {
         assert_eq!(ram.read_vec(start_address as u16, data.len() as u16), data);
     }
 }
+
+trait UseMemory {
+    fn read_memory(&self, address: u16) -> u8;
+    fn write_memory(&self, address: u16, data: u8);
+}
