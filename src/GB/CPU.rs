@@ -1,7 +1,8 @@
+use std::cell::RefCell;
+use std::rc::Rc;
 use crate::GB::instructions;
 use crate::GB::registers;
-use crate::GB::memory;
-use crate::GB::memory::USER_PROGRAM_ADDRESS;
+use crate::GB::memory::{self, RAM, UseMemory, USER_PROGRAM_ADDRESS};
 
 
 const CPU_CLOCK_SPEED: u64 = 4_194_304; // In Hz - 4 Time System Clock
@@ -9,12 +10,15 @@ const DIVIDER_FREQUENCY: u64 = 16384; // Divider Update Frequency in Hz
 
 #[cfg(test)]
 mod test {
+    use std::cell::RefCell;
+    use std::rc::Rc;
     use crate::GB::CPU::CPU;
     use crate::GB::memory::{RAM, WRAM_ADDRESS, WRAM_SIZE};
 
     #[test]
     fn cpu_new_8bit_registers() {
-        let cpu = CPU::new();
+        let memory_ref = Rc::new(RefCell::new(RAM::new()));
+        let cpu = CPU::new(memory_ref);
         assert_eq!(cpu.registers.get_a(), 0);
         assert_eq!(cpu.registers.get_f(), 0);
         assert_eq!(cpu.registers.get_b(), 0);
@@ -27,7 +31,8 @@ mod test {
 
     #[test]
     fn cpu_new_16bit_registers() {
-        let cpu = CPU::new();
+        let memory_ref = Rc::new(RefCell::new(RAM::new()));
+        let cpu = CPU::new(memory_ref);
         assert_eq!(cpu.registers.get_af(), 0);
         assert_eq!(cpu.registers.get_bc(), 0);
         assert_eq!(cpu.registers.get_de(), 0);
@@ -39,7 +44,8 @@ mod test {
     #[test]
     fn cpu_new_16_8bit_registers() {
         // 16 Bit register should be 0 as the compound of low register is 0 (and should not be altered by access of 8bit register)
-        let cpu = CPU::new();
+        let memory_ref = Rc::new(RefCell::new(RAM::new()));
+        let cpu = CPU::new(memory_ref);
         assert_eq!(cpu.registers.get_a(), 0);
         assert_eq!(cpu.registers.get_f(), 0);
         assert_eq!(cpu.registers.get_b(), 0);
@@ -58,7 +64,8 @@ mod test {
 
     #[test]
     fn cpu_push_n_pop() {
-        let mut cpu = CPU::new();
+        let memory_ref = Rc::new(RefCell::new(RAM::new()));
+        let mut cpu = CPU::new(memory_ref);
         let start_sp = cpu.registers.get_sp();
         let test_value: u8 = 0x81;
         cpu.push(test_value);
@@ -78,10 +85,11 @@ pub struct CPU {
     pub opcode: u8,     // Running Instruction Opcode
     pub cycles: u64,     // Total Cycles Count
     pub divider_counter: u8,     // Total Cycles Count
+    pub memory: Rc<RefCell<RAM>>
 }
 
 impl CPU {
-    pub fn new() -> Self {
+    pub fn new(memory: Rc<RefCell<RAM>>) -> Self {
         Self {
             registers: registers::Registers::new(),
             ram: memory::RAM::new(),
@@ -89,6 +97,7 @@ impl CPU {
             opcode: 0,
             cycles: 0,
             divider_counter: 0,
+            memory
         }
     }
     
@@ -154,5 +163,15 @@ impl CPU {
             self.divider_counter = self.divider_counter.wrapping_add(1);
             self.cycles -= cycles_per_update;
         }
+    }
+}
+
+impl UseMemory for CPU {
+    fn read_memory(&self, address: u16) -> u8 {
+        self.memory.borrow().read(address)
+    }
+
+    fn write_memory(&self, address: u16, data: u8) {
+        *self.memory.borrow_mut().write(address, data);
     }
 }
