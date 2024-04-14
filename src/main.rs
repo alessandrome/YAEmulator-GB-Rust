@@ -15,6 +15,7 @@ mod GB;
 mod gui;
 
 use GB::CPU::{CPU};
+use gui::MainWindow;
 
 
 #[derive(Parser, Debug)]
@@ -29,7 +30,7 @@ struct Args {
     count: u8,
 }
 
-fn main() {
+fn main() -> iced::Result {
     let args = Args::parse();
 
     // let mut cpu = CPU::new();

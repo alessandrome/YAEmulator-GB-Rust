@@ -93,7 +93,9 @@ impl Application for MainWindow {
         PaneGrid::new(&self.panes, |pane, state, maximized| {
             let r1 = row![text("BIOS"), text(state.id)];
             let mut c = Column::new().push(r1);
-            for mut i in 0..256 {
+            let mut i = 0;
+            let mut step = 1;
+            while i < 256 {
                 if state.id == 0 {
                     let mut opcode = ram.read(i as u16);
                     let mut hexes = vec![opcode];
@@ -136,6 +138,7 @@ impl Application for MainWindow {
                 } else {
                     c = c.push(row![text("ex")]);
                 }
+                i += 1;
             }
             pane_grid::Content::new(c)
         }).into()
