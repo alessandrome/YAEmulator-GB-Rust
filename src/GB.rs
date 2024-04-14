@@ -1,4 +1,6 @@
-use crate::GB::memory::ROM;
+use std::cell::RefCell;
+use std::rc::Rc;
+use crate::GB::memory::{RAM, ROM};
 
 pub mod registers;
 pub mod instructions;
@@ -22,15 +24,19 @@ const SYSTEM_FREQUENCY_CLOCK: u64 = 1_048_576;
 pub struct GB {
     pub cpu: CPU::CPU,
     pub rom: ROM,
+    pub memory: Rc<RefCell<RAM>>,
 }
 
 impl GB {
     pub fn new(bios: String) -> Self{
+        let mut ram = RAM::new();
+        let ram_ref = Rc::new(RefCell::new(ram));
         let mut rom = ROM::new();
         rom.load_bios(&bios);
         Self {
-            cpu: CPU::CPU::new(),
-            rom: rom
+            cpu: CPU::CPU::new(Rc::clone(&ram_ref)),
+            rom,
+            memory: ram_ref,
         }
     }
 
@@ -42,9 +48,12 @@ impl GB {
 
 impl Default for GB {
     fn default() -> Self {
+        let ram = RAM::new();
+        let ram_ref = Rc::new(RefCell::new(ram));
         Self {
             rom: ROM::new(),
-            cpu: CPU::CPU::new()
+            cpu: CPU::CPU::new(Rc::clone(&ram_ref)),
+            memory: ram_ref,
         }
     }
 }
