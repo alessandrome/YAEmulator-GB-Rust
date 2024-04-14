@@ -1,3 +1,6 @@
+#[macro_use]
+extern crate lazy_static;
+
 use std::fs;
 use std::env;
 use std::io::Read;
@@ -12,7 +15,6 @@ mod GB;
 mod gui;
 
 use GB::CPU::{CPU};
-use crate::gui::MainWindow;
 
 
 #[derive(Parser, Debug)]
@@ -27,11 +29,11 @@ struct Args {
     count: u8,
 }
 
-fn main() -> iced::Result {
+fn main() {
     let args = Args::parse();
 
-    let mut cpu = CPU::new();
-    let program: Vec<u8> = vec![0x00, 0x01, 0xFF, 0xAA, 0x04, 0x05, 0x06, 0xBB];
+    // let mut cpu = CPU::new();
+    // let program: Vec<u8> = vec![0x00, 0x01, 0xFF, 0xAA, 0x04, 0x05, 0x06, 0xBB];
     // cpu.load(&program);
     // for i in 0..5 {
     //     gb.execute_next();
