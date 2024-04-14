@@ -172,6 +172,6 @@ impl UseMemory for CPU {
     }
 
     fn write_memory(&self, address: u16, data: u8) {
-        *self.memory.borrow_mut().write(address, data);
+        self.memory.borrow_mut().write(address, data);
     }
 }
