@@ -6,6 +6,8 @@ use crate::GB::PPU::tile::{Tile, TILE_SIZE};
 use crate::mask_flag_enum_default_impl;
 
 pub mod tile;
+#[cfg(test)]
+mod tests;
 
 macro_rules! ppu_get_set_flag_bit {
     ($get_func: ident, $set_func: ident, $register_ident: ident, $mask_ident: expr) => {
@@ -14,8 +16,9 @@ macro_rules! ppu_get_set_flag_bit {
         }
         pub fn $set_func(&mut self, flag: bool) {
             let flag_byte = self.read_memory($register_ident as u16);
-            let base_mask = $mask_ident as u8;
-            self.write_memory($register_ident as u16, flag_byte & base_mask | ((flag as u8) << base_mask.trailing_zeros()));
+            let base_mask = !$mask_ident as u8;
+            let bit_num = base_mask.trailing_ones();
+            self.write_memory($register_ident as u16, flag_byte & base_mask | ((flag as u8) << bit_num));
         }
     };
 }
@@ -46,14 +49,16 @@ impl PPU {
         }
     }
 
-    pub fn get_tile(&self, mut tile_id: u16) -> Tile {
+    pub fn get_tile(&self, mut tile_id: u16, bg_win: bool) -> Tile {
         let mut data: [u8; TILE_SIZE] = [0; TILE_SIZE];
         let lcdc = self.read_memory(LCDC);
-        let bg_wind_tile = (lcdc & LCDCMasks::BgWinTilesArea) == 0;
         let mut start_address = VRAM_BLOCK_0_ADDRESS;
-        if bg_wind_tile {
-            start_address = if tile_id > 127 {VRAM_BLOCK_1_ADDRESS} else {VRAM_BLOCK_2_ADDRESS};
-            tile_id %= 128;
+        if bg_win {
+            let bg_wind_tile = (lcdc & LCDCMasks::BgWinTilesArea) == 0;
+            if bg_wind_tile {
+                start_address = if tile_id > 127 { VRAM_BLOCK_1_ADDRESS } else { VRAM_BLOCK_2_ADDRESS };
+                tile_id %= 128;
+            }
         }
         start_address += tile_id as usize * TILE_SIZE;
         for i in 0..TILE_SIZE {
