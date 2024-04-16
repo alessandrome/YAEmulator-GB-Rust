@@ -1,9 +1,10 @@
 use std::cell::RefCell;
 use std::rc::Rc;
-use crate::GB::memory::RAM;
+use crate::GB::memory::{RAM, VRAM_BLOCK_0_ADDRESS, VRAM_BLOCK_1_ADDRESS, VRAM_BLOCK_2_ADDRESS};
 use crate::GB::memory::registers::LCDC;
 use crate::GB::PPU::PPU;
 use crate::GB::memory::UseMemory;
+use crate::GB::PPU::tile::TILE_SIZE;
 
 macro_rules! create_memory {
     () => {
@@ -73,3 +74,62 @@ test_get_set_bit_flag_function!(test_ppu_get_win_tile_map_area_flag, test_ppu_se
     get_win_tile_map_area_flag, set_win_tile_map_area_flag, LCDC, 0b0100_0000);
 test_get_set_bit_flag_function!(test_ppu_get_lcd_enabled_flag, test_ppu_set_lcd_enabled_flag,
     get_lcd_enabled_flag, set_lcd_enabled_flag, LCDC, 0b1000_0000);
+
+#[test]
+fn test_ppu_get_tile() {
+    let mut mem = create_memory!();
+    let test_sprite: [u8; TILE_SIZE] = [
+        0x00, 0x3C,
+        0x3C, 0x66,
+        0x5A, 0xDB,
+        0x5A, 0x81,
+        0x7E, 0x99,
+        0x5A, 0xDB,
+        0x3C, 0x7E,
+        0x00, 0x3C,
+    ];
+    let tile_id: u16 = 3;
+    let tile_address = VRAM_BLOCK_0_ADDRESS + TILE_SIZE * tile_id as usize;
+    for i in 0..TILE_SIZE {
+        mem.borrow_mut().write((tile_address + i) as u16, test_sprite[i]);
+    }
+    let ppu = PPU::new(Rc::clone(&mem));
+    let result_tile = ppu.get_tile(tile_id, false);
+    assert_eq!(result_tile.data, test_sprite);
+}
+
+#[test]
+fn test_ppu_get_bg_win_tile() {
+    let mut mem = create_memory!();
+    let test_sprite: [u8; TILE_SIZE] = [
+        0x00, 0x3C,
+        0x3C, 0x66,
+        0x5A, 0xDB,
+        0x5A, 0x81,
+        0x7E, 0x99,
+        0x5A, 0xDB,
+        0x3C, 0x7E,
+        0x00, 0x3C,
+    ];
+    let tile_id: u16 = 128;
+    let tile_address = VRAM_BLOCK_1_ADDRESS;
+    for i in 0..TILE_SIZE {
+        mem.borrow_mut().write((tile_address + i) as u16, test_sprite[i]);
+    }
+    mem.borrow_mut().write(LCDC, 0xFF);
+    let ppu = PPU::new(Rc::clone(&mem));
+    let result_tile = ppu.get_tile(tile_id, true);
+    assert_eq!(result_tile.data, test_sprite);
+
+    mem.borrow_mut().write(LCDC, 0);
+    for i in 0..TILE_SIZE {
+        mem.borrow_mut().write((tile_address + i) as u16, 0);
+    }
+    let tile_id: u16 = 0;
+    let tile_address = VRAM_BLOCK_2_ADDRESS;
+    for i in 0..TILE_SIZE {
+        mem.borrow_mut().write((tile_address + i) as u16, test_sprite[i]);
+    }
+    let result_tile = ppu.get_tile(tile_id, true);
+    assert_eq!(result_tile.data, test_sprite);
+}
