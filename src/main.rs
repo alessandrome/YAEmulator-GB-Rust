@@ -6,10 +6,11 @@ use std::env;
 use std::io::Read;
 use clap::Parser;
 
-#[cfg(test)]
-mod tests;
 mod GB;
 mod gui;
+mod utils;
+#[cfg(test)]
+mod tests;
 
 use GB::CPU::{CPU};
 
