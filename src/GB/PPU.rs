@@ -6,6 +6,8 @@ use crate::GB::PPU::tile::{Tile, TILE_SIZE};
 use crate::mask_flag_enum_default_impl;
 
 pub mod tile;
+#[cfg(test)]
+mod tests;
 
 macro_rules! ppu_get_set_flag_bit {
     ($get_func: ident, $set_func: ident, $register_ident: ident, $mask_ident: expr) => {
@@ -14,8 +16,9 @@ macro_rules! ppu_get_set_flag_bit {
         }
         pub fn $set_func(&mut self, flag: bool) {
             let flag_byte = self.read_memory($register_ident as u16);
-            let base_mask = $mask_ident as u8;
-            self.write_memory($register_ident as u16, flag_byte & base_mask | ((flag as u8) << base_mask.trailing_zeros()));
+            let base_mask = !$mask_ident as u8;
+            let bit_num = base_mask.trailing_ones();
+            self.write_memory($register_ident as u16, flag_byte & base_mask | ((flag as u8) << bit_num));
         }
     };
 }
