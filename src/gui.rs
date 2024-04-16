@@ -2,7 +2,6 @@ use std::fs::File;
 use std::io::Read;
 use iced::{widget::{Column, Text, Row, Scrollable, Button}, Element, Command, Alignment};
 use iced::{widget::{column, button, text, row, scrollable}};
-use iced::advanced::{Application};
 use iced::widget::keyed::column;
 use iced::widget::pane_grid::{Axis, Pane};
 use iced::widget::pane_grid::{self, PaneGrid};
