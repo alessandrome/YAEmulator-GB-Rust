@@ -22,9 +22,10 @@ fn debug_print(_args: std::fmt::Arguments) {
 const SYSTEM_FREQUENCY_CLOCK: u64 = 1_048_576;
 
 pub struct GB {
-    pub cpu: CPU::CPU,
-    pub rom: ROM,
     pub memory: Rc<RefCell<RAM>>,
+    pub rom: ROM,
+    pub cpu: CPU::CPU,
+    pub ppu: PPU::PPU,
 }
 
 impl GB {
@@ -35,8 +36,9 @@ impl GB {
         rom.load_bios(&bios);
         Self {
             cpu: CPU::CPU::new(Rc::clone(&ram_ref)),
-            rom,
+            ppu: PPU::PPU::new(Rc::clone(&ram_ref)),
             memory: ram_ref,
+            rom,
         }
     }
 
@@ -51,9 +53,10 @@ impl Default for GB {
         let ram = RAM::new();
         let ram_ref = Rc::new(RefCell::new(ram));
         Self {
-            rom: ROM::new(),
             cpu: CPU::CPU::new(Rc::clone(&ram_ref)),
+            ppu: PPU::PPU::new(Rc::clone(&ram_ref)),
             memory: ram_ref,
+            rom: ROM::new(),
         }
     }
 }
