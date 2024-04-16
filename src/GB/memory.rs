@@ -1,10 +1,17 @@
+pub mod registers;
+
 use std::fs::File;
 use std::io::Read;
+use crate::GB::PPU::tile::TILE_SIZE;
 
 pub const RST_INSTRUCTIONS: usize = 0x0000; // Location in memory for RST instructions (not used on emulation)
 pub const CARTRIDGE_HEADER_ADDRESS: usize = 0x0100; // Location for ROM metadata (as name) (not used on emulation)
 pub const USER_PROGRAM_ADDRESS: usize = 0x0150; // Location User Program (not used on emulation)
 pub const VRAM_ADDRESS: usize = 0x8000; // Video memory
+pub const VRAM_BLOCK_SIZE: usize = TILE_SIZE * 128;
+pub const VRAM_BLOCK_0_ADDRESS: usize = VRAM_ADDRESS; // Video memory - Block 0
+pub const VRAM_BLOCK_1_ADDRESS: usize = VRAM_BLOCK_0_ADDRESS + VRAM_BLOCK_SIZE ; // Video memory - Block 1
+pub const VRAM_BLOCK_2_ADDRESS: usize = VRAM_BLOCK_1_ADDRESS + VRAM_BLOCK_SIZE ; // Video memory - Block 2
 pub const EXTERNAL_RAM_ADDRESS: usize = 0xA000; // External Extension memory
 pub const WRAM_ADDRESS: usize = 0xC000; // Working memory
 pub const OAM_RAM_ADDRESS: usize = 0xFE00; // Up to 40 Display Object Data (512B)

@@ -2,8 +2,7 @@
 pub const P1: u16 = 0xFF00;
 pub const SB: u16 = 0xFF01;
 pub const SC: u16 = 0xFF02;
-pub const DIV: u16 = 0xFF03;
-pub const TIMA: u16 = 0xFF04;
+pub const DIV: u16 = 0xFF04;
 pub const TIMA: u16 = 0xFF05;
 pub const TMA: u16 = 0xFF06;
 pub const TAC: u16 = 0xFF07;

@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+pub const TILE_SIZE: usize = 16; // In Bytes
+
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 #[repr(u8)]
 pub enum GbPalette {
@@ -47,7 +49,7 @@ lazy_static! {
 
 #[derive(Debug, Default, Clone)]
 pub struct Tile {
-    pub data: [u8; 8 * 2],
+    pub data: [u8; TILE_SIZE],
 }
 
 pub fn expand_bits(byte: u8) -> u16 {
@@ -61,6 +63,10 @@ pub fn expand_bits(byte: u8) -> u16 {
 impl Tile {
     pub fn new(tile: [u8; 8 * 2]) -> Self {
         Self { data: tile }
+    }
+
+    pub fn get_tile_map(&self) -> [GbPaletteId; 64] {
+        self.to_picture_map()
     }
 
     pub fn to_picture_map(&self) -> [GbPaletteId; 64] {
