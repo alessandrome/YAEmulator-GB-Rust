@@ -1,5 +1,5 @@
 use std::fmt;
-use crate::GB;
+use crate::{GB, mask_flag_enum_default_impl};
 use crate::GB::debug_print;
 use crate::GB::memory::{WRAM_ADDRESS, WRAM_SIZE};
 
@@ -53,54 +53,7 @@ pub enum FlagBits {
     C = 0b0001_0000,
 }
 
-impl std::ops::BitAnd<u8> for FlagBits {
-    type Output = u8;
-
-    fn bitand(self, rhs: u8) -> Self::Output {
-        self as u8 & rhs
-    }
-}
-
-impl std::ops::BitOr<u8> for FlagBits {
-    type Output = u8;
-
-    fn bitor(self, rhs: u8) -> Self::Output {
-        self as u8 | rhs
-    }
-}
-
-impl std::ops::BitXor<u8> for FlagBits {
-    type Output = u8;
-
-    fn bitxor(self, rhs: u8) -> Self::Output {
-        self as u8 ^ rhs
-    }
-}
-
-impl std::ops::Not for FlagBits {
-    type Output = u8;
-
-    fn not(self) -> Self::Output {
-        !(self as u8)
-    }
-}
-impl std::ops::BitAndAssign<FlagBits> for u8 {
-    fn bitand_assign(&mut self, rhs: FlagBits){
-        *self &= rhs as u8
-    }
-}
-
-impl std::ops::BitOrAssign<FlagBits> for u8 {
-    fn bitor_assign(&mut self, rhs: FlagBits){
-        *self |= rhs as u8
-    }
-}
-
-impl std::ops::BitXorAssign<FlagBits> for u8 {
-    fn bitxor_assign(&mut self, rhs: FlagBits){
-        *self ^= rhs as u8
-    }
-}
+mask_flag_enum_default_impl!(FlagBits);
 
 #[derive(Debug, Clone, Copy)]
 pub struct Flags {

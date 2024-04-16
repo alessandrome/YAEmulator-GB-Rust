@@ -8,6 +8,7 @@ use clap::Parser;
 
 mod GB;
 mod gui;
+#[macro_use]
 mod utils;
 #[cfg(test)]
 mod tests;

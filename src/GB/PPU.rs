@@ -3,13 +3,14 @@ use std::rc::Rc;
 use crate::GB::memory::{RAM, UseMemory, VRAM_BLOCK_0_ADDRESS, VRAM_BLOCK_1_ADDRESS, VRAM_BLOCK_2_ADDRESS};
 use crate::GB::memory::registers::{LCDC};
 use crate::GB::PPU::tile::{Tile, TILE_SIZE};
+use crate::mask_flag_enum_default_impl;
 
 pub mod tile;
 
 macro_rules! ppu_get_set_flag_bit {
     ($get_func: ident, $set_func: ident, $register_ident: ident, $mask_ident: expr) => {
         pub fn $get_func(&self) -> bool {
-            (self.read_memory($register_ident as u16) & $mask_ident as u8) != 0
+            (self.read_memory($register_ident as u16) & $mask_ident) != 0
         }
         pub fn $set_func(&mut self, flag: bool) {
             let flag_byte = self.read_memory($register_ident as u16);
@@ -32,6 +33,8 @@ pub enum LCDCMasks {
     LcdEnabled = 0b1000_0000,
 }
 
+mask_flag_enum_default_impl!(LCDCMasks);
+
 pub struct PPU {
     memory: Rc<RefCell<RAM>>
 }
@@ -46,7 +49,7 @@ impl PPU {
     pub fn get_tile(&self, mut tile_id: u16) -> Tile {
         let mut data: [u8; TILE_SIZE] = [0; TILE_SIZE];
         let lcdc = self.read_memory(LCDC);
-        let bg_wind_tile = (lcdc & LCDCMasks::BgWinTilesArea as u8) == 0;
+        let bg_wind_tile = (lcdc & LCDCMasks::BgWinTilesArea) == 0;
         let mut start_address = VRAM_BLOCK_0_ADDRESS;
         if bg_wind_tile {
             start_address = if tile_id > 127 {VRAM_BLOCK_1_ADDRESS} else {VRAM_BLOCK_2_ADDRESS};

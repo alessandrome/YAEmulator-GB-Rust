@@ -1,13 +1,13 @@
-use crate::GB::registers::FlagBits;
+#[macro_export]
 macro_rules! mask_flag_enum_default_impl {
-    ($enum_name: ident) => {
-        impl Into<u8> for $enum_type {
+    ($type_name: ty) => {
+        impl Into<u8> for $type_name {
             fn into(self) -> u8 {
                 self as u8
             }
         }
 
-        impl std::ops::BitAnd<u8> for FlagBits {
+        impl std::ops::BitAnd<u8> for $type_name {
             type Output = u8;
 
             fn bitand(self, rhs: u8) -> Self::Output {
@@ -15,7 +15,7 @@ macro_rules! mask_flag_enum_default_impl {
             }
         }
 
-        impl std::ops::BitOr<u8> for FlagBits {
+        impl std::ops::BitOr<u8> for $type_name {
             type Output = u8;
 
             fn bitor(self, rhs: u8) -> Self::Output {
@@ -23,7 +23,7 @@ macro_rules! mask_flag_enum_default_impl {
             }
         }
 
-        impl std::ops::BitXor<u8> for FlagBits {
+        impl std::ops::BitXor<u8> for $type_name {
             type Output = u8;
 
             fn bitxor(self, rhs: u8) -> Self::Output {
@@ -31,7 +31,7 @@ macro_rules! mask_flag_enum_default_impl {
             }
         }
 
-        impl std::ops::Not for FlagBits {
+        impl std::ops::Not for $type_name {
             type Output = u8;
 
             fn not(self) -> Self::Output {
@@ -39,44 +39,44 @@ macro_rules! mask_flag_enum_default_impl {
             }
         }
 
-        impl std::ops::BitAndAssign<FlagBits> for u8 {
-            fn bitand_assign(&mut self, rhs: FlagBits){
+        impl std::ops::BitAndAssign<$type_name> for u8 {
+            fn bitand_assign(&mut self, rhs: $type_name){
                 *self &= rhs as u8
             }
         }
 
-        impl std::ops::BitOrAssign<FlagBits> for u8 {
-            fn bitor_assign(&mut self, rhs: FlagBits){
+        impl std::ops::BitOrAssign<$type_name> for u8 {
+            fn bitor_assign(&mut self, rhs: $type_name){
                 *self |= rhs as u8
             }
         }
 
-        impl std::ops::BitXorAssign<FlagBits> for u8 {
-            fn bitxor_assign(&mut self, rhs: FlagBits){
+        impl std::ops::BitXorAssign<$type_name> for u8 {
+            fn bitxor_assign(&mut self, rhs: $type_name){
                 *self ^= rhs as u8
             }
         }
 
-        impl std::ops::BitAnd<FlagBits> for u8 {
+        impl std::ops::BitAnd<$type_name> for u8 {
             type Output = u8;
 
-            fn bitand(self, rhs: FlagBits) -> Self::Output {
+            fn bitand(self, rhs: $type_name) -> Self::Output {
                 self & rhs as u8
             }
         }
 
-        impl std::ops::BitOr<FlagBits> for u8 {
+        impl std::ops::BitOr<$type_name> for u8 {
             type Output = u8;
 
-            fn bitor(self, rhs: FlagBits) -> Self::Output {
+            fn bitor(self, rhs: $type_name) -> Self::Output {
                 self | rhs as u8
             }
         }
 
-        impl std::ops::BitXor<FlagBits> for u8 {
+        impl std::ops::BitXor<$type_name> for u8 {
             type Output = u8;
 
-            fn bitxor(self, rhs: FlagBits) -> Self::Output {
+            fn bitxor(self, rhs: $type_name) -> Self::Output {
                 self ^ rhs as u8
             }
         }
