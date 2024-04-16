@@ -22,6 +22,7 @@ fn debug_print(_args: std::fmt::Arguments) {
 const SYSTEM_FREQUENCY_CLOCK: u64 = 1_048_576;
 
 pub struct GB {
+    is_booting: bool,
     pub memory: Rc<RefCell<RAM>>,
     pub rom: ROM,
     pub cpu: CPU::CPU,
@@ -35,6 +36,7 @@ impl GB {
         let mut rom = ROM::new();
         rom.load_bios(&bios);
         Self {
+            is_booting: true,
             cpu: CPU::CPU::new(Rc::clone(&ram_ref)),
             ppu: PPU::PPU::new(Rc::clone(&ram_ref)),
             memory: ram_ref,
@@ -43,8 +45,14 @@ impl GB {
     }
 
     pub fn boot(&mut self) {
+        self.is_booting = true;
         self.cpu.ram.boot_load(&self.rom);
         self.cpu.registers.set_pc(0);
+    }
+
+    pub fn cycle(&mut self) {
+        let mut cycles = 0;
+        cycles = self.cpu.execute_next();
     }
 }
 
@@ -53,6 +61,7 @@ impl Default for GB {
         let ram = RAM::new();
         let ram_ref = Rc::new(RefCell::new(ram));
         Self {
+            is_booting: false,
             cpu: CPU::CPU::new(Rc::clone(&ram_ref)),
             ppu: PPU::PPU::new(Rc::clone(&ram_ref)),
             memory: ram_ref,

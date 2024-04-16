@@ -23,6 +23,10 @@ struct Args {
     #[arg(short, long)]
     bios: String,
 
+    /// Name of the person to greet
+    #[arg(short, long)]
+    rom: String,
+
     /// Number of times to greet
     #[arg(short, long, default_value_t = 1)]
     count: u8,
@@ -40,6 +44,7 @@ fn main() {
     //     println!("[{:#04x}] {} -> {} Bytes, {} Cycles", instruction.opcode, instruction.name, instruction.size, instruction.cycles);
     //     println!("{}", gb.registers);
     // }
+    let gb = GB::GB::new(args.bios.clone());
 
     if let Ok(current_dir) = env::current_dir() {
         println!("Il percorso corrente è: {:?}", current_dir);
