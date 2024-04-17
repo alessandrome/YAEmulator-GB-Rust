@@ -3,12 +3,13 @@ mod addresses;
 #[cfg(test)]
 mod tests;
 
-use std::io;
+use std::{fmt, io};
 use std::io::prelude::*;
 use std::fs::File;
 use crate::GB::memory::Memory;
+use crate::GB::registers::Registers;
 
-struct Cartridge {
+pub struct Cartridge {
     rom: Memory<u8>,
     ram: Memory<u8>,
     cartridge_type: CartridgeType,
@@ -53,7 +54,7 @@ impl Cartridge {
     pub fn new(file: String) -> Result<Self, std::io::Error> {
         let mut f = File::open(&file)?;
         let mut buffer = Vec::new();
-        f.read_exact(&mut buffer)?;
+        f.read_to_end(&mut buffer)?;
         let ram_size: usize = match buffer[addresses::ROM_SIZE] {
             0 => 8 * 1024,
             3 => 32 * 1024,
@@ -102,5 +103,52 @@ impl Cartridge {
             0xFF => CartridgeType::HuC1RamBattery,
             _ => CartridgeType::Unknown
         }
+    }
+    pub fn get_cartridge_type_string(code: &CartridgeType) -> String {
+        let s = match code {
+            CartridgeType::RomOnly => "ROM-Only",
+            CartridgeType::Mbc1 => "MBC1",
+            CartridgeType::Mbc1Ram => "MBC1+RAN",
+            CartridgeType::Mbc1RamBattery => "MBC1+RAN+BATTERY",
+            CartridgeType::Mbc2 => "MBC2",
+            CartridgeType::Mbc2Battery => "MBC2+BATTERY",
+            CartridgeType::RomRam => "ROM+RAM",
+            CartridgeType::RomRamBattery => "ROM+RAM+BATTERY",
+            CartridgeType::Mmm01 => "MMM01",
+            CartridgeType::Mmm01Ram => "MMM01+RAM",
+            CartridgeType::Mmm01RamBattery => "MMM01+RAM+BATTERY",
+            CartridgeType::Mbc3TimerBattery => "MBC3+TIMER+BATTERY",
+            CartridgeType::Mbc3TimerRamBattery => "MBC3+TIMER+RAM+BATTERY",
+            CartridgeType::Mbc3 => "MBC3",
+            CartridgeType::Mbc3Ram => "MBC3+RAM",
+            CartridgeType::Mbc3RamBattery => "MBC3+RAM+BATTERY",
+            CartridgeType::Mbc5 => "MB5",
+            CartridgeType::Mbc5Ram => "MBC5+RAM",
+            CartridgeType::Mbc5RamBattery => "MBC5+RAM+BATTERY",
+            CartridgeType::Mbc5Rumble => "MBC5+RUMBLE",
+            CartridgeType::Mbc5RumbleRam => "MBC5+RUMBLE+RAM",
+            CartridgeType::Mbc5RumbleRamBattery => "MBC5+RUMBLE+RAM+BATTERY",
+            CartridgeType::Mbc6 => "MBC6",
+            CartridgeType::Mbc7SensorRumbleRamBattery => "MBC7+SENSOR+RUMBLE+RAM+BATTERY",
+            CartridgeType::PocketCamera => "POCKET-CAMERA",
+            CartridgeType::BandaiTama5 => "BANDAI-TAMA5",
+            CartridgeType::HuC3 => "HuC3",
+            CartridgeType::HuC1RamBattery => "HuC1+RAM+BATTERY",
+            CartridgeType::Unknown => "Unknown",
+        };
+        s.to_string()
+    }
+}
+
+impl fmt::Display for Cartridge {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "Cartridge \"{}\"(0x{:02x}) {{ ROM/RAM: {}KB/{}KB, Path: {} }}",
+            Self::get_cartridge_type_string(&self.cartridge_type),
+            self.rom[addresses::CARTRIDGE_TYPE],
+            self.rom.len() / 1024, self.ram.len() / 1024,
+            self.rom_path,
+        )
     }
 }

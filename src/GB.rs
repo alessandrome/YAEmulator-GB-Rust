@@ -1,5 +1,7 @@
 use std::cell::RefCell;
+use std::io::Error;
 use std::rc::Rc;
+use crate::GB::cartridge::Cartridge;
 use crate::GB::memory::{RAM, ROM};
 
 pub mod registers;
@@ -28,6 +30,7 @@ pub struct GB {
     pub rom: ROM,
     pub cpu: CPU::CPU,
     pub ppu: PPU::PPU,
+    cartridge: Option<Cartridge>
 }
 
 impl GB {
@@ -42,6 +45,7 @@ impl GB {
             ppu: PPU::PPU::new(Rc::clone(&ram_ref)),
             memory: ram_ref,
             rom,
+            cartridge: None,
         }
     }
 
@@ -51,9 +55,24 @@ impl GB {
         self.cpu.registers.set_pc(0);
     }
 
+    pub fn insert_cartridge(&mut self, path: &String) {
+        let cartridge = Cartridge::new((*path).clone());
+        match cartridge {
+            Ok(c) => {self.cartridge = Option::from(c);}
+            Err(_) => {self.cartridge = None;}
+        }
+    }
+
     pub fn cycle(&mut self) {
         let mut cycles = 0;
         cycles = self.cpu.execute_next();
+    }
+
+    pub fn get_cartridge(&self) -> Option<&Cartridge> {
+        return match &self.cartridge {
+            None => {None}
+            Some(cartridge) => { Option::from(cartridge) }
+        }
     }
 }
 
@@ -67,6 +86,7 @@ impl Default for GB {
             ppu: PPU::PPU::new(Rc::clone(&ram_ref)),
             memory: ram_ref,
             rom: ROM::new(),
+            cartridge: None,
         }
     }
 }
