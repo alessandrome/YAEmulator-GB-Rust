@@ -7,6 +7,7 @@ pub mod instructions;
 pub mod CPU;
 pub mod memory;
 pub mod PPU;
+pub mod cartridge;
 
 
 #[cfg(feature = "debug")]
