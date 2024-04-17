@@ -81,6 +81,11 @@ impl<T: Clone + std::marker::Copy>  Memory<T> {
             memory: vec![default; size]
         }
     }
+    pub fn new_from_vec(mem: Vec<T>) -> Self where T: Clone {
+        Self {
+            memory: mem
+        }
+    }
 }
 
 
