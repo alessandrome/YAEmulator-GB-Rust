@@ -6,6 +6,8 @@ mod tests;
 use std::{fmt, io};
 use std::io::prelude::*;
 use std::fs::File;
+use std::string::FromUtf8Error;
+use crate::GB::cartridge::addresses::{TITLE, TITLE_OLD_SIZE};
 use crate::GB::memory::Memory;
 use crate::GB::registers::Registers;
 
@@ -69,6 +71,19 @@ impl Cartridge {
             cartridge_type,
             rom_path: file,
         })
+    }
+
+    pub fn get_title(&self) -> String {
+        let mut v: Vec<u8> = Vec::with_capacity(TITLE_OLD_SIZE);
+        for i in 0..TITLE_OLD_SIZE {
+            if self.rom[TITLE + i] == 0 { break };
+            v.push(self.rom[TITLE + i]);
+        }
+        let s = String::from_utf8(v);
+        match s {
+            Ok(s) => {s}
+            Err(_) => {"".to_string()}
+        }
     }
 
     pub fn get_cartridge_type(code: u8) -> CartridgeType {
@@ -144,10 +159,11 @@ impl fmt::Display for Cartridge {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "Cartridge \"{}\"(0x{:02x}) {{ ROM/RAM: {}KB/{}KB, Path: {} }}",
+            "Cartridge \"{}\"(0x{:02x}) {{ ROM/RAM: {}KB/{}KB, Title: \"{}\", Path: {} }}",
             Self::get_cartridge_type_string(&self.cartridge_type),
             self.rom[addresses::CARTRIDGE_TYPE],
             self.rom.len() / 1024, self.ram.len() / 1024,
+            self.get_title(),
             self.rom_path,
         )
     }

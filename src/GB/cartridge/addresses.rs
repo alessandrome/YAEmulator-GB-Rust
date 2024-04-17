@@ -1,6 +1,8 @@
 pub const ENTRY_POINT: usize = 0x0100;
 pub const LOGO: usize = 0x0104;
 pub const TITLE: usize = 0x0134; // Oldest Cartridge 16 Bytes, Newer 12
+pub const TITLE_OLD_SIZE: usize = 16; // Oldest Cartridge 16 Bytes, Newer 12
+pub const TITLE_NEW_SIZE: usize = 12; // Oldest Cartridge 16 Bytes, Newer 12
 pub const MANUFACTURER_CODE: usize = 0x013F; // 4 Bytes
 pub const NEW_LICENSE_CODE: usize = 0x0144;
 pub const SGB_FLAG: usize = 0x0146;
