@@ -39,14 +39,14 @@ macro_rules! write_ram_space {
     };
 }
 
-pub struct Memory<T, const N: usize> where T: Clone {
+pub struct Memory<T> where T: Clone {
     #[cfg(test)]
-    pub memory: Box<[T; N]>,
+    pub memory: Vec<T>,
     #[cfg(not(test))]
-    memory: Box<[T; N]>,
+    memory: Vec<T>,
 }
 
-impl<T: Clone, const N: usize> std::ops::Index<usize> for Memory<T, N> {
+impl<T: Clone> std::ops::Index<usize> for Memory<T> {
     type Output = T;
 
     fn index(&self, index: usize) -> &Self::Output {
@@ -54,13 +54,13 @@ impl<T: Clone, const N: usize> std::ops::Index<usize> for Memory<T, N> {
     }
 }
 
-impl<T: Clone, const N: usize> std::ops::IndexMut<usize> for Memory<T, N> {
+impl<T: Clone> std::ops::IndexMut<usize> for Memory<T> {
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
         &mut self.memory[index]
     }
 }
 
-impl<T: Clone, const N: usize> std::ops::Index<std::ops::Range<usize>> for Memory<T, N> {
+impl<T: Clone> std::ops::Index<std::ops::Range<usize>> for Memory<T> {
     type Output = [T];
 
     fn index(&self, index: std::ops::Range<usize>) -> &[T] {
@@ -68,17 +68,17 @@ impl<T: Clone, const N: usize> std::ops::Index<std::ops::Range<usize>> for Memor
     }
 }
 
-impl<T: Clone, const N: usize> std::ops::IndexMut<std::ops::Range<usize>> for Memory<T, N> {
+impl<T: Clone> std::ops::IndexMut<std::ops::Range<usize>> for Memory<T> {
     fn index_mut(&mut self, index: std::ops::Range<usize>) -> &mut [T] {
         &mut self.memory[index]
     }
 }
 
-impl<T: Clone + std::marker::Copy, const N: usize>  Memory<T, N> {
+impl<T: Clone + std::marker::Copy>  Memory<T> {
     pub fn len(&self) -> usize { self.memory.len() }
-    pub fn new(default: T) -> Self where T: Clone {
+    pub fn new(default: T, size: usize) -> Self where T: Clone {
         Self {
-            memory: Box::new([default; N])
+            memory: vec![default; size]
         }
     }
 }
@@ -90,22 +90,22 @@ trait Length {
 
 pub struct RAM {
     #[cfg(test)]
-    pub memory: Memory<u8, 65536>,
+    pub memory: Memory<u8>,
     #[cfg(not(test))]
-    memory: Memory<u8, 65536>,
+    memory: Memory<u8>,
 }
 
 pub struct ROM {
     #[cfg(test)]
-    pub memory: Memory<u8, 256>,
+    pub memory: Memory<u8>,
     #[cfg(not(test))]
-    memory: Memory<u8, 256>,
+    memory: Memory<u8>,
     bios: String,
 }
 
 impl RAM {
     pub fn new() -> Self {
-        RAM { memory: Memory::<u8, 65536>::new(0) }
+        RAM { memory: Memory::<u8>::new(0, 65536) }
     }
 
     pub fn read(&self, address: u16) -> u8 {
@@ -145,7 +145,7 @@ impl Length for RAM {
 
 impl ROM {
     pub  fn new() -> Self {
-        ROM { memory: Memory::<u8, 256>::new(0), bios: String::from("") }
+        ROM { memory: Memory::<u8>::new(0, 256), bios: String::from("") }
     }
 
     pub fn read(&self, address: u16) -> u8 {
@@ -154,9 +154,9 @@ impl ROM {
 
     pub fn load_bios(&mut self, path: &String) -> Result<(), std::io::Error> {
         let mut file = File::open(path)?;
-        let mut buffer = [0u8; 256];
+        let mut buffer = vec![0u8; 256];
         file.read_exact(&mut buffer)?;
-        self.memory = Memory { memory: Box::new(buffer) };
+        self.memory = Memory { memory: buffer };
         self.bios = path.clone();
         Ok(())
     }
