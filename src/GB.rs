@@ -1,5 +1,7 @@
-use std::cell::RefCell;
+use std::cell::{Ref, RefCell};
+use std::io::Error;
 use std::rc::Rc;
+use crate::GB::cartridge::Cartridge;
 use crate::GB::memory::{RAM, ROM};
 
 pub mod registers;
@@ -7,6 +9,7 @@ pub mod instructions;
 pub mod CPU;
 pub mod memory;
 pub mod PPU;
+pub mod cartridge;
 
 
 #[cfg(feature = "debug")]
@@ -27,20 +30,24 @@ pub struct GB {
     pub rom: ROM,
     pub cpu: CPU::CPU,
     pub ppu: PPU::PPU,
+    cartridge: Rc<RefCell<Option<Cartridge>>>
 }
 
 impl GB {
     pub fn new(bios: String) -> Self{
         let mut ram = RAM::new();
         let ram_ref = Rc::new(RefCell::new(ram));
+        let cartridge_ref = Rc::new(RefCell::new(None));
+        let cpu = CPU::CPU::new(Rc::clone(&ram_ref));
         let mut rom = ROM::new();
         rom.load_bios(&bios);
         Self {
             is_booting: true,
-            cpu: CPU::CPU::new(Rc::clone(&ram_ref)),
+            cpu,
             ppu: PPU::PPU::new(Rc::clone(&ram_ref)),
             memory: ram_ref,
             rom,
+            cartridge: cartridge_ref,
         }
     }
 
@@ -50,9 +57,29 @@ impl GB {
         self.cpu.registers.set_pc(0);
     }
 
+    pub fn insert_cartridge(&mut self, path: &String) {
+        let cartridge = Cartridge::new((*path).clone());
+        match cartridge {
+            Ok(c) => {
+                let cartridge_ref = Rc::new(RefCell::new(Option::from(c)));
+                self.cartridge = Rc::clone(&cartridge_ref);
+                self.cpu.set_cartridge(Rc::clone(&cartridge_ref));
+            }
+            Err(_) => {
+                let cartridge_ref = Rc::new(RefCell::new(None));
+                self.cartridge = Rc::clone(&cartridge_ref);
+                self.cpu.set_cartridge(Rc::clone(&cartridge_ref));
+            }
+        }
+    }
+
     pub fn cycle(&mut self) {
         let mut cycles = 0;
         cycles = self.cpu.execute_next();
+    }
+
+    pub fn get_cartridge(&self) -> Ref<'_, Option<Cartridge>> {
+        self.cartridge.borrow()
     }
 }
 
@@ -60,12 +87,15 @@ impl Default for GB {
     fn default() -> Self {
         let ram = RAM::new();
         let ram_ref = Rc::new(RefCell::new(ram));
+        let cartridge_ref = Rc::new(RefCell::new(None));
+        let cpu = CPU::CPU::new(Rc::clone(&ram_ref));
         Self {
             is_booting: false,
-            cpu: CPU::CPU::new(Rc::clone(&ram_ref)),
+            cpu,
             ppu: PPU::PPU::new(Rc::clone(&ram_ref)),
             memory: ram_ref,
             rom: ROM::new(),
+            cartridge: cartridge_ref,
         }
     }
 }

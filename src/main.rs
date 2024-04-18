@@ -44,7 +44,16 @@ fn main() {
     //     println!("[{:#04x}] {} -> {} Bytes, {} Cycles", instruction.opcode, instruction.name, instruction.size, instruction.cycles);
     //     println!("{}", gb.registers);
     // }
-    let gb = GB::GB::new(args.bios.clone());
+    if fs::metadata(&args.rom).is_ok() {
+        println!("La rom \"{}\" esiste!", args.rom);
+    } else {
+        println!("La rom non esiste.");
+    }
+
+    let mut gb = GB::GB::new(args.bios.clone());
+    gb.insert_cartridge(&args.rom);
+    let cartridge_ref =  gb.get_cartridge();
+    println!("{}", gb.get_cartridge().as_ref().unwrap());
 
     if let Ok(current_dir) = env::current_dir() {
         println!("Il percorso corrente è: {:?}", current_dir);

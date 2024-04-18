@@ -1,0 +1,16 @@
+pub const ENTRY_POINT: usize = 0x0100;
+pub const LOGO: usize = 0x0104;
+pub const TITLE: usize = 0x0134; // Oldest Cartridge 16 Bytes, Newer 12
+pub const TITLE_OLD_SIZE: usize = 16; // Oldest Cartridge 16 Bytes, Newer 12
+pub const TITLE_NEW_SIZE: usize = 12; // Oldest Cartridge 16 Bytes, Newer 12
+pub const MANUFACTURER_CODE: usize = 0x013F; // 4 Bytes
+pub const NEW_LICENSE_CODE: usize = 0x0144;
+pub const SGB_FLAG: usize = 0x0146;
+pub const CARTRIDGE_TYPE: usize = 0x0147;
+pub const ROM_SIZE: usize = 0x0148;
+pub const RAM_SIZE: usize = 0x0149;
+pub const DESTINATION_CODE: usize = 0x014A;
+pub const OLD_LICENSE_CODE: usize = 0x014B; // If 0x33 Check on New License Code Address
+pub const ROM_VERSION: usize = 0x014C;
+pub const HEADER_CHECKSUM: usize = 0x014D;
+pub const GLOBAL_CHECKSUM: usize = 0x014E; // 16 Bit (Big Endian)
