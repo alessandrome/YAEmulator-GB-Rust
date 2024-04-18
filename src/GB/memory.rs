@@ -1,7 +1,11 @@
 pub mod registers;
+mod addresses;
 
+use std::cell::RefCell;
 use std::fs::File;
 use std::io::Read;
+use std::rc::Rc;
+use crate::GB::cartridge::{Cartridge, UseCartridge};
 use crate::GB::PPU::tile::TILE_SIZE;
 
 pub const RST_INSTRUCTIONS: usize = 0x0000; // Location in memory for RST instructions (not used on emulation)
@@ -98,6 +102,7 @@ pub struct RAM {
     pub memory: Memory<u8>,
     #[cfg(not(test))]
     memory: Memory<u8>,
+    cartridge: Rc<RefCell<Option<Cartridge>>>
 }
 
 pub struct ROM {
@@ -110,7 +115,10 @@ pub struct ROM {
 
 impl RAM {
     pub fn new() -> Self {
-        RAM { memory: Memory::<u8>::new(0, 65536) }
+        RAM {
+            memory: Memory::<u8>::new(0, 65536),
+            cartridge: Rc::new(RefCell::new(None))
+        }
     }
 
     pub fn read(&self, address: u16) -> u8 {
@@ -145,6 +153,12 @@ impl RAM {
 impl Length for RAM {
     fn len(&self) -> usize {
         self.memory.len()
+    }
+}
+
+impl UseCartridge for RAM {
+    fn set_cartridge(&mut self, rom: Rc<RefCell<Option<Cartridge>>>) {
+        self.cartridge = rom;
     }
 }
 

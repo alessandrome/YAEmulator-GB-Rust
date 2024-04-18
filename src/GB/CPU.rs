@@ -1,7 +1,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 use crate::GB::{instructions, SYSTEM_FREQUENCY_CLOCK};
-use crate::GB::cartridge::Cartridge;
+use crate::GB::cartridge::{Cartridge, UseCartridge};
 use crate::GB::registers;
 use crate::GB::memory::{self, RAM, UseMemory, USER_PROGRAM_ADDRESS};
 
@@ -168,10 +168,6 @@ impl CPU {
             self.cycles -= cycles_per_update;
         }
     }
-
-    pub fn set_cartridge(&mut self, rom: Rc<RefCell<Option<Cartridge>>>) {
-        self.cartridge = rom;
-    }
 }
 
 impl UseMemory for CPU {
@@ -181,5 +177,11 @@ impl UseMemory for CPU {
 
     fn write_memory(&self, address: u16, data: u8) {
         self.memory.borrow_mut().write(address, data);
+    }
+}
+
+impl UseCartridge for CPU {
+    fn set_cartridge(&mut self, rom: Rc<RefCell<Option<Cartridge>>>) {
+        self.cartridge = rom;
     }
 }

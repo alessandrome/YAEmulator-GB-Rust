@@ -1,7 +1,7 @@
 use std::cell::{Ref, RefCell};
 use std::io::Error;
 use std::rc::Rc;
-use crate::GB::cartridge::Cartridge;
+use crate::GB::cartridge::{Cartridge, UseCartridge};
 use crate::GB::memory::{RAM, ROM};
 
 pub mod registers;
@@ -61,14 +61,10 @@ impl GB {
         let cartridge = Cartridge::new((*path).clone());
         match cartridge {
             Ok(c) => {
-                let cartridge_ref = Rc::new(RefCell::new(Option::from(c)));
-                self.cartridge = Rc::clone(&cartridge_ref);
-                self.cpu.set_cartridge(Rc::clone(&cartridge_ref));
+                self.set_cartridge(Rc::new(RefCell::new(Option::from(c))));
             }
             Err(_) => {
-                let cartridge_ref = Rc::new(RefCell::new(None));
-                self.cartridge = Rc::clone(&cartridge_ref);
-                self.cpu.set_cartridge(Rc::clone(&cartridge_ref));
+                self.set_cartridge(Rc::new(RefCell::new(None)));
             }
         }
     }
@@ -97,5 +93,13 @@ impl Default for GB {
             rom: ROM::new(),
             cartridge: cartridge_ref,
         }
+    }
+}
+
+impl UseCartridge for GB {
+    fn set_cartridge(&mut self, rom: Rc<RefCell<Option<Cartridge>>>) {
+        self.cpu.set_cartridge(Rc::clone(&rom));
+        self.memory.borrow_mut().set_cartridge(Rc::clone(&rom));
+        self.cartridge = rom;
     }
 }
