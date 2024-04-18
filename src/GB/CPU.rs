@@ -1,6 +1,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 use crate::GB::{instructions, SYSTEM_FREQUENCY_CLOCK};
+use crate::GB::cartridge::Cartridge;
 use crate::GB::registers;
 use crate::GB::memory::{self, RAM, UseMemory, USER_PROGRAM_ADDRESS};
 
@@ -86,7 +87,8 @@ pub struct CPU {
     pub opcode: u8,     // Running Instruction Opcode
     pub cycles: u64,     // Total Cycles Count
     pub divider_counter: u8,     // Total Cycles Count
-    pub memory: Rc<RefCell<RAM>>
+    pub memory: Rc<RefCell<RAM>>,
+    cartridge: Rc<RefCell<Option<Cartridge>>>,
 }
 
 impl CPU {
@@ -98,7 +100,8 @@ impl CPU {
             opcode: 0,
             cycles: 0,
             divider_counter: 0,
-            memory
+            memory,
+            cartridge: Rc::new(RefCell::new(None)),
         }
     }
     
@@ -164,6 +167,10 @@ impl CPU {
             self.divider_counter = self.divider_counter.wrapping_add(1);
             self.cycles -= cycles_per_update;
         }
+    }
+
+    pub fn set_cartridge(&mut self, rom: Rc<RefCell<Option<Cartridge>>>) {
+        self.cartridge = rom;
     }
 }
 

@@ -53,7 +53,7 @@ fn main() {
     let mut gb = GB::GB::new(args.bios.clone());
     gb.insert_cartridge(&args.rom);
     let cartridge_ref =  gb.get_cartridge();
-    println!("{}", gb.get_cartridge().unwrap());
+    println!("{}", gb.get_cartridge().as_ref().unwrap());
 
     if let Ok(current_dir) = env::current_dir() {
         println!("Il percorso corrente è: {:?}", current_dir);
