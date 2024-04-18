@@ -4,8 +4,10 @@ mod addresses;
 mod tests;
 
 use std::{fmt, io};
+use std::cell::RefCell;
 use std::io::prelude::*;
 use std::fs::File;
+use std::rc::Rc;
 use std::string::FromUtf8Error;
 use crate::GB::cartridge::addresses::{TITLE, TITLE_OLD_SIZE};
 use crate::GB::memory::Memory;
@@ -159,7 +161,7 @@ impl fmt::Display for Cartridge {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "Cartridge \"{}\"(0x{:02x}) {{ ROM/RAM: {}KB/{}KB, Title: \"{}\", Path: {} }}",
+            "Cartridge \"{}\"(0x{:02x}) {{ ROM/RAM: {}KB/{}KB, Title: \"{}\", Path: \"{}\" }}",
             Self::get_cartridge_type_string(&self.cartridge_type),
             self.rom[addresses::CARTRIDGE_TYPE],
             self.rom.len() / 1024, self.ram.len() / 1024,
@@ -167,4 +169,8 @@ impl fmt::Display for Cartridge {
             self.rom_path,
         )
     }
+}
+
+pub trait UseCartridge {
+    fn set_cartridge(&mut self, rom: Rc<RefCell<Option<Cartridge>>>);
 }
