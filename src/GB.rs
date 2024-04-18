@@ -2,7 +2,8 @@ use std::cell::{Ref, RefCell};
 use std::io::Error;
 use std::rc::Rc;
 use crate::GB::cartridge::{Cartridge, UseCartridge};
-use crate::GB::memory::{RAM, ROM};
+use crate::GB::memory::{RAM};
+use crate::GB::memory::BIOS::BIOS;
 
 pub mod registers;
 pub mod instructions;
@@ -27,7 +28,7 @@ const SYSTEM_FREQUENCY_CLOCK: u64 = 1_048_576;
 pub struct GB {
     is_booting: bool,
     pub memory: Rc<RefCell<RAM>>,
-    pub rom: ROM,
+    pub bios: BIOS,
     pub cpu: CPU::CPU,
     pub ppu: PPU::PPU,
     cartridge: Rc<RefCell<Option<Cartridge>>>
@@ -39,21 +40,21 @@ impl GB {
         let ram_ref = Rc::new(RefCell::new(ram));
         let cartridge_ref = Rc::new(RefCell::new(None));
         let cpu = CPU::CPU::new(Rc::clone(&ram_ref));
-        let mut rom = ROM::new();
+        let mut rom = BIOS::new();
         rom.load_bios(&bios);
         Self {
             is_booting: true,
             cpu,
             ppu: PPU::PPU::new(Rc::clone(&ram_ref)),
             memory: ram_ref,
-            rom,
+            bios: rom,
             cartridge: cartridge_ref,
         }
     }
 
     pub fn boot(&mut self) {
         self.is_booting = true;
-        self.cpu.ram.boot_load(&self.rom);
+        self.cpu.ram.boot_load(&self.bios);
         self.cpu.registers.set_pc(0);
     }
 
@@ -90,7 +91,7 @@ impl Default for GB {
             cpu,
             ppu: PPU::PPU::new(Rc::clone(&ram_ref)),
             memory: ram_ref,
-            rom: ROM::new(),
+            bios: BIOS::new(),
             cartridge: cartridge_ref,
         }
     }
