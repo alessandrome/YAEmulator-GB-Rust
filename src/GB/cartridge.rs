@@ -19,6 +19,8 @@ pub struct Cartridge {
     cartridge_type: CartridgeType,
     rom_path: String,
     ram_enabled: bool,
+    rom_bank: usize,
+    ram_bank: usize,
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -74,6 +76,8 @@ impl Cartridge {
             cartridge_type,
             rom_path: file,
             ram_enabled: false,
+            rom_bank: 1,
+            ram_bank: 1,
         })
     }
 
