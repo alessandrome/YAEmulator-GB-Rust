@@ -9,7 +9,7 @@ use std::io::prelude::*;
 use std::fs::File;
 use std::rc::Rc;
 use std::string::FromUtf8Error;
-use crate::GB::cartridge::addresses::{TITLE, TITLE_OLD_SIZE};
+use crate::GB::cartridge::addresses::{MBC_RAM_ENABLE_ADDRESS_START, MBC_RAM_ENABLE_ADDRESS_END, TITLE, TITLE_OLD_SIZE, MBC_ROM_BANK_SELECTION_ADDRESS_START, MBC_ROM_BANK_SELECTION_ADDRESS_END};
 use crate::GB::memory::Memory;
 use crate::GB::registers::Registers;
 
@@ -18,6 +18,7 @@ pub struct Cartridge {
     ram: Memory<u8>,
     cartridge_type: CartridgeType,
     rom_path: String,
+    ram_enabled: bool,
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -72,6 +73,7 @@ impl Cartridge {
             ram: Memory::<u8>::new(0, ram_size),
             cartridge_type,
             rom_path: file,
+            ram_enabled: false,
         })
     }
 
@@ -85,6 +87,27 @@ impl Cartridge {
         match s {
             Ok(s) => {s}
             Err(_) => {"".to_string()}
+        }
+    }
+
+    pub fn read(&self, address: u16) -> u8 {
+        // TODO: implement read
+        let address_usize = address as usize;
+        0
+    }
+
+    pub fn write(&mut self, address: u16, value: u8) {
+        let address_usize = address as usize;
+        match address_usize {
+            MBC_RAM_ENABLE_ADDRESS_START..=MBC_RAM_ENABLE_ADDRESS_END => {
+                self.ram_enabled = value == 0x0A;
+            }
+            MBC_ROM_BANK_SELECTION_ADDRESS_START..=MBC_ROM_BANK_SELECTION_ADDRESS_END => {
+                // TODO: implement
+            }
+            _ => {
+                // TODO: implement
+            }
         }
     }
 
