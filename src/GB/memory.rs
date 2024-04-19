@@ -1,5 +1,6 @@
 pub mod registers;
 mod addresses;
+pub mod BIOS;
 
 use std::cell::RefCell;
 use std::fs::File;
@@ -93,7 +94,7 @@ impl<T: Clone + std::marker::Copy>  Memory<T> {
 }
 
 
-trait Length {
+pub trait Length {
     fn len(&self) -> usize;
 }
 
@@ -103,14 +104,6 @@ pub struct RAM {
     #[cfg(not(test))]
     memory: Memory<u8>,
     cartridge: Rc<RefCell<Option<Cartridge>>>
-}
-
-pub struct ROM {
-    #[cfg(test)]
-    pub memory: Memory<u8>,
-    #[cfg(not(test))]
-    memory: Memory<u8>,
-    bios: String,
 }
 
 impl RAM {
@@ -133,8 +126,8 @@ impl RAM {
         &self.memory[start_address as usize..(start_address + length) as usize]
     }
 
-    pub fn boot_load(&mut self, rom: &ROM) {
-        for i in 0..rom.len() {
+    pub fn boot_load(&mut self, bios: &BIOS::BIOS) {
+        for i in 0..bios.len() {
             self.memory[i] = self.read(i as u16);
         }
     }
@@ -159,31 +152,6 @@ impl Length for RAM {
 impl UseCartridge for RAM {
     fn set_cartridge(&mut self, rom: Rc<RefCell<Option<Cartridge>>>) {
         self.cartridge = rom;
-    }
-}
-
-impl ROM {
-    pub  fn new() -> Self {
-        ROM { memory: Memory::<u8>::new(0, 256), bios: String::from("") }
-    }
-
-    pub fn read(&self, address: u16) -> u8 {
-        self.memory[address as usize]
-    }
-
-    pub fn load_bios(&mut self, path: &String) -> Result<(), std::io::Error> {
-        let mut file = File::open(path)?;
-        let mut buffer = vec![0u8; 256];
-        file.read_exact(&mut buffer)?;
-        self.memory = Memory { memory: buffer };
-        self.bios = path.clone();
-        Ok(())
-    }
-}
-
-impl Length for ROM {
-    fn len(&self) -> usize {
-        self.memory.len()
     }
 }
 

@@ -9,7 +9,7 @@ use iced::widget::{container, responsive};
 use iced::theme::{self, Theme};
 use crate::GB::GB;
 use crate::GB::instructions::{Instruction};
-use crate::GB::memory::{ROM, RAM};
+use crate::GB::memory::{RAM};
 
 // #[derive(Default)]
 pub struct MainWindow {
