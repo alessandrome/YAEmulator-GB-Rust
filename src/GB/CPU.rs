@@ -109,8 +109,8 @@ impl CPU {
         self.ram.read(self.registers.get_and_inc_pc())
     }
 
-    pub fn decode(opcode: &u8, cb_opcode: bool) -> Option<&'static instructions::Instruction> {
-        let opcode_usize = *opcode as usize;
+    pub fn decode(opcode: u8, cb_opcode: bool) -> Option<&'static instructions::Instruction> {
+        let opcode_usize = opcode as usize;
         if cb_opcode {
             return instructions::OPCODES_CB[opcode_usize]
         }
@@ -120,7 +120,7 @@ impl CPU {
     pub fn execute_next(&mut self) -> u64{
         let cb_subset = self.opcode == 0xCB;
         self.opcode = self.fetch_next();
-        let instruction = Self::decode(&self.opcode, cb_subset);
+        let instruction = Self::decode(self.opcode, cb_subset);
         let mut cycles: u64 = 1;
         match (instruction) {
             Some(ins) => {

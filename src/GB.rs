@@ -78,6 +78,10 @@ impl GB {
     pub fn get_cartridge(&self) -> Ref<'_, Option<Cartridge>> {
         self.cartridge.borrow()
     }
+
+    pub fn get_bios(&self) -> &BIOS {
+        &self.bios
+    }
 }
 
 impl Default for GB {

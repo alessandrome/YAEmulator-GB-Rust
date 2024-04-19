@@ -94,7 +94,7 @@ impl<T: Clone + std::marker::Copy>  Memory<T> {
 }
 
 
-trait Length {
+pub trait Length {
     fn len(&self) -> usize;
 }
 
