@@ -2,7 +2,6 @@ mod addresses;
 
 #[cfg(test)]
 mod tests;
-mod mbc1;
 
 use std::{fmt, io};
 use std::cell::RefCell;
@@ -14,6 +13,9 @@ use crate::GB::cartridge::addresses::{MBC_RAM_ENABLE_ADDRESS_START, MBC_RAM_ENAB
 use crate::GB::cartridge::addresses::mbc1::{MBC1_RAM_ENABLE_ADDRESS_START, MBC1_ROM_BANK_SELECTION_ADDRESS_END, MBC1_ROM_BANK_SELECTION_ADDRESS_START};
 use crate::GB::memory::Memory;
 use crate::GB::registers::Registers;
+
+pub const ROM_BANK_SIZE: usize = 0x4000;
+pub const RAM_BANK_SIZE: usize = 0x2000;
 
 pub struct Cartridge {
     rom: Memory<u8>,
@@ -79,7 +81,7 @@ impl Cartridge {
             rom_path: file,
             ram_enabled: false,
             rom_bank: 1,
-            ram_bank: 1,
+            ram_bank: 0,
         })
     }
 
@@ -129,6 +131,14 @@ impl Cartridge {
                 // TODO: implement
             }
         }
+    }
+
+    pub fn get_rom_banks_number(&self) -> usize {
+        self.rom.len() / ROM_BANK_SIZE
+    }
+
+    pub fn get_ram_banks_number(&self) -> usize {
+        self.ram.len() / ROM_BANK_SIZE
     }
 
     pub fn get_cartridge_type(code: u8) -> CartridgeType {
