@@ -2,6 +2,7 @@ mod addresses;
 
 #[cfg(test)]
 mod tests;
+mod mbc1;
 
 use std::{fmt, io};
 use std::cell::RefCell;
@@ -10,6 +11,7 @@ use std::fs::File;
 use std::rc::Rc;
 use std::string::FromUtf8Error;
 use crate::GB::cartridge::addresses::{MBC_RAM_ENABLE_ADDRESS_START, MBC_RAM_ENABLE_ADDRESS_END, TITLE, TITLE_OLD_SIZE, MBC_ROM_BANK_SELECTION_ADDRESS_START, MBC_ROM_BANK_SELECTION_ADDRESS_END};
+use crate::GB::cartridge::addresses::mbc1::{MBC1_RAM_ENABLE_ADDRESS_START, MBC1_ROM_BANK_SELECTION_ADDRESS_END, MBC1_ROM_BANK_SELECTION_ADDRESS_START};
 use crate::GB::memory::Memory;
 use crate::GB::registers::Registers;
 
@@ -102,12 +104,26 @@ impl Cartridge {
 
     pub fn write(&mut self, address: u16, value: u8) {
         let address_usize = address as usize;
-        match address_usize {
-            MBC_RAM_ENABLE_ADDRESS_START..=MBC_RAM_ENABLE_ADDRESS_END => {
+        match self.cartridge_type {
+            CartridgeType::Mbc1 => {
+                self.write_mbc1(address_usize, value);
+            }
+            _ => {}
+        }
+    }
+
+    fn write_mbc1(&mut self, address: usize, value: u8) {
+        match address {
+            MBC1_RAM_ENABLE_ADDRESS_START..=MBC1_ROM_BANK_SELECTION_ADDRESS_END => {
                 self.ram_enabled = value == 0x0A;
             }
-            MBC_ROM_BANK_SELECTION_ADDRESS_START..=MBC_ROM_BANK_SELECTION_ADDRESS_END => {
-                // TODO: implement
+            MBC1_ROM_BANK_SELECTION_ADDRESS_START..=MBC1_ROM_BANK_SELECTION_ADDRESS_END => {
+                // TODO: Complete to respect https://gbdev.io/pandocs/MBC1.html#20003fff--rom-bank-number-write-only
+                let mut bank_selection: usize = (value as usize) & 0b0001_1111;
+                if bank_selection == 0 {
+                    bank_selection = 1;
+                }
+                self.rom_bank = bank_selection;
             }
             _ => {
                 // TODO: implement

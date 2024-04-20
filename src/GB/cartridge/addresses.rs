@@ -1,3 +1,5 @@
+pub mod mbc1;
+
 pub const ENTRY_POINT: usize = 0x0100;
 pub const LOGO: usize = 0x0104;
 pub const TITLE: usize = 0x0134; // Oldest Cartridge 16 Bytes, Newer 12
