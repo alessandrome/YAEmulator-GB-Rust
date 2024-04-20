@@ -10,7 +10,7 @@ use std::fs::File;
 use std::rc::Rc;
 use std::string::FromUtf8Error;
 use crate::GB::cartridge::addresses::{MBC_RAM_ENABLE_ADDRESS_START, MBC_RAM_ENABLE_ADDRESS_END, TITLE, TITLE_OLD_SIZE, MBC_ROM_BANK_SELECTION_ADDRESS_START, MBC_ROM_BANK_SELECTION_ADDRESS_END};
-use crate::GB::cartridge::addresses::mbc1::{MBC1_RAM_ENABLE_ADDRESS_START, MBC1_ROM_BANK_SELECTION_ADDRESS_END, MBC1_ROM_BANK_SELECTION_ADDRESS_START};
+use crate::GB::cartridge::addresses::mbc1::{MBC1_BANKING_MODE_ADDRESS_END, MBC1_BANKING_MODE_ADDRESS_START, MBC1_RAM_BANK_SELECTION_ADDRESS_END, MBC1_RAM_BANK_SELECTION_ADDRESS_START, MBC1_RAM_ENABLE_ADDRESS_START, MBC1_ROM_BANK_SELECTION_ADDRESS_END, MBC1_ROM_BANK_SELECTION_ADDRESS_START};
 use crate::GB::memory::Memory;
 use crate::GB::registers::Registers;
 
@@ -25,6 +25,7 @@ pub struct Cartridge {
     ram_enabled: bool,
     rom_bank: usize,
     ram_bank: usize,
+    bank_switch_mode: bool,
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -82,6 +83,7 @@ impl Cartridge {
             ram_enabled: false,
             rom_bank: 1,
             ram_bank: 0,
+            bank_switch_mode: false,
         })
     }
 
@@ -120,12 +122,29 @@ impl Cartridge {
                 self.ram_enabled = value == 0x0A;
             }
             MBC1_ROM_BANK_SELECTION_ADDRESS_START..=MBC1_ROM_BANK_SELECTION_ADDRESS_END => {
-                // TODO: Complete to respect https://gbdev.io/pandocs/MBC1.html#20003fff--rom-bank-number-write-only
-                let mut bank_selection: usize = (value as usize) & 0b0001_1111;
+                // TODO: Check if conform to https://gbdev.io/pandocs/MBC1.html#20003fff--rom-bank-number-write-only
+                let mut bank_selection: usize = (value as usize) & 0b0001_1111; // 5 Bits addressing
                 if bank_selection == 0 {
+                    // Bank ROM 0 is not selectable as it is always addressed on mapped memory
                     bank_selection = 1;
                 }
-                self.rom_bank = bank_selection;
+                if self.get_rom_banks_number() <= 0x10 {
+                    // If rom banks are less/equal than 16 che chip mask the value as a 4 bit value
+                    bank_selection &= 0b0000_1111;
+                }
+                self.rom_bank = (self.rom_bank & 0b0110_0000) | bank_selection;
+            }
+            MBC1_RAM_BANK_SELECTION_ADDRESS_START..=MBC1_RAM_BANK_SELECTION_ADDRESS_END => {
+                let mut bank_selection: usize = (value as usize) & 0b0000_0011; // 2 Bits addressing
+                // if self.get_rom_banks_number() > 0x10 {
+                    // 2 Bits addressing bits 5-6 for ROM bank selections
+                    self.rom_bank = (self.rom_bank & 0b0001_1111) | (bank_selection << 5);
+                // } else {
+                //     self.ram_bank = bank_selection;
+                // }
+            }
+            MBC1_BANKING_MODE_ADDRESS_START..=MBC1_BANKING_MODE_ADDRESS_END => {
+                self.bank_switch_mode = (value & 1) != 0;
             }
             _ => {
                 // TODO: implement
