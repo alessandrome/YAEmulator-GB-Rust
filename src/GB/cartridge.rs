@@ -9,15 +9,24 @@ use std::io::prelude::*;
 use std::fs::File;
 use std::rc::Rc;
 use std::string::FromUtf8Error;
-use crate::GB::cartridge::addresses::{TITLE, TITLE_OLD_SIZE};
-use crate::GB::memory::Memory;
+use crate::GB::cartridge::addresses::{MBC_RAM_ENABLE_ADDRESS_START, MBC_RAM_ENABLE_ADDRESS_END, TITLE, TITLE_OLD_SIZE, MBC_ROM_BANK_SELECTION_ADDRESS_START, MBC_ROM_BANK_SELECTION_ADDRESS_END};
+use crate::GB::cartridge::addresses::mbc1::{MBC1_BANKING_MODE_ADDRESS_END, MBC1_BANKING_MODE_ADDRESS_START, MBC1_RAM_BANK_SELECTION_ADDRESS_END, MBC1_RAM_BANK_SELECTION_ADDRESS_START, MBC1_RAM_ENABLE_ADDRESS_START, MBC1_ROM_BANK_SELECTION_ADDRESS_END, MBC1_ROM_BANK_SELECTION_ADDRESS_START};
+use crate::GB::memory::{Memory};
+use crate::GB::memory::addresses::{EXTERNAL_RAM_ADDRESS, EXTERNAL_RAM_LAST_ADDRESS};
 use crate::GB::registers::Registers;
+
+pub const ROM_BANK_SIZE: usize = 0x4000;
+pub const RAM_BANK_SIZE: usize = 0x2000;
 
 pub struct Cartridge {
     rom: Memory<u8>,
     ram: Memory<u8>,
     cartridge_type: CartridgeType,
     rom_path: String,
+    ram_enabled: bool,
+    rom_bank: usize,
+    ram_bank: usize,
+    bank_switch_mode: bool,
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -72,6 +81,10 @@ impl Cartridge {
             ram: Memory::<u8>::new(0, ram_size),
             cartridge_type,
             rom_path: file,
+            ram_enabled: false,
+            rom_bank: 1,
+            ram_bank: 0,
+            bank_switch_mode: false,
         })
     }
 
@@ -86,6 +99,71 @@ impl Cartridge {
             Ok(s) => {s}
             Err(_) => {"".to_string()}
         }
+    }
+
+    pub fn read(&self, address: u16) -> u8 {
+        // TODO: implement read
+        let address_usize = address as usize;
+        0
+    }
+
+    pub fn write(&mut self, address: u16, value: u8) {
+        let address_usize = address as usize;
+        match self.cartridge_type {
+            CartridgeType::Mbc1 => {
+                self.write_mbc1(address_usize, value);
+            }
+            _ => {}
+        }
+    }
+
+    fn write_mbc1(&mut self, address: usize, value: u8) {
+        match address {
+            MBC1_RAM_ENABLE_ADDRESS_START..=MBC1_ROM_BANK_SELECTION_ADDRESS_END => {
+                self.ram_enabled = value == 0x0A;
+            }
+            MBC1_ROM_BANK_SELECTION_ADDRESS_START..=MBC1_ROM_BANK_SELECTION_ADDRESS_END => {
+                // TODO: Check if conform to https://gbdev.io/pandocs/MBC1.html#20003fff--rom-bank-number-write-only
+                let mut bank_selection: usize = (value as usize) & 0b0001_1111; // 5 Bits addressing
+                if bank_selection == 0 {
+                    // Bank ROM 0 is not selectable as it is always addressed on mapped memory
+                    bank_selection = 1;
+                }
+                if self.get_rom_banks_number() <= 0x10 {
+                    // If rom banks are less/equal than 16 che chip mask the value as a 4 bit value
+                    bank_selection &= 0b0000_1111;
+                }
+                self.rom_bank = (self.rom_bank & 0b0110_0000) | bank_selection;
+            }
+            MBC1_RAM_BANK_SELECTION_ADDRESS_START..=MBC1_RAM_BANK_SELECTION_ADDRESS_END => {
+                let mut bank_selection: usize = (value as usize) & 0b0000_0011; // 2 Bits addressing
+                // if self.get_rom_banks_number() > 0x10 {
+                    // 2 Bits addressing bits 5-6 for ROM bank selections
+                    self.rom_bank = (self.rom_bank & 0b0001_1111) | (bank_selection << 5);
+                // } else {
+                //     self.ram_bank = bank_selection;
+                // }
+            }
+            MBC1_BANKING_MODE_ADDRESS_START..=MBC1_BANKING_MODE_ADDRESS_END => {
+                self.bank_switch_mode = (value & 1) != 0;
+            }
+            EXTERNAL_RAM_ADDRESS..=EXTERNAL_RAM_LAST_ADDRESS => {
+                if self.ram_enabled {
+                    self.ram[address - EXTERNAL_RAM_ADDRESS] = value;
+                }
+            }
+            _ => {
+                // Nothing Happens! How did you arrive here?
+            }
+        }
+    }
+
+    pub fn get_rom_banks_number(&self) -> usize {
+        self.rom.len() / ROM_BANK_SIZE
+    }
+
+    pub fn get_ram_banks_number(&self) -> usize {
+        self.ram.len() / ROM_BANK_SIZE
     }
 
     pub fn get_cartridge_type(code: u8) -> CartridgeType {

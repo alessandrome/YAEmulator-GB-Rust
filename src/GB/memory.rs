@@ -1,5 +1,5 @@
 pub mod registers;
-mod addresses;
+pub mod addresses;
 pub mod BIOS;
 
 use std::cell::RefCell;
@@ -7,6 +7,7 @@ use std::fs::File;
 use std::io::Read;
 use std::rc::Rc;
 use crate::GB::cartridge::{Cartridge, UseCartridge};
+use crate::GB::memory::addresses::{ROM_BANK_0_ADDRESS, ROM_BANK_1_ADDRESS, ROM_BANK_SIZE};
 use crate::GB::PPU::tile::TILE_SIZE;
 
 pub const RST_INSTRUCTIONS: usize = 0x0000; // Location in memory for RST instructions (not used on emulation)
@@ -115,10 +116,26 @@ impl RAM {
     }
 
     pub fn read(&self, address: u16) -> u8 {
+        // TODO: Implement special read mapped on Cartridge
+        if (address as usize) < ROM_BANK_1_ADDRESS + ROM_BANK_SIZE {
+            let mut return_val = 0;
+            let c_opt = self.cartridge.borrow();
+            match c_opt.as_ref() {
+                None => {
+                    return_val = self.memory[address as usize];
+                }
+                Some(_) => {
+                    // TODO: implement
+                    return_val = 0;
+                }
+            }
+            return return_val
+        }
         self.memory[address as usize]
     }
 
     pub fn write(&mut self, address: u16, byte: u8) {
+        // TODO: Implement write on Cartridge mapped areas
         self.memory[address as usize] = byte;
     }
 
