@@ -95,19 +95,20 @@ fn main() {
     }
     gb.set_use_boot(false);
 
-    let mut i: u16 = 0;
+    let mut i: u32 = 0;
     println!();
-    println!("Addr.  |  Hex       |  Instruction    |");
-    println!("-------+------------+-----------------+");
+    println!("| n°  |  Adr. |  Hex       |  Instruction    |");
+    println!("+-----+-------+------------+-----------------+");
     while i < 128 {
         let mut s = "".to_string();
         let mut pc = gb.cpu.registers.get_pc();
         let addr = pc;
         let mut read_bytes: usize = 0;
         let mut opcode = gb.memory.borrow().read(pc);
-        let mut s_ins = "UNKNOWN";
+        let mut s_ins = "UNKNOWN".to_string();
         let mut opt_ins = CPU::decode(opcode, cb);
         i += 1;
+        pc += 1;
         read_bytes += 1;
 
         match opt_ins {
@@ -119,16 +120,38 @@ fn main() {
                     opcode = gb.memory.borrow().read(pc);
                     ins = CPU::decode(opcode, cb).unwrap();
                     s += format!("{:02X} ", opcode).as_str();
-                    s_ins = ins.name;
+                    s_ins = ins.name.to_string();
                     pc += 1;
                     read_bytes +=1;
                 }
+                let mut shift: u16 = 0;
+                let mut immediate_val: u16 = 0;
                 for j in read_bytes as u8..ins.size {
-                    s += format!("{:02X} ", gb.memory.borrow().read(pc)).as_str();
+                    let val = gb.memory.borrow().read(pc) as u16;
+                    s += format!("{:02X} ", val).as_str();
+                    immediate_val |= val << shift;
                     pc += 1;
                     read_bytes +=1;
+                    shift += 8;
                 }
-                s_ins = ins.name;
+
+                s_ins = ins.name.to_string();
+                match ins.size {
+                    2 => {
+                        let fmt = format!("${:02X}", immediate_val);
+                        let new_s_ins = s_ins.replace("imm8", fmt.as_str());
+                        s_ins = new_s_ins;
+                        let fmt = format!("{}", immediate_val as i8);
+                        let new_s_ins = s_ins.replace("e8", fmt.as_str());
+                        s_ins =new_s_ins;
+                    }
+                    3 => {
+                        let fmt = format!("${:04X}", immediate_val);
+                        let new_s_ins = s_ins.replace("imm16", fmt.as_str());
+                        s_ins = new_s_ins;
+                    }
+                    _ => {}
+                }
             }
         }
 
@@ -137,7 +160,7 @@ fn main() {
             read_bytes +=1;
         }
         gb.cycle();
-        println!("{:#06X} |  {} |  {}", addr, s, s_ins);
+        println!("{:04} |  {:#06X} |  {} |  {}", i, addr, s, s_ins);
     }
 
     println!();
