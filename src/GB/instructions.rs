@@ -6,6 +6,7 @@ mod test_subset;
 use crate::GB::CPU::CPU;
 use crate::GB::debug_print;
 use crate::GB::registers::{FlagBits, Flags};
+use crate::GB::memory::{UseMemory};
 
 #[derive(Debug, Clone)]
 pub struct Instruction {
@@ -110,7 +111,7 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         size: 1,
         flags: &[],
         execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.ram.write(cpu.registers.get_bc(), cpu.registers.get_a());
+            cpu.write_memory(cpu.registers.get_bc(), cpu.registers.get_a());
             opcode.cycles as u64
         },
     });
@@ -194,8 +195,8 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
             let byte_low_addr = cpu.fetch_next();
             let byte_high_addr = cpu.fetch_next();
             let imm16_address: u16 = (byte_high_addr as u16) << 8 | (byte_low_addr as u16) & 0xFF;
-            cpu.ram.write(imm16_address, (cpu.registers.get_sp() & 0xFF) as u8);
-            cpu.ram.write(imm16_address + 1, (cpu.registers.get_sp() >> 8) as u8);
+            cpu.write_memory(imm16_address, (cpu.registers.get_sp() & 0xFF) as u8);
+            cpu.write_memory(imm16_address + 1, (cpu.registers.get_sp() >> 8) as u8);
             opcode.cycles as u64
         },
     });
@@ -228,7 +229,7 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         size: 1,
         flags: &[],
         execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.registers.set_a(cpu.ram.read(cpu.registers.get_bc()));
+            cpu.registers.set_a(cpu.read_memory(cpu.registers.get_bc()));
             opcode.cycles as u64
         },
     });
@@ -335,7 +336,7 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         size: 1,
         flags: &[],
         execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.ram.write(cpu.registers.get_de(), cpu.registers.get_a());
+            cpu.write_memory(cpu.registers.get_de(), cpu.registers.get_a());
             opcode.cycles as u64
         },
     });
@@ -451,7 +452,7 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         size: 1,
         flags: &[],
         execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.registers.set_a(cpu.ram.read(cpu.registers.get_de()));
+            cpu.registers.set_a(cpu.read_memory(cpu.registers.get_de()));
             opcode.cycles as u64
         },
     });
@@ -563,7 +564,7 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         size: 1,
         flags: &[],
         execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.ram.write(cpu.registers.get_hl(), cpu.registers.get_a());
+            cpu.write_memory(cpu.registers.get_hl(), cpu.registers.get_a());
             cpu.registers.set_hl(cpu.registers.get_hl() + 1);
             opcode.cycles as u64
         },
@@ -674,7 +675,7 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         size: 1,
         flags: &[],
         execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.registers.set_a(cpu.ram.read(cpu.registers.get_hl()));
+            cpu.registers.set_a(cpu.read_memory(cpu.registers.get_hl()));
             cpu.registers.set_hl(cpu.registers.get_hl().wrapping_add(1));
             opcode.cycles as u64
         },
@@ -784,7 +785,7 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         size: 1,
         flags: &[],
         execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.ram.write(cpu.registers.get_hl(), cpu.registers.get_a());
+            cpu.write_memory(cpu.registers.get_hl(), cpu.registers.get_a());
             cpu.registers.set_hl(cpu.registers.get_hl() - 1);
             opcode.cycles as u64
         },
@@ -807,10 +808,10 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         size: 1,
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H],
         execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let original_hl_ram = cpu.ram.read(cpu.registers.get_hl());
-            cpu.ram.write(cpu.registers.get_hl(), original_hl_ram.wrapping_add(1));
-            cpu.registers.set_half_carry_flag((cpu.ram.read(cpu.registers.get_hl()) & 0x0F) < (original_hl_ram & 0x0F));
-            cpu.registers.set_zero_flag(cpu.ram.read(cpu.registers.get_hl()) == 0);
+            let original_hl_ram = cpu.read_memory(cpu.registers.get_hl());
+            cpu.write_memory(cpu.registers.get_hl(), original_hl_ram.wrapping_add(1));
+            cpu.registers.set_half_carry_flag((cpu.read_memory(cpu.registers.get_hl()) & 0x0F) < (original_hl_ram & 0x0F));
+            cpu.registers.set_zero_flag(cpu.read_memory(cpu.registers.get_hl()) == 0);
             cpu.registers.set_negative_flag(false);
             opcode.cycles as u64
         },
@@ -822,10 +823,10 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         size: 1,
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H],
         execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let original_byte = cpu.ram.read(cpu.registers.get_hl());
-            cpu.ram.write(cpu.registers.get_hl(), original_byte.wrapping_sub(1));
-            cpu.registers.set_half_carry_flag((cpu.ram.read(cpu.registers.get_hl()) & 0x0F) > (original_byte & 0x0F));
-            cpu.registers.set_zero_flag(cpu.ram.read(cpu.registers.get_hl()) == 0);
+            let original_byte = cpu.read_memory(cpu.registers.get_hl());
+            cpu.write_memory(cpu.registers.get_hl(), original_byte.wrapping_sub(1));
+            cpu.registers.set_half_carry_flag((cpu.read_memory(cpu.registers.get_hl()) & 0x0F) > (original_byte & 0x0F));
+            cpu.registers.set_zero_flag(cpu.read_memory(cpu.registers.get_hl()) == 0);
             cpu.registers.set_negative_flag(true);
             opcode.cycles as u64
         },
@@ -838,7 +839,7 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         flags: &[],
         execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
             let byte = cpu.fetch_next();
-            cpu.ram.write(cpu.registers.get_hl(), byte);
+            cpu.write_memory(cpu.registers.get_hl(), byte);
             opcode.cycles as u64
         },
     });
@@ -894,7 +895,7 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         size: 1,
         flags: &[],
         execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.registers.set_a(cpu.ram.read(cpu.registers.get_hl()));
+            cpu.registers.set_a(cpu.read_memory(cpu.registers.get_hl()));
             cpu.registers.set_hl(cpu.registers.get_hl().wrapping_sub(1));
             opcode.cycles as u64
         },
@@ -1039,7 +1040,7 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         size: 1,
         flags: &[],
         execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.registers.set_b(cpu.ram.read(cpu.registers.get_hl()));
+            cpu.registers.set_b(cpu.read_memory(cpu.registers.get_hl()));
             opcode.cycles as u64
         },
     });
@@ -1127,7 +1128,7 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         size: 1,
         flags: &[],
         execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.registers.set_c(cpu.ram.read(cpu.registers.get_hl()));
+            cpu.registers.set_c(cpu.read_memory(cpu.registers.get_hl()));
             opcode.cycles as u64
         },
     });
@@ -1215,7 +1216,7 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         size: 1,
         flags: &[],
         execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.registers.set_d(cpu.ram.read(cpu.registers.get_hl()));
+            cpu.registers.set_d(cpu.read_memory(cpu.registers.get_hl()));
             opcode.cycles as u64
         },
     });
@@ -1303,7 +1304,7 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         size: 1,
         flags: &[],
         execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.registers.set_e(cpu.ram.read(cpu.registers.get_hl()));
+            cpu.registers.set_e(cpu.read_memory(cpu.registers.get_hl()));
             opcode.cycles as u64
         },
     });
@@ -1391,7 +1392,7 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         size: 1,
         flags: &[],
         execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.registers.set_h(cpu.ram.read(cpu.registers.get_hl()));
+            cpu.registers.set_h(cpu.read_memory(cpu.registers.get_hl()));
             opcode.cycles as u64
         },
     });
@@ -1479,7 +1480,7 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         size: 1,
         flags: &[],
         execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.registers.set_l(cpu.ram.read(cpu.registers.get_hl()));
+            cpu.registers.set_l(cpu.read_memory(cpu.registers.get_hl()));
             opcode.cycles as u64
         },
     });
@@ -1501,7 +1502,7 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         size: 1,
         flags: &[],
         execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.ram.write(cpu.registers.get_hl(), cpu.registers.get_b());
+            cpu.write_memory(cpu.registers.get_hl(), cpu.registers.get_b());
             opcode.cycles as u64
         },
     });
@@ -1512,7 +1513,7 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         size: 1,
         flags: &[],
         execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.ram.write(cpu.registers.get_hl(), cpu.registers.get_c());
+            cpu.write_memory(cpu.registers.get_hl(), cpu.registers.get_c());
             opcode.cycles as u64
         },
     });
@@ -1523,7 +1524,7 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         size: 1,
         flags: &[],
         execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.ram.write(cpu.registers.get_hl(), cpu.registers.get_d());
+            cpu.write_memory(cpu.registers.get_hl(), cpu.registers.get_d());
             opcode.cycles as u64
         },
     });
@@ -1534,7 +1535,7 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         size: 1,
         flags: &[],
         execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.ram.write(cpu.registers.get_hl(), cpu.registers.get_e());
+            cpu.write_memory(cpu.registers.get_hl(), cpu.registers.get_e());
             opcode.cycles as u64
         },
     });
@@ -1545,7 +1546,7 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         size: 1,
         flags: &[],
         execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.ram.write(cpu.registers.get_hl(), cpu.registers.get_h());
+            cpu.write_memory(cpu.registers.get_hl(), cpu.registers.get_h());
             opcode.cycles as u64
         },
     });
@@ -1556,7 +1557,7 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         size: 1,
         flags: &[],
         execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.ram.write(cpu.registers.get_hl(), cpu.registers.get_l());
+            cpu.write_memory(cpu.registers.get_hl(), cpu.registers.get_l());
             opcode.cycles as u64
         },
     });
@@ -1578,7 +1579,7 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         size: 1,
         flags: &[],
         execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.ram.write(cpu.registers.get_hl(), cpu.registers.get_a());
+            cpu.write_memory(cpu.registers.get_hl(), cpu.registers.get_a());
             opcode.cycles as u64
         },
     });
@@ -1655,7 +1656,7 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         size: 1,
         flags: &[],
         execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.registers.set_a(cpu.ram.read(cpu.registers.get_hl()));
+            cpu.registers.set_a(cpu.read_memory(cpu.registers.get_hl()));
             opcode.cycles as u64
         },
     });
@@ -1780,7 +1781,7 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
         execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
             let old_value = cpu.registers.get_a();
-            let new_value = old_value.wrapping_add(cpu.ram.read(cpu.registers.get_hl()));
+            let new_value = old_value.wrapping_add(cpu.read_memory(cpu.registers.get_hl()));
             cpu.registers.set_a(new_value);
             cpu.registers.set_zero_flag(new_value == 0);
             cpu.registers.set_negative_flag(false);
@@ -1922,7 +1923,7 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
         execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
             let old_value = cpu.registers.get_a();
-            let intermediate_value = old_value.wrapping_add(cpu.ram.read(cpu.registers.get_hl()));
+            let intermediate_value = old_value.wrapping_add(cpu.read_memory(cpu.registers.get_hl()));
             let new_value = intermediate_value.wrapping_add(cpu.registers.get_carry_flag() as u8);
             cpu.registers.set_a(new_value);
             cpu.registers.set_zero_flag(new_value == 0);
@@ -2060,7 +2061,7 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
         execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
             let old_value = cpu.registers.get_a();
-            let new_value = old_value.wrapping_sub(cpu.ram.read(cpu.registers.get_hl()));
+            let new_value = old_value.wrapping_sub(cpu.read_memory(cpu.registers.get_hl()));
             cpu.registers.set_a(new_value);
             cpu.registers.set_zero_flag(new_value == 0);
             cpu.registers.set_negative_flag(true);
@@ -2208,7 +2209,7 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
         execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
             let old_value = cpu.registers.get_a();
-            let intra_value = old_value.wrapping_sub(cpu.ram.read(cpu.registers.get_hl()));
+            let intra_value = old_value.wrapping_sub(cpu.read_memory(cpu.registers.get_hl()));
             let new_value = intra_value.wrapping_sub(cpu.registers.get_carry_flag() as u8);
             cpu.registers.set_a(new_value);
             cpu.registers.set_zero_flag(new_value == 0);
@@ -2349,7 +2350,7 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
         execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
             let old_value = cpu.registers.get_a();
-            let new_value = old_value & cpu.ram.read(cpu.registers.get_hl());
+            let new_value = old_value & cpu.read_memory(cpu.registers.get_hl());
             cpu.registers.set_a(new_value);
             cpu.registers.set_zero_flag(new_value == 0);
             cpu.registers.set_negative_flag(false);
@@ -2485,7 +2486,7 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
         execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
             let old_value = cpu.registers.get_a();
-            let new_value = old_value ^ cpu.ram.read(cpu.registers.get_hl());
+            let new_value = old_value ^ cpu.read_memory(cpu.registers.get_hl());
             cpu.registers.set_a(new_value);
             cpu.registers.set_zero_flag(new_value == 0);
             cpu.registers.set_negative_flag(false);
@@ -2621,7 +2622,7 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
         execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
             let old_value = cpu.registers.get_a();
-            let new_value = old_value | cpu.ram.read(cpu.registers.get_hl());
+            let new_value = old_value | cpu.read_memory(cpu.registers.get_hl());
             cpu.registers.set_a(new_value);
             cpu.registers.set_zero_flag(new_value == 0);
             cpu.registers.set_negative_flag(false);
@@ -2751,7 +2752,7 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
         execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
             let old_value = cpu.registers.get_a();
-            let new_value = old_value.wrapping_sub(cpu.ram.read(cpu.registers.get_hl()));
+            let new_value = old_value.wrapping_sub(cpu.read_memory(cpu.registers.get_hl()));
             cpu.registers.set_zero_flag(new_value == 0);
             cpu.registers.set_negative_flag(true);
             cpu.registers.set_half_carry_flag((new_value & 0x0F) > (old_value & 0x0F));
@@ -3250,7 +3251,7 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
             let byte = (cpu.fetch_next() as u16) & 0xFF;
             let mem_addr = 0xFF00 | byte;
-            cpu.ram.write(mem_addr, cpu.registers.get_a());
+            cpu.write_memory(mem_addr, cpu.registers.get_a());
             opcode.cycles as u64
         },
     });
@@ -3277,7 +3278,7 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
             let byte = (cpu.registers.get_c() as u16) & 0xFF;
             let mem_addr = 0xFF00 | byte;
-            cpu.ram.write(mem_addr, cpu.registers.get_a());
+            cpu.write_memory(mem_addr, cpu.registers.get_a());
             opcode.cycles as u64
         },
     });
@@ -3369,7 +3370,7 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
             let mut imm_address: u16 = 0x00;
             imm_address |= cpu.fetch_next() as u16 & 0xFF;
             imm_address |= (cpu.fetch_next() as u16) << 8;
-            cpu.ram.write(imm_address, cpu.registers.get_a());
+            cpu.write_memory(imm_address, cpu.registers.get_a());
             opcode.cycles as u64
         },
     });
@@ -3414,7 +3415,7 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
             let byte = (cpu.fetch_next() as u16) & 0xFF;
             let mem_addr = 0xFF00 | byte;
-            cpu.registers.set_a(cpu.ram.read(mem_addr));
+            cpu.registers.set_a(cpu.read_memory(mem_addr));
             opcode.cycles as u64
         },
     });
@@ -3441,7 +3442,7 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
             let byte = (cpu.registers.get_c() as u16) & 0xFF;
             let mem_addr = 0xFF00 | byte;
-            cpu.registers.set_a(cpu.ram.read(mem_addr));
+            cpu.registers.set_a(cpu.read_memory(mem_addr));
             opcode.cycles as u64
         },
     });
@@ -3545,7 +3546,7 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
             let mut imm_address: u16 = 0x00;
             imm_address |= cpu.fetch_next() as u16 & 0xFF;
             imm_address |= (cpu.fetch_next() as u16) << 8;
-            cpu.registers.set_a(cpu.ram.read(imm_address));
+            cpu.registers.set_a(cpu.read_memory(imm_address));
             opcode.cycles as u64
         },
     });
@@ -3624,10 +3625,10 @@ const fn create_cb_opcodes() -> [Option<&'static Instruction>; 256] {
                 size: 2,
                 flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
                 execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-                    let old_val = cpu.ram.read(cpu.registers.$get_reg());
+                    let old_val = cpu.read_memory(cpu.registers.$get_reg());
                     cpu.registers.set_carry_flag((old_val & 0b1000_0000) != 0);
                     let new_val = old_val.wrapping_shl(1) | cpu.registers.get_carry_flag() as u8;
-                    cpu.ram.write(cpu.registers.$get_reg(), new_val);
+                    cpu.write_memory(cpu.registers.$get_reg(), new_val);
                     cpu.registers.set_zero_flag(new_val == 0);
                     cpu.registers.set_negative_flag(false);
                     cpu.registers.set_half_carry_flag(false);
@@ -3665,11 +3666,11 @@ const fn create_cb_opcodes() -> [Option<&'static Instruction>; 256] {
                 size: 2,
                 flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
                 execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-                    let old_val = cpu.ram.read(cpu.registers.$get_reg());
+                    let old_val = cpu.read_memory(cpu.registers.$get_reg());
                     let old_carry = cpu.registers.get_carry_flag() as u8;
                     cpu.registers.set_carry_flag((old_val & 0b1000_0000) != 0);
                     let new_val = old_val.wrapping_shl(1) | old_carry as u8;
-                    cpu.ram.write(cpu.registers.$get_reg(), new_val);
+                    cpu.write_memory(cpu.registers.$get_reg(), new_val);
                     cpu.registers.set_zero_flag(new_val == 0);
                     cpu.registers.set_negative_flag(false);
                     cpu.registers.set_half_carry_flag(false);
@@ -3706,10 +3707,10 @@ const fn create_cb_opcodes() -> [Option<&'static Instruction>; 256] {
                 size: 2,
                 flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
                 execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-                    let old_val = cpu.ram.read(cpu.registers.$get_reg());
+                    let old_val = cpu.read_memory(cpu.registers.$get_reg());
                     cpu.registers.set_carry_flag((old_val & 0b1000_0000) != 0);
                     let new_val = old_val.wrapping_shl(1);
-                    cpu.ram.write(cpu.registers.$get_reg(), new_val);
+                    cpu.write_memory(cpu.registers.$get_reg(), new_val);
                     cpu.registers.set_zero_flag(new_val == 0);
                     cpu.registers.set_negative_flag(false);
                     cpu.registers.set_half_carry_flag(false);
@@ -3747,10 +3748,10 @@ const fn create_cb_opcodes() -> [Option<&'static Instruction>; 256] {
                 size: 2,
                 flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
                 execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-                    let old_val = cpu.ram.read(cpu.registers.$get_reg());
+                    let old_val = cpu.read_memory(cpu.registers.$get_reg());
                     cpu.registers.set_carry_flag((old_val & 0b0000_0001) != 0);
                     let new_val = old_val.wrapping_shr(1) | ((cpu.registers.get_carry_flag() as u8) << 7);
-                    cpu.ram.write(cpu.registers.$get_reg(), new_val);
+                    cpu.write_memory(cpu.registers.$get_reg(), new_val);
                     cpu.registers.set_zero_flag(new_val == 0);
                     cpu.registers.set_negative_flag(false);
                     cpu.registers.set_half_carry_flag(false);
@@ -3788,11 +3789,11 @@ const fn create_cb_opcodes() -> [Option<&'static Instruction>; 256] {
                 size: 2,
                 flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
                 execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-                    let old_val = cpu.ram.read(cpu.registers.$get_reg());
+                    let old_val = cpu.read_memory(cpu.registers.$get_reg());
                     let old_carry = cpu.registers.get_carry_flag() as u8;
                     cpu.registers.set_carry_flag((old_val & 0b0000_0001) != 0);
                     let new_val = old_val.wrapping_shr(1) | (old_carry << 7);
-                    cpu.ram.write(cpu.registers.$get_reg(), new_val);
+                    cpu.write_memory(cpu.registers.$get_reg(), new_val);
                     cpu.registers.set_zero_flag(new_val == 0);
                     cpu.registers.set_negative_flag(false);
                     cpu.registers.set_half_carry_flag(false);
@@ -3829,10 +3830,10 @@ const fn create_cb_opcodes() -> [Option<&'static Instruction>; 256] {
                 size: 2,
                 flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
                 execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-                    let old_val = cpu.ram.read(cpu.registers.$get_reg());
+                    let old_val = cpu.read_memory(cpu.registers.$get_reg());
                     cpu.registers.set_carry_flag((old_val & 0b0000_0001) != 0);
                     let new_val = old_val.wrapping_shr(1) | (old_val & 0b1000_0000);
-                    cpu.ram.write(cpu.registers.$get_reg(), new_val);
+                    cpu.write_memory(cpu.registers.$get_reg(), new_val);
                     cpu.registers.set_zero_flag(new_val == 0);
                     cpu.registers.set_negative_flag(false);
                     cpu.registers.set_half_carry_flag(false);
@@ -3869,10 +3870,10 @@ const fn create_cb_opcodes() -> [Option<&'static Instruction>; 256] {
                 size: 2,
                 flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
                 execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-                    let old_val = cpu.ram.read(cpu.registers.$get_reg());
+                    let old_val = cpu.read_memory(cpu.registers.$get_reg());
                     cpu.registers.set_carry_flag((old_val & 0b0000_0001) != 0);
                     let new_val = old_val.wrapping_shr(1);
-                    cpu.ram.write(cpu.registers.$get_reg(), new_val);
+                    cpu.write_memory(cpu.registers.$get_reg(), new_val);
                     cpu.registers.set_zero_flag(new_val == 0);
                     cpu.registers.set_negative_flag(false);
                     cpu.registers.set_half_carry_flag(false);
@@ -3912,11 +3913,11 @@ const fn create_cb_opcodes() -> [Option<&'static Instruction>; 256] {
                 size: 2,
                 flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
                 execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-                    let old_val = cpu.ram.read(cpu.registers.$get_reg());
+                    let old_val = cpu.read_memory(cpu.registers.$get_reg());
                     let old_low_nibble =  old_val & 0x0F;
                     let old_high_nibble =  old_val & 0xF0;
                     let new_val = (old_low_nibble << 4) | (old_high_nibble >> 4);
-                    cpu.ram.write(cpu.registers.$get_reg(), new_val);
+                    cpu.write_memory(cpu.registers.$get_reg(), new_val);
                     cpu.registers.set_zero_flag(new_val == 0);
                     cpu.registers.set_negative_flag(false);
                     cpu.registers.set_half_carry_flag(false);
@@ -3953,7 +3954,7 @@ const fn create_cb_opcodes() -> [Option<&'static Instruction>; 256] {
                 size: 2,
                 flags: &[FlagBits::Z, FlagBits::N, FlagBits::H],
                 execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-                    let val = cpu.ram.read(cpu.registers.$get_reg()) & (1 << $bit);
+                    let val = cpu.read_memory(cpu.registers.$get_reg()) & (1 << $bit);
                     cpu.registers.set_zero_flag(val == 0);
                     cpu.registers.set_negative_flag(false);
                     cpu.registers.set_half_carry_flag(true);
@@ -3988,7 +3989,7 @@ const fn create_cb_opcodes() -> [Option<&'static Instruction>; 256] {
                 flags: &[],
                 execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
                     let mask: u8 = !(1 << $bit);
-                    cpu.ram.write(cpu.registers.$get_reg(), cpu.ram.read(cpu.registers.$get_reg()) & mask);
+                    cpu.write_memory(cpu.registers.$get_reg(), cpu.read_memory(cpu.registers.$get_reg()) & mask);
                     opcode.cycles as u64
                 }
             })
@@ -4019,7 +4020,7 @@ const fn create_cb_opcodes() -> [Option<&'static Instruction>; 256] {
                 flags: &[],
                 execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
                     let mask: u8 = (1 << $bit);
-                    cpu.ram.write(cpu.registers.$get_reg(), cpu.ram.read(cpu.registers.$get_reg()) | mask);
+                    cpu.write_memory(cpu.registers.$get_reg(), cpu.read_memory(cpu.registers.$get_reg()) | mask);
                     opcode.cycles as u64
                 }
             })

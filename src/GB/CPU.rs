@@ -15,7 +15,7 @@ mod test {
     use std::cell::RefCell;
     use std::rc::Rc;
     use crate::GB::CPU::CPU;
-    use crate::GB::memory::{RAM, WRAM_ADDRESS, WRAM_SIZE};
+    use crate::GB::memory::{RAM, UseMemory, WRAM_ADDRESS, WRAM_SIZE};
 
     #[test]
     fn cpu_new_8bit_registers() {
@@ -72,7 +72,7 @@ mod test {
         let test_value: u8 = 0x81;
         cpu.push(test_value);
         assert_eq!(cpu.registers.get_sp(), start_sp - 1);
-        assert_eq!(cpu.ram.read(start_sp), test_value);
+        assert_eq!(cpu.read_memory(start_sp), test_value);
 
         let popped_val = cpu.pop();
         assert_eq!(cpu.registers.get_sp(), start_sp);
@@ -82,7 +82,6 @@ mod test {
 
 pub struct CPU {
     pub registers: registers::Registers,
-    pub ram: memory::RAM,
     pub ime: bool,      // Interrupt Master Enable - True if you want to enable and intercept interrupts
     pub opcode: u8,     // Running Instruction Opcode
     pub cycles: u64,     // Total Cycles Count
@@ -95,7 +94,6 @@ impl CPU {
     pub fn new(memory: Rc<RefCell<RAM>>) -> Self {
         Self {
             registers: registers::Registers::new(),
-            ram: memory::RAM::new(),
             ime: false,
             opcode: 0,
             cycles: 0,
@@ -106,7 +104,8 @@ impl CPU {
     }
     
     pub fn fetch_next(&mut self) -> u8 {
-        self.ram.read(self.registers.get_and_inc_pc())
+        let addr = self.registers.get_and_inc_pc();
+        self.read_memory(addr)
     }
 
     pub fn decode(opcode: u8, cb_opcode: bool) -> Option<&'static instructions::Instruction> {
@@ -137,7 +136,7 @@ impl CPU {
     pub fn load(&mut self, data: &Vec<u8>) {
         let mut addr: u16 = 0;
         for byte in data {
-            self.ram.write(USER_PROGRAM_ADDRESS as u16 + addr, *byte);
+            self.write_memory(USER_PROGRAM_ADDRESS as u16 + addr, *byte);
             addr += 1;
         }
         self.registers.set_pc(USER_PROGRAM_ADDRESS as u16);
@@ -147,7 +146,7 @@ impl CPU {
         CPU Push 1-byte using SP register (to not confuse with instruction PUSH r16, that PUSH in a 2-bytes value from a double-register)
      */
     pub fn push(&mut self, byte: u8) {
-        self.ram.write(self.registers.get_sp(), byte);
+        self.write_memory(self.registers.get_sp(), byte);
         self.registers.set_sp(self.registers.get_sp() - 1);
     }
 
@@ -156,7 +155,7 @@ impl CPU {
      */
     pub fn pop(&mut self) -> u8 {
         self.registers.set_sp(self.registers.get_sp() + 1);
-        self.ram.read(self.registers.get_sp())
+        self.read_memory(self.registers.get_sp())
     }
 
     pub fn update_divider(&mut self, cycles: u64) {

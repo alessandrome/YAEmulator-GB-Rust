@@ -4,6 +4,7 @@ use std::rc::Rc;
 use crate::GB::cartridge::{Cartridge, UseCartridge};
 use crate::GB::memory::{RAM};
 use crate::GB::memory::BIOS::BIOS;
+use crate::GB::cartridge::addresses as cartridge_addresses;
 
 pub mod registers;
 pub mod instructions;
@@ -61,7 +62,7 @@ impl GB {
 
     pub fn boot(&mut self) {
         self.is_booting = true;
-        self.cpu.ram.boot_load(&self.bios);
+        self.memory.borrow_mut().boot_load(&self.bios);
         self.cpu.registers.set_pc(0);
     }
 
@@ -80,6 +81,11 @@ impl GB {
     pub fn cycle(&mut self) {
         let mut cycles = 0;
         cycles = self.cpu.execute_next();
+    }
+
+    pub fn set_use_boot(&mut self, use_boot: bool) {
+        self.is_booting = use_boot;
+        self.cpu.registers.set_pc(cartridge_addresses::ENTRY_POINT as u16);
     }
 
     pub fn get_cartridge(&self) -> Ref<'_, Option<Cartridge>> {

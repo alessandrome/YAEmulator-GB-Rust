@@ -1,7 +1,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 use crate::GB::CPU::{CPU};
-use crate::GB::memory::{self, RAM, USER_PROGRAM_ADDRESS, WRAM_ADDRESS};
+use crate::GB::memory::{self, RAM, UseMemory, USER_PROGRAM_ADDRESS, WRAM_ADDRESS};
 
 macro_rules! test_flags {
         ($cpu:ident, $zero:expr, $negative:expr, $half:expr, $carry:expr) => {
@@ -206,12 +206,12 @@ macro_rules! test_ld_ar16_r8 {
                 let register_copy = cpu.registers;
                 cpu.registers.$set_reg_from(test_value_1);
                 cpu.registers.$set_reg_addr(test_address_1);
-                cpu.ram.write(test_address_1, 0x00);
+                cpu.write_memory(test_address_1, 0x00);
                 let cycles = cpu.execute_next();
                 assert_eq!(cycles, 2);
                 assert_eq!(cpu.registers.$get_reg_from(), test_value_1);
                 assert_eq!(cpu.registers.$get_reg_addr(), test_address_1);
-                assert_eq!(cpu.ram.read(test_address_1), test_value_1);
+                assert_eq!(cpu.read_memory(test_address_1), test_value_1);
                 // Flags untouched
                 test_flags!(
                     cpu,
@@ -238,11 +238,11 @@ macro_rules! test_ld_imm16_r8 {
                 cpu.load(&program_1);
                 let register_copy = cpu.registers;
                 cpu.registers.$set_from(test_value_1);
-                cpu.ram.write(test_address_1, 0x00);
+                cpu.write_memory(test_address_1, 0x00);
                 let cycles = cpu.execute_next();
                 assert_eq!(cycles, 4);
                 assert_eq!(cpu.registers.$get_from(), test_value_1);
-                assert_eq!(cpu.ram.read(test_address_1), test_value_1);
+                assert_eq!(cpu.read_memory(test_address_1), test_value_1);
                 // Flags untouched
                 test_flags!(
                     cpu,
@@ -269,11 +269,11 @@ macro_rules! test_ld_r8_imm16 {
                 cpu.load(&program_1);
                 let register_copy = cpu.registers;
                 cpu.registers.$set_to(0);
-                cpu.ram.write(test_address_1, test_value_1);
+                cpu.write_memory(test_address_1, test_value_1);
                 let cycles = cpu.execute_next();
                 assert_eq!(cycles, 4);
                 assert_eq!(cpu.registers.$get_to(), test_value_1);
-                assert_eq!(cpu.ram.read(test_address_1), test_value_1);
+                assert_eq!(cpu.read_memory(test_address_1), test_value_1);
                 // Flags untouched
                 test_flags!(
                     cpu,
@@ -299,12 +299,12 @@ macro_rules! test_ld_ar16 {
                 let register_copy = cpu.registers;
                 cpu.registers.$set_reg_to(0x00);
                 cpu.registers.$set_reg_addr(test_address);
-                cpu.ram.write(cpu.registers.$get_reg_addr(), test_value);
+                cpu.write_memory(cpu.registers.$get_reg_addr(), test_value);
                 let cycles = cpu.execute_next();
                 assert_eq!(cycles, 2);
                 assert_eq!(cpu.registers.$get_reg_to(), test_value);
                 assert_eq!(cpu.registers.$get_reg_addr(), test_address);
-                assert_eq!(cpu.ram.read(test_address), test_value);
+                assert_eq!(cpu.read_memory(test_address), test_value);
                 // Flags untouched
                 test_flags!(
                     cpu,
@@ -330,12 +330,12 @@ macro_rules! test_ldh_r8_imm8 {
                 let program: Vec<u8> = vec![$opcode, 0x5A];
                 cpu.load(&program);
                 let registers_copy = cpu.registers;
-                cpu.ram.write(test_addr, if $byte_is_src {test_value} else {0});
+                cpu.write_memory(test_addr, if $byte_is_src {test_value} else {0});
                 cpu.registers.$set_reg(if !$byte_is_src {test_value} else {0});
                 let cycles = cpu.execute_next();
                 assert_eq!(cycles, 3);
                 assert_eq!(cpu.registers.$get_reg(), test_value);
-                assert_eq!(cpu.ram.read(test_addr), test_value);
+                assert_eq!(cpu.read_memory(test_addr), test_value);
                 // Flags untouched
                 test_flags!(
                     cpu,
@@ -361,14 +361,14 @@ macro_rules! test_ldh_r8_r8 {
                 let program: Vec<u8> = vec![$opcode];
                 cpu.load(&program);
                 let registers_copy = cpu.registers;
-                cpu.ram.write(test_addr, if $rtl {test_value} else {0});
+                cpu.write_memory(test_addr, if $rtl {test_value} else {0});
                 cpu.registers.$set_reg_2(test_addr_low);
                 cpu.registers.$set_reg(if !$rtl {test_value} else {0});
                 let cycles = cpu.execute_next();
                 assert_eq!(cycles, 2);
                 assert_eq!(cpu.registers.$get_reg(), test_value);
                 assert_eq!(cpu.registers.$get_reg_2(), test_addr_low);
-                assert_eq!(cpu.ram.read(test_addr), test_value);
+                assert_eq!(cpu.read_memory(test_addr), test_value);
                 // Flags untouched
                 test_flags!(
                     cpu,
@@ -1163,12 +1163,12 @@ macro_rules! test_and_a_r8 {
                 cpu.load(&program_1);
                 cpu.registers.set_a(test_value_1);
                 cpu.registers.set_hl(test_address);
-                cpu.ram.write(test_address, test_value_2);
+                cpu.write_memory(test_address, test_value_2);
                 let mut cycles = cpu.execute_next();
                 assert_eq!(cycles, 2);
                 assert_eq!(cpu.registers.get_a(), expected_value);
                 assert_eq!(cpu.registers.get_hl(), test_address);
-                assert_eq!(cpu.ram.read(test_address), test_value_2);
+                assert_eq!(cpu.read_memory(test_address), test_value_2);
                 // H Flag
                 test_flags!(cpu, false, false, true, false);
 
@@ -1179,12 +1179,12 @@ macro_rules! test_and_a_r8 {
                 cpu.load(&program_1);
                 cpu.registers.set_a(test_value_1);
                 cpu.registers.set_hl(test_address);
-                cpu.ram.write(test_address, test_value_2);
+                cpu.write_memory(test_address, test_value_2);
                 cycles = cpu.execute_next();
                 assert_eq!(cycles, 2);
                 assert_eq!(cpu.registers.get_a(), expected_value);
                 assert_eq!(cpu.registers.get_hl(), test_address);
-                assert_eq!(cpu.ram.read(test_address), test_value_2);
+                assert_eq!(cpu.read_memory(test_address), test_value_2);
                 // Z/H Flags
                 test_flags!(cpu, true, false, true, false);
             }
@@ -1315,12 +1315,12 @@ macro_rules! test_xor_a_r8 {
                 cpu.load(&program_1);
                 cpu.registers.set_a(test_value_1);
                 cpu.registers.set_hl(test_address);
-                cpu.ram.write(test_address, test_value_2);
+                cpu.write_memory(test_address, test_value_2);
                 let mut cycles = cpu.execute_next();
                 assert_eq!(cycles, 2);
                 assert_eq!(cpu.registers.get_a(), expected_value);
                 assert_eq!(cpu.registers.get_hl(), test_address);
-                assert_eq!(cpu.ram.read(test_address), test_value_2);
+                assert_eq!(cpu.read_memory(test_address), test_value_2);
                 // H Flag
                 test_flags!(cpu, false, false, false, false);
 
@@ -1331,12 +1331,12 @@ macro_rules! test_xor_a_r8 {
                 cpu.load(&program_1);
                 cpu.registers.set_a(test_value_1);
                 cpu.registers.set_hl(test_address);
-                cpu.ram.write(test_address, test_value_2);
+                cpu.write_memory(test_address, test_value_2);
                 cycles = cpu.execute_next();
                 assert_eq!(cycles, 2);
                 assert_eq!(cpu.registers.get_a(), expected_value);
                 assert_eq!(cpu.registers.get_hl(), test_address);
-                assert_eq!(cpu.ram.read(test_address), test_value_2);
+                assert_eq!(cpu.read_memory(test_address), test_value_2);
                 // Z/H Flags
                 test_flags!(cpu, false, false, false, false);
 
@@ -1347,12 +1347,12 @@ macro_rules! test_xor_a_r8 {
                 cpu.load(&program_1);
                 cpu.registers.set_a(test_value_1);
                 cpu.registers.set_hl(test_address);
-                cpu.ram.write(test_address, test_value_2);
+                cpu.write_memory(test_address, test_value_2);
                 cycles = cpu.execute_next();
                 assert_eq!(cycles, 2);
                 assert_eq!(cpu.registers.get_a(), expected_value);
                 assert_eq!(cpu.registers.get_hl(), test_address);
-                assert_eq!(cpu.ram.read(test_address), test_value_2);
+                assert_eq!(cpu.read_memory(test_address), test_value_2);
                 // Z/H Flags
                 test_flags!(cpu, true, false, false, false);
             }
@@ -1499,12 +1499,12 @@ macro_rules! test_or_a_r8 {
                 cpu.load(&program_1);
                 cpu.registers.set_a(test_value_1);
                 cpu.registers.set_hl(test_address);
-                cpu.ram.write(test_address, test_value_2);
+                cpu.write_memory(test_address, test_value_2);
                 let mut cycles = cpu.execute_next();
                 assert_eq!(cycles, 2);
                 assert_eq!(cpu.registers.get_a(), expected_value);
                 assert_eq!(cpu.registers.get_hl(), test_address);
-                assert_eq!(cpu.ram.read(test_address), test_value_2);
+                assert_eq!(cpu.read_memory(test_address), test_value_2);
                 // H Flag
                 test_flags!(cpu, false, false, false, false);
 
@@ -1515,12 +1515,12 @@ macro_rules! test_or_a_r8 {
                 cpu.load(&program_1);
                 cpu.registers.set_a(test_value_1);
                 cpu.registers.set_hl(test_address);
-                cpu.ram.write(test_address, test_value_2);
+                cpu.write_memory(test_address, test_value_2);
                 cycles = cpu.execute_next();
                 assert_eq!(cycles, 2);
                 assert_eq!(cpu.registers.get_a(), expected_value);
                 assert_eq!(cpu.registers.get_hl(), test_address);
-                assert_eq!(cpu.ram.read(test_address), test_value_2);
+                assert_eq!(cpu.read_memory(test_address), test_value_2);
                 // Z/H Flags
                 test_flags!(cpu, false, false, false, false);
 
@@ -1531,12 +1531,12 @@ macro_rules! test_or_a_r8 {
                 cpu.load(&program_1);
                 cpu.registers.set_a(test_value_1);
                 cpu.registers.set_hl(test_address);
-                cpu.ram.write(test_address, test_value_2);
+                cpu.write_memory(test_address, test_value_2);
                 cycles = cpu.execute_next();
                 assert_eq!(cycles, 2);
                 assert_eq!(cpu.registers.get_a(), expected_value);
                 assert_eq!(cpu.registers.get_hl(), test_address);
-                assert_eq!(cpu.ram.read(test_address), test_value_2);
+                assert_eq!(cpu.read_memory(test_address), test_value_2);
                 // Z/H Flags
                 test_flags!(cpu, false, false, false, false);
 
@@ -1547,12 +1547,12 @@ macro_rules! test_or_a_r8 {
                 cpu.load(&program_1);
                 cpu.registers.set_a(test_value_1);
                 cpu.registers.set_hl(test_address);
-                cpu.ram.write(test_address, test_value_2);
+                cpu.write_memory(test_address, test_value_2);
                 cycles = cpu.execute_next();
                 assert_eq!(cycles, 2);
                 assert_eq!(cpu.registers.get_a(), expected_value);
                 assert_eq!(cpu.registers.get_hl(), test_address);
-                assert_eq!(cpu.ram.read(test_address), test_value_2);
+                assert_eq!(cpu.read_memory(test_address), test_value_2);
                 // Z/H Flags
                 test_flags!(cpu, true, false, false, false);
             }
@@ -1737,12 +1737,12 @@ macro_rules! test_cp_a_r8 {
                 cpu.load(&program_1);
                 cpu.registers.set_a(test_value_1);
                 cpu.registers.set_hl(test_address);
-                cpu.ram.write(test_address, test_value_2);
+                cpu.write_memory(test_address, test_value_2);
                 let mut cycles = cpu.execute_next();
                 assert_eq!(cycles, 2);
                 assert_eq!(cpu.registers.get_a(), test_value_1);
                 assert_eq!(cpu.registers.get_hl(), test_address);
-                assert_eq!(cpu.ram.read(test_address), test_value_2);
+                assert_eq!(cpu.read_memory(test_address), test_value_2);
                 // No Flags
                 test_flags!(cpu, false, true, false, false);
 
@@ -1753,12 +1753,12 @@ macro_rules! test_cp_a_r8 {
                 cpu.load(&program_1);
                 cpu.registers.set_a(test_value_1);
                 cpu.registers.set_hl(test_address);
-                cpu.ram.write(test_address, test_value_2);
+                cpu.write_memory(test_address, test_value_2);
                 cycles = cpu.execute_next();
                 assert_eq!(cycles, 2);
                 assert_eq!(cpu.registers.get_a(), test_value_1);
                 assert_eq!(cpu.registers.get_hl(), test_address);
-                assert_eq!(cpu.ram.read(test_address), test_value_2);
+                assert_eq!(cpu.read_memory(test_address), test_value_2);
                 // Z/N Flags
                 test_flags!(cpu, true, true, false, false);
 
@@ -1769,12 +1769,12 @@ macro_rules! test_cp_a_r8 {
                 cpu.load(&program_1);
                 cpu.registers.set_a(test_value_1);
                 cpu.registers.set_hl(test_address);
-                cpu.ram.write(test_address, test_value_2);
+                cpu.write_memory(test_address, test_value_2);
                 cycles = cpu.execute_next();
                 assert_eq!(cycles, 2);
                 assert_eq!(cpu.registers.get_a(), test_value_1);
                 assert_eq!(cpu.registers.get_hl(), test_address);
-                assert_eq!(cpu.ram.read(test_address), test_value_2);
+                assert_eq!(cpu.read_memory(test_address), test_value_2);
                 // N/H Flag
                 test_flags!(cpu, false, true, true, false);
 
@@ -1785,12 +1785,12 @@ macro_rules! test_cp_a_r8 {
                 cpu.load(&program_1);
                 cpu.registers.set_a(test_value_1);
                 cpu.registers.set_hl(test_address);
-                cpu.ram.write(test_address, test_value_2);
+                cpu.write_memory(test_address, test_value_2);
                 cycles = cpu.execute_next();
                 assert_eq!(cycles, 2);
                 assert_eq!(cpu.registers.get_a(), test_value_1);
                 assert_eq!(cpu.registers.get_hl(), test_address);
-                assert_eq!(cpu.ram.read(test_address), test_value_2);
+                assert_eq!(cpu.read_memory(test_address), test_value_2);
                 // N/C Flag
                 test_flags!(cpu, false, true, false, true);
 
@@ -1801,12 +1801,12 @@ macro_rules! test_cp_a_r8 {
                 cpu.load(&program_1);
                 cpu.registers.set_a(test_value_1);
                 cpu.registers.set_hl(test_address);
-                cpu.ram.write(test_address, test_value_2);
+                cpu.write_memory(test_address, test_value_2);
                 cycles = cpu.execute_next();
                 assert_eq!(cycles, 2);
                 assert_eq!(cpu.registers.get_a(), test_value_1);
                 assert_eq!(cpu.registers.get_hl(), test_address);
-                assert_eq!(cpu.ram.read(test_address), test_value_2);
+                assert_eq!(cpu.read_memory(test_address), test_value_2);
                 // N/H/C Flag
                 test_flags!(cpu, false, true, true, true);
             }
@@ -1931,8 +1931,8 @@ macro_rules! test_call {
                 assert_eq!(cycles, 6);
                 assert_eq!(cpu.registers.get_sp(), registers_copy.get_sp() - 2);
                 assert_eq!(cpu.registers.get_pc(), test_call_address);
-                assert_eq!(cpu.ram.read(cpu.registers.get_sp() + 1), return_address_low);
-                assert_eq!(cpu.ram.read(cpu.registers.get_sp() + 2), return_address_high);
+                assert_eq!(cpu.read_memory(cpu.registers.get_sp() + 1), return_address_low);
+                assert_eq!(cpu.read_memory(cpu.registers.get_sp() + 2), return_address_high);
             }
         };
         ($opcode:expr, $func:ident, $inverse:expr, $set_flag:ident, $get_flag:ident) => {
@@ -1963,8 +1963,8 @@ macro_rules! test_call {
                 assert_eq!(cycles, 6);
                 assert_eq!(cpu.registers.get_sp(), registers_copy.get_sp() - 2);
                 assert_eq!(cpu.registers.get_pc(), test_call_address);
-                assert_eq!(cpu.ram.read(cpu.registers.get_sp() + 1), return_address_low);
-                assert_eq!(cpu.ram.read(cpu.registers.get_sp() + 2), return_address_high);
+                assert_eq!(cpu.read_memory(cpu.registers.get_sp() + 1), return_address_low);
+                assert_eq!(cpu.read_memory(cpu.registers.get_sp() + 2), return_address_high);
             }
         };
     }
@@ -2037,8 +2037,8 @@ macro_rules! test_call {
                 assert_eq!(cycles, 6);
                 assert_eq!(cpu.registers.get_sp(), registers_copy.get_sp() - 2);
                 assert_eq!(cpu.registers.get_pc(), test_call_address);
-                assert_eq!(cpu.ram.read(cpu.registers.get_sp() + 1), test_return_address_low);
-                assert_eq!(cpu.ram.read(cpu.registers.get_sp() + 2), test_return_address_high);
+                assert_eq!(cpu.read_memory(cpu.registers.get_sp() + 1), test_return_address_low);
+                assert_eq!(cpu.read_memory(cpu.registers.get_sp() + 2), test_return_address_high);
             }
         };
         ($opcode:expr, $func:ident, $inverse:expr, $set_flag:ident, $get_flag:ident) => {
@@ -2069,8 +2069,8 @@ macro_rules! test_call {
                 assert_eq!(cycles, 6);
                 assert_eq!(cpu.registers.get_sp(), registers_copy.get_sp() - 2);
                 assert_eq!(cpu.registers.get_pc(), test_call_address);
-                assert_eq!(cpu.ram.read(cpu.registers.get_sp() + 1), test_return_address_low);
-                assert_eq!(cpu.ram.read(cpu.registers.get_sp() + 2), test_return_address_high);
+                assert_eq!(cpu.read_memory(cpu.registers.get_sp() + 1), test_return_address_low);
+                assert_eq!(cpu.read_memory(cpu.registers.get_sp() + 2), test_return_address_high);
             }
         };
     }
@@ -2179,11 +2179,11 @@ macro_rules! test_push {
                 assert_eq!(cycles, 3);
                 assert_eq!(cpu.registers.$get_reg(), if stringify!($get_reg) == "get_af" {test_value & 0xFFF0} else {test_value});
                 assert_eq!(cpu.registers.get_sp(), registers_copy.get_sp() - 2);
-                assert_eq!(cpu.ram.read(cpu.registers.get_sp() + 2), test_high_byte);
+                assert_eq!(cpu.read_memory(cpu.registers.get_sp() + 2), test_high_byte);
                 if (stringify!($get_reg) == "get_af") {
-                    assert_eq!(cpu.ram.read(cpu.registers.get_sp() + 1), test_low_byte & 0xF0);
+                    assert_eq!(cpu.read_memory(cpu.registers.get_sp() + 1), test_low_byte & 0xF0);
                 } else {
-                    assert_eq!(cpu.ram.read(cpu.registers.get_sp() + 1), test_low_byte);
+                    assert_eq!(cpu.read_memory(cpu.registers.get_sp() + 1), test_low_byte);
                 }
             }
         };
@@ -2204,8 +2204,8 @@ macro_rules! test_rst {
                 assert_eq!(cycles, 4);
                 assert_eq!(cpu.registers.get_pc(), int_addr);
                 assert_eq!(cpu.registers.get_sp(), registers_copy.get_sp() - 2);
-                assert_eq!(cpu.ram.read(cpu.registers.get_sp() + 1), (expected_return_addr & 0xFF) as u8);
-                assert_eq!(cpu.ram.read(cpu.registers.get_sp() + 2), (expected_return_addr >> 8) as u8);
+                assert_eq!(cpu.read_memory(cpu.registers.get_sp() + 1), (expected_return_addr & 0xFF) as u8);
+                assert_eq!(cpu.read_memory(cpu.registers.get_sp() + 2), (expected_return_addr >> 8) as u8);
                 // Flags untouched
                 test_flags!(
                     cpu,
@@ -2284,8 +2284,8 @@ fn test_0x08_ld__a16__sp() {
     // Check address and data are correctly used
     assert_eq!(cycles, 5);
     assert_eq!(cpu.registers.get_sp(), test_value_1);
-    assert_eq!(cpu.ram.read(test_address_1), 0x89);
-    assert_eq!(cpu.ram.read(test_address_1 + 1), (test_value_1 >> 8) as u8);
+    assert_eq!(cpu.read_memory(test_address_1), 0x89);
+    assert_eq!(cpu.read_memory(test_address_1 + 1), (test_value_1 >> 8) as u8);
 }
 
 test_add_r16_r16!(0x09, test_0x09_add_hl_bc, set_hl, get_hl, set_bc, get_bc);
@@ -2299,11 +2299,11 @@ fn test_0x0a_ld_a__bc_() {
     let program: Vec<u8> = vec![0x0A];
     cpu.load(&program);
     cpu.registers.set_bc(test_address_1);
-    cpu.ram.write(test_address_1, test_value_1);
+    cpu.write_memory(test_address_1, test_value_1);
     cpu.registers.set_a(0x11); // Sure different from expected value
     let cycles = cpu.execute_next();
     assert_eq!(cycles, 2);
-    assert_eq!(cpu.ram.read(test_address_1), test_value_1);
+    assert_eq!(cpu.read_memory(test_address_1), test_value_1);
     assert_eq!(cpu.registers.get_bc(), test_address_1);
     assert_eq!(cpu.registers.get_a(), test_value_1);
 }
@@ -2382,8 +2382,8 @@ fn test_0x18_jr_e8() {
     let mut cpu = CPU::new(Rc::clone(&memory_ref));
     let mut program: Vec<u8> = vec![0x18, test_value as u8];
     cpu.load(&program);
-    cpu.ram.write(0x0350, program[0]);
-    cpu.ram.write(0x0351, program[1]);
+    cpu.write_memory(0x0350, program[0]);
+    cpu.write_memory(0x0351, program[1]);
     cpu.registers.set_pc(0x0350);
     let mut cycles = cpu.execute_next();
     assert_eq!(cycles, 3);
@@ -2401,11 +2401,11 @@ fn test_0x1a_ld_a__de_() {
     let program: Vec<u8> = vec![0x1A];
     cpu.load(&program);
     cpu.registers.set_de(test_address_1);
-    cpu.ram.write(test_address_1, test_value_1);
+    cpu.write_memory(test_address_1, test_value_1);
     cpu.registers.set_a(0x11); // Sure different from expected value
     let cycles = cpu.execute_next();
     assert_eq!(cycles, 2);
-    assert_eq!(cpu.ram.read(test_address_1), test_value_1);
+    assert_eq!(cpu.read_memory(test_address_1), test_value_1);
     assert_eq!(cpu.registers.get_de(), test_address_1);
     assert_eq!(cpu.registers.get_a(), test_value_1);
 }
@@ -2448,8 +2448,8 @@ fn test_0x20_jr_nz_e8() {
     let mut cpu = CPU::new(Rc::clone(&memory_ref));
     let mut program: Vec<u8> = vec![0x20, test_value as u8];
     cpu.load(&program);
-    cpu.ram.write(0x0350, program[0]);
-    cpu.ram.write(0x0351, program[1]);
+    cpu.write_memory(0x0350, program[0]);
+    cpu.write_memory(0x0351, program[1]);
     cpu.registers.set_pc(0x0350);
     cpu.registers.set_zero_flag(false);
     let mut cycles = cpu.execute_next();
@@ -2459,8 +2459,8 @@ fn test_0x20_jr_nz_e8() {
     cpu = CPU::new(Rc::clone(&memory_ref));
     assert_eq!(cycles, 3);
     cpu.load(&program);
-    cpu.ram.write(0x0350, program[0]);
-    cpu.ram.write(0x0351, program[1]);
+    cpu.write_memory(0x0350, program[0]);
+    cpu.write_memory(0x0351, program[1]);
     cpu.registers.set_pc(0x0350);
     cpu.registers.set_zero_flag(true);
     cycles = cpu.execute_next();
@@ -2480,12 +2480,12 @@ fn test_0x22_ld__hli__a() {
     cpu.load(&program);
     cpu.registers.set_a(test_value);
     cpu.registers.set_hl(test_address);
-    cpu.ram.write(test_address, 0x00);
+    cpu.write_memory(test_address, 0x00);
     let cycles = cpu.execute_next();
     assert_eq!(cycles, 2);
     assert_eq!(cpu.registers.get_a(), test_value);
     assert_eq!(cpu.registers.get_hl(), test_address + 1);
-    assert_eq!(cpu.ram.read(test_address), test_value);
+    assert_eq!(cpu.read_memory(test_address), test_value);
 }
 
 test_inc_r16!(0x23, test_0x23_inc_hl, set_hl, get_hl, get_h, get_l);
@@ -2506,8 +2506,8 @@ fn test_0x28_jr_z_e8() {
     let mut cpu = CPU::new(Rc::clone(&memory_ref));
     let mut program: Vec<u8> = vec![0x28, test_value as u8];
     cpu.load(&program);
-    cpu.ram.write(0x0350, program[0]);
-    cpu.ram.write(0x0351, program[1]);
+    cpu.write_memory(0x0350, program[0]);
+    cpu.write_memory(0x0351, program[1]);
     cpu.registers.set_pc(0x0350);
     cpu.registers.set_zero_flag(true);
     let mut cycles = cpu.execute_next();
@@ -2517,8 +2517,8 @@ fn test_0x28_jr_z_e8() {
     cpu = CPU::new(Rc::clone(&memory_ref));
     assert_eq!(cycles, 3);
     cpu.load(&program);
-    cpu.ram.write(0x0350, program[0]);
-    cpu.ram.write(0x0351, program[1]);
+    cpu.write_memory(0x0350, program[0]);
+    cpu.write_memory(0x0351, program[1]);
     cpu.registers.set_pc(0x0350);
     cpu.registers.set_zero_flag(false);
     cycles = cpu.execute_next();
@@ -2595,11 +2595,11 @@ fn test_0x2a_ld_a__hli_() {
     let program: Vec<u8> = vec![0x2A];
     cpu.load(&program);
     cpu.registers.set_hl(test_address_1);
-    cpu.ram.write(test_address_1, test_value_1);
+    cpu.write_memory(test_address_1, test_value_1);
     cpu.registers.set_a(0x11); // Sure different from expected value
     let cycles = cpu.execute_next();
     assert_eq!(cycles, 2);
-    assert_eq!(cpu.ram.read(test_address_1), test_value_1);
+    assert_eq!(cpu.read_memory(test_address_1), test_value_1);
     assert_eq!(cpu.registers.get_hl(), test_address_1 + 1);
     assert_eq!(cpu.registers.get_a(), test_value_1);
 }
@@ -2637,8 +2637,8 @@ fn test_0x30_jr_nc_e8() {
     let mut cpu = CPU::new(Rc::clone(&memory_ref));
     let mut program: Vec<u8> = vec![0x30, test_value as u8];
     cpu.load(&program);
-    cpu.ram.write(0x0350, program[0]);
-    cpu.ram.write(0x0351, program[1]);
+    cpu.write_memory(0x0350, program[0]);
+    cpu.write_memory(0x0351, program[1]);
     cpu.registers.set_pc(0x0350);
     cpu.registers.set_carry_flag(false);
     let mut cycles = cpu.execute_next();
@@ -2648,8 +2648,8 @@ fn test_0x30_jr_nc_e8() {
     cpu = CPU::new(Rc::clone(&memory_ref));
     assert_eq!(cycles, 3);
     cpu.load(&program);
-    cpu.ram.write(0x0350, program[0]);
-    cpu.ram.write(0x0351, program[1]);
+    cpu.write_memory(0x0350, program[0]);
+    cpu.write_memory(0x0351, program[1]);
     cpu.registers.set_pc(0x0350);
     cpu.registers.set_carry_flag(true);
     cycles = cpu.execute_next();
@@ -2669,12 +2669,12 @@ fn test_0x32_ld__hld__a() {
     cpu.load(&program);
     cpu.registers.set_a(test_value);
     cpu.registers.set_hl(test_address);
-    cpu.ram.write(test_address, 0x00);
+    cpu.write_memory(test_address, 0x00);
     let cycles = cpu.execute_next();
     assert_eq!(cycles, 2);
     assert_eq!(cpu.registers.get_a(), test_value);
     assert_eq!(cpu.registers.get_hl(), test_address - 1);
-    assert_eq!(cpu.ram.read(test_address), test_value);
+    assert_eq!(cpu.read_memory(test_address), test_value);
 }
 
 test_inc_r16!(0x33, test_0x33_inc_sp, set_sp, get_sp);
@@ -2689,10 +2689,10 @@ fn test_0x34_inc__hl_() {
     let program_1: Vec<u8> = vec![0x34];
     cpu.load(&program_1);
     cpu.registers.set_hl(test_address);
-    cpu.ram.write(test_address, test_value_1);
+    cpu.write_memory(test_address, test_value_1);
     let mut cycle = cpu.execute_next();
     assert_eq!(cycle, 3);
-    assert_eq!(cpu.ram.read(test_address), test_value_1 + 1);
+    assert_eq!(cpu.read_memory(test_address), test_value_1 + 1);
     assert_eq!(cpu.registers.get_zero_flag(), false);
     assert_eq!(cpu.registers.get_negative_flag(), false);
     assert_eq!(cpu.registers.get_half_carry_flag(), false);
@@ -2702,9 +2702,9 @@ fn test_0x34_inc__hl_() {
     let mut cpu = CPU::new(Rc::clone(&memory_ref));
     cpu.load(&program_1);
     cpu.registers.set_hl(test_address);
-    cpu.ram.write(test_address, test_value_2);
+    cpu.write_memory(test_address, test_value_2);
     cycle = cpu.execute_next();
-    assert_eq!(cpu.ram.read(test_address), 0);
+    assert_eq!(cpu.read_memory(test_address), 0);
     assert_eq!(cpu.registers.get_zero_flag(), true);
     assert_eq!(cpu.registers.get_negative_flag(), false);
     assert_eq!(cpu.registers.get_half_carry_flag(), true);
@@ -2714,9 +2714,9 @@ fn test_0x34_inc__hl_() {
     cpu = CPU::new(Rc::clone(&memory_ref));
     cpu.load(&program_1);
     cpu.registers.set_hl(test_address);
-    cpu.ram.write(test_address, test_value_3);
+    cpu.write_memory(test_address, test_value_3);
     cycle = cpu.execute_next();
-    assert_eq!(cpu.ram.read(test_address), 0x10);
+    assert_eq!(cpu.read_memory(test_address), 0x10);
     assert_eq!(cpu.registers.get_zero_flag(), false);
     assert_eq!(cpu.registers.get_negative_flag(), false);
     assert_eq!(cpu.registers.get_half_carry_flag(), true);
@@ -2732,10 +2732,10 @@ fn test_0x35_dec__hl_() {
     let program_1: Vec<u8> = vec![0x35];
     cpu.load(&program_1);
     cpu.registers.set_hl(test_address);
-    cpu.ram.write(test_address, test_value_1);
+    cpu.write_memory(test_address, test_value_1);
     let mut cycle = cpu.execute_next();
     assert_eq!(cycle, 3);
-    assert_eq!(cpu.ram.read(test_address), test_value_1 - 1);
+    assert_eq!(cpu.read_memory(test_address), test_value_1 - 1);
     assert_eq!(cpu.registers.get_zero_flag(), false);
     assert_eq!(cpu.registers.get_negative_flag(), true);
     assert_eq!(cpu.registers.get_half_carry_flag(), false);
@@ -2745,9 +2745,9 @@ fn test_0x35_dec__hl_() {
     let mut cpu = CPU::new(Rc::clone(&memory_ref));
     cpu.load(&program_1);
     cpu.registers.set_hl(test_address);
-    cpu.ram.write(test_address, test_value_2);
+    cpu.write_memory(test_address, test_value_2);
     cycle = cpu.execute_next();
-    assert_eq!(cpu.ram.read(test_address), 0);
+    assert_eq!(cpu.read_memory(test_address), 0);
     assert_eq!(cpu.registers.get_zero_flag(), true);
     assert_eq!(cpu.registers.get_negative_flag(), true);
     assert_eq!(cpu.registers.get_half_carry_flag(), false);
@@ -2757,9 +2757,9 @@ fn test_0x35_dec__hl_() {
     cpu = CPU::new(Rc::clone(&memory_ref));
     cpu.load(&program_1);
     cpu.registers.set_hl(test_address);
-    cpu.ram.write(test_address, test_value_3);
+    cpu.write_memory(test_address, test_value_3);
     cycle = cpu.execute_next();
-    assert_eq!(cpu.ram.read(test_address), test_value_3 - 1);
+    assert_eq!(cpu.read_memory(test_address), test_value_3 - 1);
     assert_eq!(cpu.registers.get_zero_flag(), false);
     assert_eq!(cpu.registers.get_negative_flag(), true);
     assert_eq!(cpu.registers.get_half_carry_flag(), true);
@@ -2769,9 +2769,9 @@ fn test_0x35_dec__hl_() {
     cpu = CPU::new(Rc::clone(&memory_ref));
     cpu.load(&program_1);
     cpu.registers.set_hl(test_address);
-    cpu.ram.write(test_address, test_value_4);
+    cpu.write_memory(test_address, test_value_4);
     cycle = cpu.execute_next();
-    assert_eq!(cpu.ram.read(test_address), 0xFF);
+    assert_eq!(cpu.read_memory(test_address), 0xFF);
     assert_eq!(cpu.registers.get_zero_flag(), false);
     assert_eq!(cpu.registers.get_negative_flag(), true);
     assert_eq!(cpu.registers.get_half_carry_flag(), true);
@@ -2788,12 +2788,12 @@ fn test_0x36_ld__hl__imm8() {
     cpu.load(&program_1);
     let register_copy = cpu.registers;
     cpu.registers.set_hl(test_address);
-    cpu.ram.write(test_address, 0x00);
+    cpu.write_memory(test_address, 0x00);
     let cycles = cpu.execute_next();
     // Check load data and FLAGs should be untouched
     assert_eq!(cycles, 3);
     assert_eq!(cpu.registers.get_hl(), test_address);
-    assert_eq!(cpu.ram.read(test_address), test_value_1);
+    assert_eq!(cpu.read_memory(test_address), test_value_1);
     assert_eq!(cpu.registers.get_zero_flag(), register_copy.get_zero_flag());
     assert_eq!(cpu.registers.get_negative_flag(), register_copy.get_negative_flag());
     assert_eq!(cpu.registers.get_half_carry_flag(), register_copy.get_half_carry_flag());
@@ -2825,8 +2825,8 @@ fn test_0x38_jr_c_e8() {
     let mut cpu = CPU::new(Rc::clone(&memory_ref));
     let mut program: Vec<u8> = vec![0x38, test_value as u8];
     cpu.load(&program);
-    cpu.ram.write(0x0350, program[0]);
-    cpu.ram.write(0x0351, program[1]);
+    cpu.write_memory(0x0350, program[0]);
+    cpu.write_memory(0x0351, program[1]);
     cpu.registers.set_pc(0x0350);
     cpu.registers.set_carry_flag(true);
     let mut cycles = cpu.execute_next();
@@ -2836,8 +2836,8 @@ fn test_0x38_jr_c_e8() {
     cpu = CPU::new(Rc::clone(&memory_ref));
     assert_eq!(cycles, 3);
     cpu.load(&program);
-    cpu.ram.write(0x0350, program[0]);
-    cpu.ram.write(0x0351, program[1]);
+    cpu.write_memory(0x0350, program[0]);
+    cpu.write_memory(0x0351, program[1]);
     cpu.registers.set_pc(0x0350);
     cpu.registers.set_carry_flag(false);
     cycles = cpu.execute_next();
@@ -2856,11 +2856,11 @@ fn test_0x3a_ld_a__hld_() {
     let program: Vec<u8> = vec![0x3A];
     cpu.load(&program);
     cpu.registers.set_hl(test_address_1);
-    cpu.ram.write(test_address_1, test_value_1);
+    cpu.write_memory(test_address_1, test_value_1);
     cpu.registers.set_a(0x11); // Sure different from expected value
     let cycles = cpu.execute_next();
     assert_eq!(cycles, 2);
-    assert_eq!(cpu.ram.read(test_address_1), test_value_1);
+    assert_eq!(cpu.read_memory(test_address_1), test_value_1);
     assert_eq!(cpu.registers.get_hl(), test_address_1 - 1);
     assert_eq!(cpu.registers.get_a(), test_value_1);
 }
@@ -2953,7 +2953,7 @@ fn test_0x66_ld_h__hl_() {
     cpu.load(&program_1);
     let register_copy = cpu.registers;
     cpu.registers.set_hl(test_address_1);
-    cpu.ram.write(test_address_1, test_value_1);
+    cpu.write_memory(test_address_1, test_value_1);
     let cycles = cpu.execute_next();
     assert_eq!(cycles, 2);
     assert_eq!(cpu.registers.get_h(), test_value_1);
@@ -2983,7 +2983,7 @@ fn test_0x6e_ld_l__hl_() {
     cpu.load(&program_1);
     let register_copy = cpu.registers;
     cpu.registers.set_hl(test_address_1);
-    cpu.ram.write(test_address_1, test_value_1);
+    cpu.write_memory(test_address_1, test_value_1);
     let cycles = cpu.execute_next();
     assert_eq!(cycles, 2);
     assert_eq!(cpu.registers.get_l(), test_value_1);
@@ -3012,12 +3012,12 @@ fn test_0x74_ld__hl__h() {
     cpu.load(&program_1);
     let register_copy = cpu.registers;
     cpu.registers.set_hl(test_address_1);
-    cpu.ram.write(test_address_1, 0x00);
+    cpu.write_memory(test_address_1, 0x00);
     let cycles = cpu.execute_next();
     assert_eq!(cycles, 2);
     assert_eq!(cpu.registers.get_h(), expected_value);
     assert_eq!(cpu.registers.get_hl(), test_address_1);
-    assert_eq!(cpu.ram.read(test_address_1), expected_value);
+    assert_eq!(cpu.read_memory(test_address_1), expected_value);
     // Flags untouched
     test_flags!(
             cpu,
@@ -3038,12 +3038,12 @@ fn test_0x75_ld__hl__l() {
     cpu.load(&program_1);
     let register_copy = cpu.registers;
     cpu.registers.set_hl(test_address_1);
-    cpu.ram.write(test_address_1, 0x00);
+    cpu.write_memory(test_address_1, 0x00);
     let cycles = cpu.execute_next();
     assert_eq!(cycles, 2);
     assert_eq!(cpu.registers.get_l(), expected_value);
     assert_eq!(cpu.registers.get_hl(), test_address_1);
-    assert_eq!(cpu.ram.read(test_address_1), expected_value);
+    assert_eq!(cpu.read_memory(test_address_1), expected_value);
     // Flags untouched
     assert_eq!(cpu.registers.get_zero_flag(), register_copy.get_zero_flag());
     assert_eq!(cpu.registers.get_negative_flag(), register_copy.get_negative_flag());
@@ -3087,11 +3087,11 @@ fn test_0x86_add_a__hl_() {
     cpu.load(&program_1);
     cpu.registers.set_a(test_value_1);
     cpu.registers.set_hl(test_address);
-    cpu.ram.write(test_address, test_value_2);
+    cpu.write_memory(test_address, test_value_2);
     let mut cycles = cpu.execute_next();
     assert_eq!(cycles, 2);
     assert_eq!(cpu.registers.get_a(), expected_value);
-    assert_eq!(cpu.ram.read(test_address), test_value_2);
+    assert_eq!(cpu.read_memory(test_address), test_value_2);
     // No Flags
     assert_eq!(cpu.registers.get_zero_flag(), false);
     assert_eq!(cpu.registers.get_negative_flag(), false);
@@ -3105,12 +3105,12 @@ fn test_0x86_add_a__hl_() {
     cpu.load(&program_1);
     cpu.registers.set_a(test_value_1);
     cpu.registers.set_hl(test_address);
-    cpu.ram.write(test_address, test_value_2);
+    cpu.write_memory(test_address, test_value_2);
     cycles = cpu.execute_next();
     assert_eq!(cycles, 2);
     assert_eq!(cpu.registers.get_a(), expected_value);
     assert_eq!(cpu.registers.get_hl(), test_address);
-    assert_eq!(cpu.ram.read(test_address), test_value_2);
+    assert_eq!(cpu.read_memory(test_address), test_value_2);
     // Z/C Flags
     assert_eq!(cpu.registers.get_zero_flag(), true);
     assert_eq!(cpu.registers.get_negative_flag(), false);
@@ -3124,12 +3124,12 @@ fn test_0x86_add_a__hl_() {
     cpu.load(&program_1);
     cpu.registers.set_a(test_value_1);
     cpu.registers.set_hl(test_address);
-    cpu.ram.write(test_address, test_value_2);
+    cpu.write_memory(test_address, test_value_2);
     cycles = cpu.execute_next();
     assert_eq!(cycles, 2);
     assert_eq!(cpu.registers.get_a(), expected_value);
     assert_eq!(cpu.registers.get_hl(), test_address);
-    assert_eq!(cpu.ram.read(test_address), test_value_2);
+    assert_eq!(cpu.read_memory(test_address), test_value_2);
     // H Flag
     assert_eq!(cpu.registers.get_zero_flag(), false);
     assert_eq!(cpu.registers.get_negative_flag(), false);
@@ -3143,12 +3143,12 @@ fn test_0x86_add_a__hl_() {
     cpu.load(&program_1);
     cpu.registers.set_a(test_value_1);
     cpu.registers.set_hl(test_address);
-    cpu.ram.write(test_address, test_value_2);
+    cpu.write_memory(test_address, test_value_2);
     cycles = cpu.execute_next();
     assert_eq!(cycles, 2);
     assert_eq!(cpu.registers.get_a(), expected_value);
     assert_eq!(cpu.registers.get_hl(), test_address);
-    assert_eq!(cpu.ram.read(test_address), test_value_2);
+    assert_eq!(cpu.read_memory(test_address), test_value_2);
     // Z/H/C Flag
     assert_eq!(cpu.registers.get_zero_flag(), true);
     assert_eq!(cpu.registers.get_negative_flag(), false);
@@ -3242,7 +3242,7 @@ fn test_0x8e_adc_a__hl___c_off() {
     cpu.load(&program_1);
     cpu.registers.set_a(test_value_1);
     cpu.registers.set_hl(test_address);
-    cpu.ram.write(test_address, test_value_2);
+    cpu.write_memory(test_address, test_value_2);
     cpu.registers.set_carry_flag(false);
     let mut cycles = cpu.execute_next();
     assert_eq!(cycles, 2);
@@ -3261,7 +3261,7 @@ fn test_0x8e_adc_a__hl___c_off() {
     cpu.load(&program_1);
     cpu.registers.set_a(test_value_1);
     cpu.registers.set_hl(test_address);
-    cpu.ram.write(test_address, test_value_2);
+    cpu.write_memory(test_address, test_value_2);
     cpu.registers.set_carry_flag(false);
     cycles = cpu.execute_next();
     assert_eq!(cycles, 2);
@@ -3280,7 +3280,7 @@ fn test_0x8e_adc_a__hl___c_off() {
     cpu.load(&program_1);
     cpu.registers.set_a(test_value_1);
     cpu.registers.set_hl(test_address);
-    cpu.ram.write(test_address, test_value_2);
+    cpu.write_memory(test_address, test_value_2);
     cpu.registers.set_carry_flag(false);
     cycles = cpu.execute_next();
     assert_eq!(cycles, 2);
@@ -3299,7 +3299,7 @@ fn test_0x8e_adc_a__hl___c_off() {
     cpu.load(&program_1);
     cpu.registers.set_a(test_value_1);
     cpu.registers.set_hl(test_address);
-    cpu.ram.write(test_address, test_value_2);
+    cpu.write_memory(test_address, test_value_2);
     cpu.registers.set_carry_flag(false);
     cycles = cpu.execute_next();
     assert_eq!(cycles, 2);
@@ -3324,7 +3324,7 @@ fn test_0x8e_adc_a__hl___c_on() {
     cpu.load(&program_1);
     cpu.registers.set_a(test_value_1);
     cpu.registers.set_hl(test_address);
-    cpu.ram.write(test_address, test_value_2);
+    cpu.write_memory(test_address, test_value_2);
     cpu.registers.set_carry_flag(true);
     let mut cycles = cpu.execute_next();
     assert_eq!(cycles, 2);
@@ -3343,7 +3343,7 @@ fn test_0x8e_adc_a__hl___c_on() {
     cpu.load(&program_1);
     cpu.registers.set_a(test_value_1);
     cpu.registers.set_hl(test_address);
-    cpu.ram.write(test_address, test_value_2);
+    cpu.write_memory(test_address, test_value_2);
     cpu.registers.set_carry_flag(true);
     cycles = cpu.execute_next();
     assert_eq!(cycles, 2);
@@ -3362,7 +3362,7 @@ fn test_0x8e_adc_a__hl___c_on() {
     cpu.load(&program_1);
     cpu.registers.set_a(test_value_1);
     cpu.registers.set_hl(test_address);
-    cpu.ram.write(test_address, test_value_2);
+    cpu.write_memory(test_address, test_value_2);
     cpu.registers.set_carry_flag(true);
     cycles = cpu.execute_next();
     assert_eq!(cycles, 2);
@@ -3381,7 +3381,7 @@ fn test_0x8e_adc_a__hl___c_on() {
     cpu.load(&program_1);
     cpu.registers.set_a(test_value_1);
     cpu.registers.set_hl(test_address);
-    cpu.ram.write(test_address, test_value_2);
+    cpu.write_memory(test_address, test_value_2);
     cpu.registers.set_carry_flag(true);
     cycles = cpu.execute_next();
     assert_eq!(cycles, 2);
@@ -3543,12 +3543,12 @@ fn test_0x96_sub_a__hl_() {
     cpu.load(&program_1);
     cpu.registers.set_a(test_value_1);
     cpu.registers.set_hl(test_address);
-    cpu.ram.write(test_address, test_value_2);
+    cpu.write_memory(test_address, test_value_2);
     let mut cycles = cpu.execute_next();
     assert_eq!(cycles, 2);
     assert_eq!(cpu.registers.get_a(), expected_value);
     assert_eq!(cpu.registers.get_hl(), test_address);
-    assert_eq!(cpu.ram.read(cpu.registers.get_hl()), test_value_2);
+    assert_eq!(cpu.read_memory(cpu.registers.get_hl()), test_value_2);
     // No Flags
     assert_eq!(cpu.registers.get_zero_flag(), false);
     assert_eq!(cpu.registers.get_negative_flag(), true);
@@ -3562,12 +3562,12 @@ fn test_0x96_sub_a__hl_() {
     cpu.load(&program_1);
     cpu.registers.set_a(test_value_1);
     cpu.registers.set_hl(test_address);
-    cpu.ram.write(test_address, test_value_2);
+    cpu.write_memory(test_address, test_value_2);
     let mut cycles = cpu.execute_next();
     assert_eq!(cycles, 2);
     assert_eq!(cpu.registers.get_a(), expected_value);
     assert_eq!(cpu.registers.get_hl(), test_address);
-    assert_eq!(cpu.ram.read(cpu.registers.get_hl()), test_value_2);
+    assert_eq!(cpu.read_memory(cpu.registers.get_hl()), test_value_2);
     // Z Flags
     assert_eq!(cpu.registers.get_zero_flag(), true);
     assert_eq!(cpu.registers.get_negative_flag(), true);
@@ -3582,12 +3582,12 @@ fn test_0x96_sub_a__hl_() {
     cpu.registers.set_a(test_value_1);
     cpu.registers.set_l(test_value_2);
     cpu.registers.set_hl(test_address);
-    cpu.ram.write(test_address, test_value_2);
+    cpu.write_memory(test_address, test_value_2);
     let mut cycles = cpu.execute_next();
     assert_eq!(cycles, 2);
     assert_eq!(cpu.registers.get_a(), expected_value);
     assert_eq!(cpu.registers.get_hl(), test_address);
-    assert_eq!(cpu.ram.read(cpu.registers.get_hl()), test_value_2);
+    assert_eq!(cpu.read_memory(cpu.registers.get_hl()), test_value_2);
     // H Flag
     assert_eq!(cpu.registers.get_zero_flag(), false);
     assert_eq!(cpu.registers.get_negative_flag(), true);
@@ -3601,12 +3601,12 @@ fn test_0x96_sub_a__hl_() {
     cpu.load(&program_1);
     cpu.registers.set_a(test_value_1);
     cpu.registers.set_hl(test_address);
-    cpu.ram.write(test_address, test_value_2);
+    cpu.write_memory(test_address, test_value_2);
     let mut cycles = cpu.execute_next();
     assert_eq!(cycles, 2);
     assert_eq!(cpu.registers.get_a(), expected_value);
     assert_eq!(cpu.registers.get_hl(), test_address);
-    assert_eq!(cpu.ram.read(cpu.registers.get_hl()), test_value_2);
+    assert_eq!(cpu.read_memory(cpu.registers.get_hl()), test_value_2);
     // C Flag
     assert_eq!(cpu.registers.get_zero_flag(), false);
     assert_eq!(cpu.registers.get_negative_flag(), true);
@@ -3620,12 +3620,12 @@ fn test_0x96_sub_a__hl_() {
     cpu.load(&program_1);
     cpu.registers.set_a(test_value_1);
     cpu.registers.set_hl(test_address);
-    cpu.ram.write(test_address, test_value_2);
+    cpu.write_memory(test_address, test_value_2);
     let mut cycles = cpu.execute_next();
     assert_eq!(cycles, 2);
     assert_eq!(cpu.registers.get_a(), expected_value);
     assert_eq!(cpu.registers.get_hl(), test_address);
-    assert_eq!(cpu.ram.read(cpu.registers.get_hl()), test_value_2);
+    assert_eq!(cpu.read_memory(cpu.registers.get_hl()), test_value_2);
     // H/C Flag
     assert_eq!(cpu.registers.get_zero_flag(), false);
     assert_eq!(cpu.registers.get_negative_flag(), true);
@@ -3691,12 +3691,12 @@ fn test_0x9e_sbc_a__hl___c_off() {
     cpu.load(&program_1);
     cpu.registers.set_a(test_value_1);
     cpu.registers.set_hl(test_address);
-    cpu.ram.write(cpu.registers.get_hl(), test_value_2);
+    cpu.write_memory(cpu.registers.get_hl(), test_value_2);
     cpu.registers.set_carry_flag(false);
     let mut cycles = cpu.execute_next();
     assert_eq!(cycles, 2);
     assert_eq!(cpu.registers.get_a(), expected_value);
-    assert_eq!(cpu.ram.read(cpu.registers.get_hl()), test_value_2);
+    assert_eq!(cpu.read_memory(cpu.registers.get_hl()), test_value_2);
     // No Flags
     assert_eq!(cpu.registers.get_zero_flag(), false);
     assert_eq!(cpu.registers.get_negative_flag(), true);
@@ -3710,12 +3710,12 @@ fn test_0x9e_sbc_a__hl___c_off() {
     cpu.load(&program_1);
     cpu.registers.set_a(test_value_1);
     cpu.registers.set_hl(test_address);
-    cpu.ram.write(cpu.registers.get_hl(), test_value_2);
+    cpu.write_memory(cpu.registers.get_hl(), test_value_2);
     cpu.registers.set_carry_flag(false);
     cycles = cpu.execute_next();
     assert_eq!(cycles, 2);
     assert_eq!(cpu.registers.get_a(), expected_value);
-    assert_eq!(cpu.ram.read(cpu.registers.get_hl()), test_value_2);
+    assert_eq!(cpu.read_memory(cpu.registers.get_hl()), test_value_2);
     // Z Flags
     assert_eq!(cpu.registers.get_zero_flag(), true);
     assert_eq!(cpu.registers.get_negative_flag(), true);
@@ -3729,12 +3729,12 @@ fn test_0x9e_sbc_a__hl___c_off() {
     cpu.load(&program_1);
     cpu.registers.set_a(test_value_1);
     cpu.registers.set_hl(test_address);
-    cpu.ram.write(cpu.registers.get_hl(), test_value_2);
+    cpu.write_memory(cpu.registers.get_hl(), test_value_2);
     cpu.registers.set_carry_flag(false);
     cycles = cpu.execute_next();
     assert_eq!(cycles, 2);
     assert_eq!(cpu.registers.get_a(), expected_value);
-    assert_eq!(cpu.ram.read(cpu.registers.get_hl()), test_value_2);
+    assert_eq!(cpu.read_memory(cpu.registers.get_hl()), test_value_2);
     // H Flag
     assert_eq!(cpu.registers.get_zero_flag(), false);
     assert_eq!(cpu.registers.get_negative_flag(), true);
@@ -3748,12 +3748,12 @@ fn test_0x9e_sbc_a__hl___c_off() {
     cpu.load(&program_1);
     cpu.registers.set_a(test_value_1);
     cpu.registers.set_hl(test_address);
-    cpu.ram.write(cpu.registers.get_hl(), test_value_2);
+    cpu.write_memory(cpu.registers.get_hl(), test_value_2);
     cpu.registers.set_carry_flag(false);
     cycles = cpu.execute_next();
     assert_eq!(cycles, 2);
     assert_eq!(cpu.registers.get_a(), expected_value);
-    assert_eq!(cpu.ram.read(cpu.registers.get_hl()), test_value_2);
+    assert_eq!(cpu.read_memory(cpu.registers.get_hl()), test_value_2);
     // H/C Flag
     assert_eq!(cpu.registers.get_zero_flag(), false);
     assert_eq!(cpu.registers.get_negative_flag(), true);
@@ -3773,12 +3773,12 @@ fn test_0x9e_sbc_a__hl___c_on() {
     cpu.load(&program_1);
     cpu.registers.set_a(test_value_1);
     cpu.registers.set_hl(test_address);
-    cpu.ram.write(cpu.registers.get_hl(), test_value_2);
+    cpu.write_memory(cpu.registers.get_hl(), test_value_2);
     cpu.registers.set_carry_flag(true);
     let mut cycles = cpu.execute_next();
     assert_eq!(cycles, 2);
     assert_eq!(cpu.registers.get_a(), expected_value);
-    assert_eq!(cpu.ram.read(cpu.registers.get_hl()), test_value_2);
+    assert_eq!(cpu.read_memory(cpu.registers.get_hl()), test_value_2);
     // No Flags
     assert_eq!(cpu.registers.get_zero_flag(), false);
     assert_eq!(cpu.registers.get_negative_flag(), true);
@@ -3792,12 +3792,12 @@ fn test_0x9e_sbc_a__hl___c_on() {
     cpu.load(&program_1);
     cpu.registers.set_a(test_value_1);
     cpu.registers.set_hl(test_address);
-    cpu.ram.write(cpu.registers.get_hl(), test_value_2);
+    cpu.write_memory(cpu.registers.get_hl(), test_value_2);
     cpu.registers.set_carry_flag(true);
     cycles = cpu.execute_next();
     assert_eq!(cycles, 2);
     assert_eq!(cpu.registers.get_a(), expected_value);
-    assert_eq!(cpu.ram.read(cpu.registers.get_hl()), test_value_2);
+    assert_eq!(cpu.read_memory(cpu.registers.get_hl()), test_value_2);
     // H Flags
     assert_eq!(cpu.registers.get_zero_flag(), false);
     assert_eq!(cpu.registers.get_negative_flag(), true);
@@ -3811,12 +3811,12 @@ fn test_0x9e_sbc_a__hl___c_on() {
     cpu.load(&program_1);
     cpu.registers.set_a(test_value_1);
     cpu.registers.set_hl(test_address);
-    cpu.ram.write(cpu.registers.get_hl(), test_value_2);
+    cpu.write_memory(cpu.registers.get_hl(), test_value_2);
     cpu.registers.set_carry_flag(true);
     cycles = cpu.execute_next();
     assert_eq!(cycles, 2);
     assert_eq!(cpu.registers.get_a(), expected_value);
-    assert_eq!(cpu.ram.read(cpu.registers.get_hl()), test_value_2);
+    assert_eq!(cpu.read_memory(cpu.registers.get_hl()), test_value_2);
     // Z/H Flag
     assert_eq!(cpu.registers.get_zero_flag(), true);
     assert_eq!(cpu.registers.get_negative_flag(), true);
@@ -3830,12 +3830,12 @@ fn test_0x9e_sbc_a__hl___c_on() {
     cpu.load(&program_1);
     cpu.registers.set_a(test_value_1);
     cpu.registers.set_hl(test_address);
-    cpu.ram.write(cpu.registers.get_hl(), test_value_2);
+    cpu.write_memory(cpu.registers.get_hl(), test_value_2);
     cpu.registers.set_carry_flag(true);
     cycles = cpu.execute_next();
     assert_eq!(cycles, 2);
     assert_eq!(cpu.registers.get_a(), expected_value);
-    assert_eq!(cpu.ram.read(cpu.registers.get_hl()), test_value_2);
+    assert_eq!(cpu.read_memory(cpu.registers.get_hl()), test_value_2);
     // H/C Flag
     assert_eq!(cpu.registers.get_zero_flag(), false);
     assert_eq!(cpu.registers.get_negative_flag(), true);
