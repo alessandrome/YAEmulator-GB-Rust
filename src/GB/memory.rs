@@ -1,5 +1,5 @@
 pub mod registers;
-mod addresses;
+pub mod addresses;
 pub mod BIOS;
 
 use std::cell::RefCell;

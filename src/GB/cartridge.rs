@@ -11,7 +11,8 @@ use std::rc::Rc;
 use std::string::FromUtf8Error;
 use crate::GB::cartridge::addresses::{MBC_RAM_ENABLE_ADDRESS_START, MBC_RAM_ENABLE_ADDRESS_END, TITLE, TITLE_OLD_SIZE, MBC_ROM_BANK_SELECTION_ADDRESS_START, MBC_ROM_BANK_SELECTION_ADDRESS_END};
 use crate::GB::cartridge::addresses::mbc1::{MBC1_BANKING_MODE_ADDRESS_END, MBC1_BANKING_MODE_ADDRESS_START, MBC1_RAM_BANK_SELECTION_ADDRESS_END, MBC1_RAM_BANK_SELECTION_ADDRESS_START, MBC1_RAM_ENABLE_ADDRESS_START, MBC1_ROM_BANK_SELECTION_ADDRESS_END, MBC1_ROM_BANK_SELECTION_ADDRESS_START};
-use crate::GB::memory::Memory;
+use crate::GB::memory::{Memory};
+use crate::GB::memory::addresses::{EXTERNAL_RAM_ADDRESS, EXTERNAL_RAM_LAST_ADDRESS};
 use crate::GB::registers::Registers;
 
 pub const ROM_BANK_SIZE: usize = 0x4000;
@@ -146,8 +147,13 @@ impl Cartridge {
             MBC1_BANKING_MODE_ADDRESS_START..=MBC1_BANKING_MODE_ADDRESS_END => {
                 self.bank_switch_mode = (value & 1) != 0;
             }
+            EXTERNAL_RAM_ADDRESS..=EXTERNAL_RAM_LAST_ADDRESS => {
+                if self.ram_enabled {
+                    self.ram[address - EXTERNAL_RAM_ADDRESS] = value;
+                }
+            }
             _ => {
-                // TODO: implement
+                // Nothing Happens! How did you arrive here?
             }
         }
     }
