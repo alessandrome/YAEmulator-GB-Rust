@@ -8,7 +8,7 @@ use std::io::Read;
 use std::ops::{Deref, DerefMut};
 use std::rc::Rc;
 use crate::GB::cartridge::{Cartridge, UseCartridge};
-use crate::GB::memory::addresses::{EXTERNAL_RAM_LAST_ADDRESS, ROM_BANK_0_ADDRESS, ROM_BANK_1_ADDRESS, ROM_BANK_1_LAST_ADDRESS, ROM_BANK_SIZE};
+use crate::GB::memory::addresses::{*};
 use crate::GB::PPU::tile::TILE_SIZE;
 
 pub const RST_INSTRUCTIONS: usize = 0x0000; // Location in memory for RST instructions (not used on emulation)
