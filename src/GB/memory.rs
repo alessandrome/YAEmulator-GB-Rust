@@ -119,8 +119,8 @@ impl RAM {
         // TODO: Implement special read mapped on Cartridge
         if (address as usize) < ROM_BANK_1_ADDRESS + ROM_BANK_SIZE {
             let mut return_val = 0;
-            let c_opt = self.cartridge.borrow().as_ref();
-            match c_opt {
+            let c_opt = self.cartridge.borrow();
+            match c_opt.as_ref() {
                 None => {
                     return_val = self.memory[address as usize];
                 }
