@@ -47,7 +47,7 @@ fn main() {
     //     println!("{}", gb.registers);
     // }
 
-    let mut gb = GB::GB::new(args.bios.clone());
+    let mut gb = GB::GB::new(Option::from(args.bios.clone()));
     gb.insert_cartridge(&args.rom);
     let cartridge_ref =  gb.get_cartridge();
     println!("{}", gb.get_cartridge().as_ref().unwrap());

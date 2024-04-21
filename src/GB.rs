@@ -35,15 +35,22 @@ pub struct GB {
 }
 
 impl GB {
-    pub fn new(bios: String) -> Self{
+    pub fn new(bios: Option<String>) -> Self{
         let mut ram = RAM::new();
         let ram_ref = Rc::new(RefCell::new(ram));
         let cartridge_ref = Rc::new(RefCell::new(None));
         let cpu = CPU::CPU::new(Rc::clone(&ram_ref));
         let mut rom = BIOS::new();
-        rom.load_bios(&bios);
+        let mut is_booting = false;
+        match bios {
+            None => {}
+            Some(bios) => {
+                rom.load_bios(&bios);
+                is_booting = true;
+            }
+        }
         Self {
-            is_booting: true,
+            is_booting,
             cpu,
             ppu: PPU::PPU::new(Rc::clone(&ram_ref)),
             memory: ram_ref,
