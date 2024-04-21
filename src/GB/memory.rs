@@ -7,7 +7,7 @@ use std::fs::File;
 use std::io::Read;
 use std::rc::Rc;
 use crate::GB::cartridge::{Cartridge, UseCartridge};
-use crate::GB::memory::addresses::{ROM_BANK_0_ADDRESS, ROM_BANK_1_ADDRESS, ROM_BANK_SIZE};
+use crate::GB::memory::addresses::{EXTERNAL_RAM_LAST_ADDRESS, ROM_BANK_0_ADDRESS, ROM_BANK_1_ADDRESS, ROM_BANK_1_LAST_ADDRESS, ROM_BANK_SIZE};
 use crate::GB::PPU::tile::TILE_SIZE;
 
 pub const RST_INSTRUCTIONS: usize = 0x0000; // Location in memory for RST instructions (not used on emulation)
@@ -116,22 +116,25 @@ impl RAM {
     }
 
     pub fn read(&self, address: u16) -> u8 {
-        // TODO: Implement special read mapped on Cartridge
-        if (address as usize) < ROM_BANK_1_ADDRESS + ROM_BANK_SIZE {
-            let mut return_val = 0;
-            let c_opt = self.cartridge.borrow();
-            match c_opt.as_ref() {
-                None => {
-                    return_val = self.memory[address as usize];
-                }
-                Some(_) => {
-                    // TODO: implement
-                    return_val = 0;
+        let address_usize = address as usize;
+        let mut return_val: u8 = 0;
+        match address_usize {
+            ROM_BANK_0_ADDRESS..=ROM_BANK_1_LAST_ADDRESS | EXTERNAL_RAM_ADDRESS..=EXTERNAL_RAM_LAST_ADDRESS => {
+                let c_opt = self.cartridge.borrow();
+                match c_opt.as_ref() {
+                    None => {
+                        return_val = self.memory[address_usize];
+                    }
+                    Some(cartridge) => {
+                        return_val = cartridge.read(address);
+                    }
                 }
             }
-            return return_val
-        }
-        self.memory[address as usize]
+            _ => {
+                return_val = self.memory[address_usize]
+            }
+        };
+        return_val
     }
 
     pub fn write(&mut self, address: u16, byte: u8) {
