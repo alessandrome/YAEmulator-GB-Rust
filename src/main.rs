@@ -163,6 +163,7 @@ fn main() {
         println!("{:04} |  {:#06X} |  {} |  {}", i, addr, s, s_ins);
     }
 
+    println!("-----+---------+------------+-----------------+");
     println!();
 
     if fs::metadata(&args.rom).is_ok() {
