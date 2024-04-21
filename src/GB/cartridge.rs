@@ -12,7 +12,7 @@ use std::string::FromUtf8Error;
 use crate::GB::cartridge::addresses::{MBC_RAM_ENABLE_ADDRESS_START, MBC_RAM_ENABLE_ADDRESS_END, TITLE, TITLE_OLD_SIZE, MBC_ROM_BANK_SELECTION_ADDRESS_START, MBC_ROM_BANK_SELECTION_ADDRESS_END};
 use crate::GB::cartridge::addresses::mbc1::{MBC1_BANKING_MODE_ADDRESS_END, MBC1_BANKING_MODE_ADDRESS_START, MBC1_RAM_BANK_SELECTION_ADDRESS_END, MBC1_RAM_BANK_SELECTION_ADDRESS_START, MBC1_RAM_ENABLE_ADDRESS_START, MBC1_ROM_BANK_SELECTION_ADDRESS_END, MBC1_ROM_BANK_SELECTION_ADDRESS_START};
 use crate::GB::memory::{Memory};
-use crate::GB::memory::addresses::{EXTERNAL_RAM_ADDRESS, EXTERNAL_RAM_LAST_ADDRESS};
+use crate::GB::memory::addresses::{ROM_BANK_0_ADDRESS, ROM_BANK_0_LAST_ADDRESS, EXTERNAL_RAM_ADDRESS, EXTERNAL_RAM_LAST_ADDRESS, ROM_BANK_1_LAST_ADDRESS, ROM_BANK_1_ADDRESS};
 use crate::GB::registers::Registers;
 
 pub const ROM_BANK_SIZE: usize = 0x4000;
@@ -104,7 +104,14 @@ impl Cartridge {
     pub fn read(&self, address: u16) -> u8 {
         // TODO: implement read
         let address_usize = address as usize;
-        0
+        let mut return_val: u8 = 0xFF;
+        match self.cartridge_type {
+            CartridgeType::Mbc1 => {
+                return_val = self.read_mbc1(address_usize);
+            }
+            _ => {}
+        };
+        return_val
     }
 
     pub fn write(&mut self, address: u16, value: u8) {
@@ -115,6 +122,27 @@ impl Cartridge {
             }
             _ => {}
         }
+    }
+
+    pub fn read_mbc1(&self, address: usize) -> u8 {
+        let mut return_val = 0xFF;
+        match address {
+            ROM_BANK_0_ADDRESS..=ROM_BANK_0_LAST_ADDRESS => {
+                return_val = self.rom[address];
+            }
+            ROM_BANK_1_ADDRESS..=ROM_BANK_1_LAST_ADDRESS => {
+                let rom_bank = self.rom_bank | if !self.bank_switch_mode {self.ram_bank << 5} else {0};
+                return_val = self.rom[address - ROM_BANK_1_ADDRESS + rom_bank * ROM_BANK_SIZE];
+            }
+            EXTERNAL_RAM_ADDRESS..=EXTERNAL_RAM_LAST_ADDRESS => {
+                let ram_bank = if self.bank_switch_mode {self.ram_bank} else {0};
+                return_val = self.ram[address - EXTERNAL_RAM_ADDRESS + ram_bank * RAM_BANK_SIZE];
+            }
+            _ => {
+                // Still here? How do you do?
+            }
+        };
+        return_val
     }
 
     fn write_mbc1(&mut self, address: usize, value: u8) {
@@ -133,16 +161,11 @@ impl Cartridge {
                     // If rom banks are less/equal than 16 che chip mask the value as a 4 bit value
                     bank_selection &= 0b0000_1111;
                 }
-                self.rom_bank = (self.rom_bank & 0b0110_0000) | bank_selection;
+                self.rom_bank = bank_selection;
             }
             MBC1_RAM_BANK_SELECTION_ADDRESS_START..=MBC1_RAM_BANK_SELECTION_ADDRESS_END => {
                 let mut bank_selection: usize = (value as usize) & 0b0000_0011; // 2 Bits addressing
-                // if self.get_rom_banks_number() > 0x10 {
-                    // 2 Bits addressing bits 5-6 for ROM bank selections
-                    self.rom_bank = (self.rom_bank & 0b0001_1111) | (bank_selection << 5);
-                // } else {
-                //     self.ram_bank = bank_selection;
-                // }
+                self.ram_bank = bank_selection;
             }
             MBC1_BANKING_MODE_ADDRESS_START..=MBC1_BANKING_MODE_ADDRESS_END => {
                 self.bank_switch_mode = (value & 1) != 0;

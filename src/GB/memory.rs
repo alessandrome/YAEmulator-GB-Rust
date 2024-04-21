@@ -5,9 +5,10 @@ pub mod BIOS;
 use std::cell::RefCell;
 use std::fs::File;
 use std::io::Read;
+use std::ops::{Deref, DerefMut};
 use std::rc::Rc;
 use crate::GB::cartridge::{Cartridge, UseCartridge};
-use crate::GB::memory::addresses::{EXTERNAL_RAM_LAST_ADDRESS, ROM_BANK_0_ADDRESS, ROM_BANK_1_ADDRESS, ROM_BANK_1_LAST_ADDRESS, ROM_BANK_SIZE};
+use crate::GB::memory::addresses::{*};
 use crate::GB::PPU::tile::TILE_SIZE;
 
 pub const RST_INSTRUCTIONS: usize = 0x0000; // Location in memory for RST instructions (not used on emulation)
@@ -138,8 +139,22 @@ impl RAM {
     }
 
     pub fn write(&mut self, address: u16, byte: u8) {
-        // TODO: Implement write on Cartridge mapped areas
-        self.memory[address as usize] = byte;
+        let address_usize = address as usize;match address_usize {
+            ROM_BANK_0_ADDRESS..=ROM_BANK_1_LAST_ADDRESS | EXTERNAL_RAM_ADDRESS..=EXTERNAL_RAM_LAST_ADDRESS => {
+                let mut c_opt = self.cartridge.borrow_mut();
+                match c_opt.deref_mut() {
+                    None => {
+                        self.memory[address_usize] = byte;
+                    }
+                    Some(cartridge) => {
+                        cartridge.write(address, byte);
+                    }
+                }
+            }
+            _ => {
+                self.memory[address_usize] = byte;
+            }
+        };
     }
 
     pub fn read_vec(&self, start_address: u16, length: u16) -> &[u8] {
