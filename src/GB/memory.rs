@@ -1,7 +1,14 @@
 pub mod registers;
+pub mod addresses;
+pub mod BIOS;
 
+use std::cell::RefCell;
 use std::fs::File;
 use std::io::Read;
+use std::ops::{Deref, DerefMut};
+use std::rc::Rc;
+use crate::GB::cartridge::{Cartridge, UseCartridge};
+use crate::GB::memory::addresses::{*};
 use crate::GB::PPU::tile::TILE_SIZE;
 
 pub const RST_INSTRUCTIONS: usize = 0x0000; // Location in memory for RST instructions (not used on emulation)
@@ -39,14 +46,14 @@ macro_rules! write_ram_space {
     };
 }
 
-pub struct Memory<T, const N: usize> where T: Clone {
+pub struct Memory<T> where T: Clone {
     #[cfg(test)]
-    pub memory: Box<[T; N]>,
+    pub memory: Vec<T>,
     #[cfg(not(test))]
-    memory: Box<[T; N]>,
+    memory: Vec<T>,
 }
 
-impl<T: Clone, const N: usize> std::ops::Index<usize> for Memory<T, N> {
+impl<T: Clone> std::ops::Index<usize> for Memory<T> {
     type Output = T;
 
     fn index(&self, index: usize) -> &Self::Output {
@@ -54,13 +61,13 @@ impl<T: Clone, const N: usize> std::ops::Index<usize> for Memory<T, N> {
     }
 }
 
-impl<T: Clone, const N: usize> std::ops::IndexMut<usize> for Memory<T, N> {
+impl<T: Clone> std::ops::IndexMut<usize> for Memory<T> {
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
         &mut self.memory[index]
     }
 }
 
-impl<T: Clone, const N: usize> std::ops::Index<std::ops::Range<usize>> for Memory<T, N> {
+impl<T: Clone> std::ops::Index<std::ops::Range<usize>> for Memory<T> {
     type Output = [T];
 
     fn index(&self, index: std::ops::Range<usize>) -> &[T] {
@@ -68,60 +75,94 @@ impl<T: Clone, const N: usize> std::ops::Index<std::ops::Range<usize>> for Memor
     }
 }
 
-impl<T: Clone, const N: usize> std::ops::IndexMut<std::ops::Range<usize>> for Memory<T, N> {
+impl<T: Clone> std::ops::IndexMut<std::ops::Range<usize>> for Memory<T> {
     fn index_mut(&mut self, index: std::ops::Range<usize>) -> &mut [T] {
         &mut self.memory[index]
     }
 }
 
-impl<T: Clone + std::marker::Copy, const N: usize>  Memory<T, N> {
+impl<T: Clone + std::marker::Copy>  Memory<T> {
     pub fn len(&self) -> usize { self.memory.len() }
-    pub fn new(default: T) -> Self where T: Clone {
+    pub fn new(default: T, size: usize) -> Self where T: Clone {
         Self {
-            memory: Box::new([default; N])
+            memory: vec![default; size]
+        }
+    }
+    pub fn new_from_vec(mem: Vec<T>) -> Self where T: Clone {
+        Self {
+            memory: mem
         }
     }
 }
 
 
-trait Length {
+pub trait Length {
     fn len(&self) -> usize;
 }
 
 pub struct RAM {
     #[cfg(test)]
-    pub memory: Memory<u8, 65536>,
+    pub memory: Memory<u8>,
     #[cfg(not(test))]
-    memory: Memory<u8, 65536>,
-}
-
-pub struct ROM {
-    #[cfg(test)]
-    pub memory: Memory<u8, 256>,
-    #[cfg(not(test))]
-    memory: Memory<u8, 256>,
-    bios: String,
+    memory: Memory<u8>,
+    cartridge: Rc<RefCell<Option<Cartridge>>>
 }
 
 impl RAM {
     pub fn new() -> Self {
-        RAM { memory: Memory::<u8, 65536>::new(0) }
+        RAM {
+            memory: Memory::<u8>::new(0, 65536),
+            cartridge: Rc::new(RefCell::new(None))
+        }
     }
 
     pub fn read(&self, address: u16) -> u8 {
-        self.memory[address as usize]
+        let address_usize = address as usize;
+        let mut return_val: u8 = 0;
+        match address_usize {
+            ROM_BANK_0_ADDRESS..=ROM_BANK_1_LAST_ADDRESS | EXTERNAL_RAM_ADDRESS..=EXTERNAL_RAM_LAST_ADDRESS => {
+                let c_opt = self.cartridge.borrow();
+                match c_opt.as_ref() {
+                    None => {
+                        return_val = self.memory[address_usize];
+                    }
+                    Some(cartridge) => {
+                        return_val = cartridge.read(address);
+                    }
+                }
+            }
+            _ => {
+                return_val = self.memory[address_usize]
+            }
+        };
+        return_val
     }
 
     pub fn write(&mut self, address: u16, byte: u8) {
-        self.memory[address as usize] = byte;
+        let address_usize = address as usize;match address_usize {
+            ROM_BANK_0_ADDRESS..=ROM_BANK_1_LAST_ADDRESS | EXTERNAL_RAM_ADDRESS..=EXTERNAL_RAM_LAST_ADDRESS => {
+                let mut c_opt = self.cartridge.borrow_mut();
+                match c_opt.deref_mut() {
+                    None => {
+                        self.memory[address_usize] = byte;
+                    }
+                    Some(cartridge) => {
+                        cartridge.write(address, byte);
+                    }
+                }
+            }
+            _ => {
+                self.memory[address_usize] = byte;
+            }
+        };
     }
 
     pub fn read_vec(&self, start_address: u16, length: u16) -> &[u8] {
         &self.memory[start_address as usize..(start_address + length) as usize]
     }
 
-    pub fn boot_load(&mut self, rom: &ROM) {
-        for i in 0..rom.len() {
+    pub fn boot_load(&mut self, bios: &BIOS::BIOS) {
+        for i in 0..bios.len() {
             self.memory[i] = self.read(i as u16);
         }
     }
@@ -143,28 +184,9 @@ impl Length for RAM {
     }
 }
 
-impl ROM {
-    pub  fn new() -> Self {
-        ROM { memory: Memory::<u8, 256>::new(0), bios: String::from("") }
-    }
-
-    pub fn read(&self, address: u16) -> u8 {
-        self.memory[address as usize]
-    }
-
-    pub fn load_bios(&mut self, path: &String) -> Result<(), std::io::Error> {
-        let mut file = File::open(path)?;
-        let mut buffer = [0u8; 256];
-        file.read_exact(&mut buffer)?;
-        self.memory = Memory { memory: Box::new(buffer) };
-        self.bios = path.clone();
-        Ok(())
-    }
-}
-
-impl Length for ROM {
-    fn len(&self) -> usize {
-        self.memory.len()
+impl UseCartridge for RAM {
+    fn set_cartridge(&mut self, rom: Rc<RefCell<Option<Cartridge>>>) {
+        self.cartridge = rom;
     }
 }
 

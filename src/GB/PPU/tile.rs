@@ -95,7 +95,11 @@ impl Tile {
         }
     }
 
-    pub fn printable_id_map(array_map: &[GbPaletteId; 8 * 8], doubled: bool) -> String {
+    pub fn get_printable_id_map(&self, doubled: bool) -> String {
+        Self::palette_id_map_to_printable_id_map(&self.get_tile_map(), doubled)
+    }
+
+    pub fn palette_id_map_to_printable_id_map(array_map: &[GbPaletteId; 8 * 8], doubled: bool) -> String {
         let mut to_print = "".to_string();
         for i in 0..8 {
             for j in 0..8 {
@@ -160,8 +164,8 @@ mod test {
           c0, c2, c3, c3, c3, c2, c0, c0,
         ];
         let result = tile.to_picture_map();
-        let printable_test = Tile::printable_id_map(&expected_id_map, true);
-        let printable_result = Tile::printable_id_map(&result, true);
+        let printable_test = Tile::palette_id_map_to_printable_id_map(&expected_id_map, true);
+        let printable_result = Tile::palette_id_map_to_printable_id_map(&result, true);
         println!("{}", printable_test);
         println!("{}", printable_result);
         assert_eq!(result, expected_id_map);

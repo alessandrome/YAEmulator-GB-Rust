@@ -1,11 +1,13 @@
 use std::cell::RefCell;
 use std::rc::Rc;
-use crate::GB::instructions;
+use crate::GB::{instructions, SYSTEM_FREQUENCY_CLOCK};
+use crate::GB::cartridge::{Cartridge, UseCartridge};
 use crate::GB::registers;
 use crate::GB::memory::{self, RAM, UseMemory, USER_PROGRAM_ADDRESS};
 
 
-const CPU_CLOCK_SPEED: u64 = 4_194_304; // In Hz - 4 Time System Clock
+const CPU_CLOCK_MULTIPLIER: u64 = 4;
+const CPU_CLOCK_SPEED: u64 = SYSTEM_FREQUENCY_CLOCK * CPU_CLOCK_MULTIPLIER; // In Hz - 4 Time System Clock
 const DIVIDER_FREQUENCY: u64 = 16384; // Divider Update Frequency in Hz
 
 #[cfg(test)]
@@ -13,7 +15,7 @@ mod test {
     use std::cell::RefCell;
     use std::rc::Rc;
     use crate::GB::CPU::CPU;
-    use crate::GB::memory::{RAM, WRAM_ADDRESS, WRAM_SIZE};
+    use crate::GB::memory::{RAM, UseMemory, WRAM_ADDRESS, WRAM_SIZE};
 
     #[test]
     fn cpu_new_8bit_registers() {
@@ -70,7 +72,7 @@ mod test {
         let test_value: u8 = 0x81;
         cpu.push(test_value);
         assert_eq!(cpu.registers.get_sp(), start_sp - 1);
-        assert_eq!(cpu.ram.read(start_sp), test_value);
+        assert_eq!(cpu.read_memory(start_sp), test_value);
 
         let popped_val = cpu.pop();
         assert_eq!(cpu.registers.get_sp(), start_sp);
@@ -80,33 +82,34 @@ mod test {
 
 pub struct CPU {
     pub registers: registers::Registers,
-    pub ram: memory::RAM,
     pub ime: bool,      // Interrupt Master Enable - True if you want to enable and intercept interrupts
     pub opcode: u8,     // Running Instruction Opcode
     pub cycles: u64,     // Total Cycles Count
     pub divider_counter: u8,     // Total Cycles Count
-    pub memory: Rc<RefCell<RAM>>
+    pub memory: Rc<RefCell<RAM>>,
+    cartridge: Rc<RefCell<Option<Cartridge>>>,
 }
 
 impl CPU {
     pub fn new(memory: Rc<RefCell<RAM>>) -> Self {
         Self {
             registers: registers::Registers::new(),
-            ram: memory::RAM::new(),
             ime: false,
             opcode: 0,
             cycles: 0,
             divider_counter: 0,
-            memory
+            memory,
+            cartridge: Rc::new(RefCell::new(None)),
         }
     }
     
     pub fn fetch_next(&mut self) -> u8 {
-        self.ram.read(self.registers.get_and_inc_pc())
+        let addr = self.registers.get_and_inc_pc();
+        self.read_memory(addr)
     }
 
-    pub fn decode(opcode: &u8, cb_opcode: bool) -> Option<&'static instructions::Instruction> {
-        let opcode_usize = *opcode as usize;
+    pub fn decode(opcode: u8, cb_opcode: bool) -> Option<&'static instructions::Instruction> {
+        let opcode_usize = opcode as usize;
         if cb_opcode {
             return instructions::OPCODES_CB[opcode_usize]
         }
@@ -116,7 +119,7 @@ impl CPU {
     pub fn execute_next(&mut self) -> u64{
         let cb_subset = self.opcode == 0xCB;
         self.opcode = self.fetch_next();
-        let instruction = Self::decode(&self.opcode, cb_subset);
+        let instruction = Self::decode(self.opcode, cb_subset);
         let mut cycles: u64 = 1;
         match (instruction) {
             Some(ins) => {
@@ -133,7 +136,7 @@ impl CPU {
     pub fn load(&mut self, data: &Vec<u8>) {
         let mut addr: u16 = 0;
         for byte in data {
-            self.ram.write(USER_PROGRAM_ADDRESS as u16 + addr, *byte);
+            self.write_memory(USER_PROGRAM_ADDRESS as u16 + addr, *byte);
             addr += 1;
         }
         self.registers.set_pc(USER_PROGRAM_ADDRESS as u16);
@@ -143,7 +146,7 @@ impl CPU {
         CPU Push 1-byte using SP register (to not confuse with instruction PUSH r16, that PUSH in a 2-bytes value from a double-register)
      */
     pub fn push(&mut self, byte: u8) {
-        self.ram.write(self.registers.get_sp(), byte);
+        self.write_memory(self.registers.get_sp(), byte);
         self.registers.set_sp(self.registers.get_sp() - 1);
     }
 
@@ -152,7 +155,7 @@ impl CPU {
      */
     pub fn pop(&mut self) -> u8 {
         self.registers.set_sp(self.registers.get_sp() + 1);
-        self.ram.read(self.registers.get_sp())
+        self.read_memory(self.registers.get_sp())
     }
 
     pub fn update_divider(&mut self, cycles: u64) {
@@ -173,5 +176,11 @@ impl UseMemory for CPU {
 
     fn write_memory(&self, address: u16, data: u8) {
         self.memory.borrow_mut().write(address, data);
+    }
+}
+
+impl UseCartridge for CPU {
+    fn set_cartridge(&mut self, rom: Rc<RefCell<Option<Cartridge>>>) {
+        self.cartridge = rom;
     }
 }
