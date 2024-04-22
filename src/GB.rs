@@ -4,6 +4,7 @@ use std::rc::Rc;
 use crate::GB::cartridge::{Cartridge, UseCartridge};
 use crate::GB::memory::{RAM};
 use crate::GB::memory::BIOS::BIOS;
+use crate::GB::cartridge::addresses as cartridge_addresses;
 
 pub mod registers;
 pub mod instructions;
@@ -35,15 +36,22 @@ pub struct GB {
 }
 
 impl GB {
-    pub fn new(bios: String) -> Self{
+    pub fn new(bios: Option<String>) -> Self{
         let mut ram = RAM::new();
         let ram_ref = Rc::new(RefCell::new(ram));
         let cartridge_ref = Rc::new(RefCell::new(None));
         let cpu = CPU::CPU::new(Rc::clone(&ram_ref));
         let mut rom = BIOS::new();
-        rom.load_bios(&bios);
+        let mut is_booting = false;
+        match bios {
+            None => {}
+            Some(bios) => {
+                rom.load_bios(&bios);
+                is_booting = true;
+            }
+        }
         Self {
-            is_booting: true,
+            is_booting,
             cpu,
             ppu: PPU::PPU::new(Rc::clone(&ram_ref)),
             memory: ram_ref,
@@ -54,7 +62,7 @@ impl GB {
 
     pub fn boot(&mut self) {
         self.is_booting = true;
-        self.cpu.ram.boot_load(&self.bios);
+        self.memory.borrow_mut().boot_load(&self.bios);
         self.cpu.registers.set_pc(0);
     }
 
@@ -73,6 +81,11 @@ impl GB {
     pub fn cycle(&mut self) {
         let mut cycles = 0;
         cycles = self.cpu.execute_next();
+    }
+
+    pub fn set_use_boot(&mut self, use_boot: bool) {
+        self.is_booting = use_boot;
+        self.cpu.registers.set_pc(cartridge_addresses::ENTRY_POINT as u16);
     }
 
     pub fn get_cartridge(&self) -> Ref<'_, Option<Cartridge>> {

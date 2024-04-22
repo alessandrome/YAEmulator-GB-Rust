@@ -1,8 +1,8 @@
 use std::rc::Rc;
-    use std::cell::RefCell;
-    use crate::GB::CPU::CPU;
-    use crate::GB::memory;
-use crate::GB::memory::{RAM, USER_PROGRAM_ADDRESS, WRAM_ADDRESS};
+use std::cell::RefCell;
+use crate::GB::CPU::CPU;
+use crate::GB::memory;
+use crate::GB::memory::{UseMemory, RAM, USER_PROGRAM_ADDRESS, WRAM_ADDRESS};
 
 macro_rules! test_flags {
     ($cpu:ident, $zero:expr, $negative:expr, $half:expr, $carry:expr) => {
@@ -43,15 +43,15 @@ macro_rules! test_rlc {
             let mut cpu = CPU::new(Rc::clone(&memory_ref));
             let program_1: Vec<u8> = vec![0xCB, $opcode, 0xCB, $opcode];
             cpu.load(&program_1);
-            cpu.ram.write(test_addr, test_value_1);
+            cpu.write_memory(test_addr, test_value_1);
             cpu.registers.set_hl(test_addr);
             let mut cycles = cpu.execute_next();
             assert_eq!(cycles, 4);
-            assert_eq!(cpu.ram.read(test_addr), 0b0001_0001);
+            assert_eq!(cpu.read_memory(test_addr), 0b0001_0001);
             test_flags!(cpu, false, false, false, true);
             cycles = cpu.execute_next();
             assert_eq!(cycles, 4);
-            assert_eq!(cpu.ram.read(test_addr), 0b0010_0010);
+            assert_eq!(cpu.read_memory(test_addr), 0b0010_0010);
             test_flags!(cpu, false, false, false, false);
         }
     };
@@ -87,16 +87,16 @@ macro_rules! test_rl {
     let mut cpu = CPU::new(Rc::clone(&memory_ref));
             let program_1: Vec<u8> = vec![0xCB, $opcode, 0xCB, $opcode];
             cpu.load(&program_1);
-            cpu.ram.write(test_addr, test_value_1);
+            cpu.write_memory(test_addr, test_value_1);
             cpu.registers.set_hl(test_addr);
             cpu.registers.set_carry_flag(false);
             let mut cycles = cpu.execute_next();
             assert_eq!(cycles, 4);
-            assert_eq!(cpu.ram.read(test_addr), 0b0001_0000);
+            assert_eq!(cpu.read_memory(test_addr), 0b0001_0000);
             test_flags!(cpu, false, false, false, true);
             cycles = cpu.execute_next();
             assert_eq!(cycles, 4);
-            assert_eq!(cpu.ram.read(test_addr), 0b0010_0001);
+            assert_eq!(cpu.read_memory(test_addr), 0b0010_0001);
             test_flags!(cpu, false, false, false, false);
         }
     };
@@ -132,16 +132,16 @@ macro_rules! test_sla {
     let mut cpu = CPU::new(Rc::clone(&memory_ref));
             let program_1: Vec<u8> = vec![0xCB, $opcode, 0xCB, $opcode];
             cpu.load(&program_1);
-            cpu.ram.write(test_addr, test_value_1);
+            cpu.write_memory(test_addr, test_value_1);
             cpu.registers.set_hl(test_addr);
             cpu.registers.set_carry_flag(false);
             let mut cycles = cpu.execute_next();
             assert_eq!(cycles, 4);
-            assert_eq!(cpu.ram.read(test_addr), 0b0001_0000);
+            assert_eq!(cpu.read_memory(test_addr), 0b0001_0000);
             test_flags!(cpu, false, false, false, true);
             cycles = cpu.execute_next();
             assert_eq!(cycles, 4);
-            assert_eq!(cpu.ram.read(test_addr), 0b0010_0000);
+            assert_eq!(cpu.read_memory(test_addr), 0b0010_0000);
             test_flags!(cpu, false, false, false, false);
         }
     };
@@ -177,15 +177,15 @@ macro_rules! test_rrc {
     let mut cpu = CPU::new(Rc::clone(&memory_ref));
             let program_1: Vec<u8> = vec![0xCB, $opcode, 0xCB, $opcode];
             cpu.load(&program_1);
-            cpu.ram.write(test_addr, test_value_1);
+            cpu.write_memory(test_addr, test_value_1);
             cpu.registers.set_hl(test_addr);
             let mut cycles = cpu.execute_next();
             assert_eq!(cycles, 4);
-            assert_eq!(cpu.ram.read(test_addr), 0b1000_1000);
+            assert_eq!(cpu.read_memory(test_addr), 0b1000_1000);
             test_flags!(cpu, false, false, false, true);
             cycles = cpu.execute_next();
             assert_eq!(cycles, 4);
-            assert_eq!(cpu.ram.read(test_addr), 0b0100_0100);
+            assert_eq!(cpu.read_memory(test_addr), 0b0100_0100);
             test_flags!(cpu, false, false, false, false);
         }
     };
@@ -221,16 +221,16 @@ macro_rules! test_rr {
     let mut cpu = CPU::new(Rc::clone(&memory_ref));
             let program_1: Vec<u8> = vec![0xCB, $opcode, 0xCB, $opcode];
             cpu.load(&program_1);
-            cpu.ram.write(test_addr, test_value_1);
+            cpu.write_memory(test_addr, test_value_1);
             cpu.registers.set_hl(test_addr);
             cpu.registers.set_carry_flag(false);
             let mut cycles = cpu.execute_next();
             assert_eq!(cycles, 4);
-            assert_eq!(cpu.ram.read(test_addr), 0b0000_1000);
+            assert_eq!(cpu.read_memory(test_addr), 0b0000_1000);
             test_flags!(cpu, false, false, false, true);
             cycles = cpu.execute_next();
             assert_eq!(cycles, 4);
-            assert_eq!(cpu.ram.read(test_addr), 0b1000_0100);
+            assert_eq!(cpu.read_memory(test_addr), 0b1000_0100);
             test_flags!(cpu, false, false, false, false);
         }
     };
@@ -266,16 +266,16 @@ macro_rules! test_sra {
     let mut cpu = CPU::new(Rc::clone(&memory_ref));
             let program_1: Vec<u8> = vec![0xCB, $opcode, 0xCB, $opcode];
             cpu.load(&program_1);
-            cpu.ram.write(test_addr, test_value_1);
+            cpu.write_memory(test_addr, test_value_1);
             cpu.registers.set_hl(test_addr);
             cpu.registers.set_carry_flag(false);
             let mut cycles = cpu.execute_next();
             assert_eq!(cycles, 4);
-            assert_eq!(cpu.ram.read(test_addr), 0b1100_1000);
+            assert_eq!(cpu.read_memory(test_addr), 0b1100_1000);
             test_flags!(cpu, false, false, false, true);
             cycles = cpu.execute_next();
             assert_eq!(cycles, 4);
-            assert_eq!(cpu.ram.read(test_addr), 0b1110_0100);
+            assert_eq!(cpu.read_memory(test_addr), 0b1110_0100);
             test_flags!(cpu, false, false, false, false);
         }
     };
@@ -311,16 +311,16 @@ macro_rules! test_srl {
     let mut cpu = CPU::new(Rc::clone(&memory_ref));
             let program_1: Vec<u8> = vec![0xCB, $opcode, 0xCB, $opcode];
             cpu.load(&program_1);
-            cpu.ram.write(test_addr, test_value_1);
+            cpu.write_memory(test_addr, test_value_1);
             cpu.registers.set_hl(test_addr);
             cpu.registers.set_carry_flag(false);
             let mut cycles = cpu.execute_next();
             assert_eq!(cycles, 4);
-            assert_eq!(cpu.ram.read(test_addr), 0b0000_1000);
+            assert_eq!(cpu.read_memory(test_addr), 0b0000_1000);
             test_flags!(cpu, false, false, false, true);
             cycles = cpu.execute_next();
             assert_eq!(cycles, 4);
-            assert_eq!(cpu.ram.read(test_addr), 0b0000_0100);
+            assert_eq!(cpu.read_memory(test_addr), 0b0000_0100);
             test_flags!(cpu, false, false, false, false);
         }
     };
@@ -357,16 +357,16 @@ macro_rules! test_swap {
     let mut cpu = CPU::new(Rc::clone(&memory_ref));
             let program_1: Vec<u8> = vec![0xCB, $opcode, 0xCB, $opcode];
             cpu.load(&program_1);
-            cpu.ram.write(test_addr, test_value_1);
+            cpu.write_memory(test_addr, test_value_1);
             cpu.registers.set_hl(test_addr);
             cpu.registers.set_carry_flag(false);
             let mut cycles = cpu.execute_next();
             assert_eq!(cycles, 4);
-            assert_eq!(cpu.ram.read(test_addr), 0b1000_0001);
+            assert_eq!(cpu.read_memory(test_addr), 0b1000_0001);
             test_flags!(cpu, false, false, false, false);
             cycles = cpu.execute_next();
             assert_eq!(cycles, 4);
-            assert_eq!(cpu.ram.read(test_addr), test_value_1);
+            assert_eq!(cpu.read_memory(test_addr), test_value_1);
             test_flags!(cpu, false, false, false, false);
         }
     };
@@ -407,7 +407,7 @@ macro_rules! test_bit {
     let mut cpu = CPU::new(Rc::clone(&memory_ref));
             let program_1: Vec<u8> = vec![0xCB, $opcode, 0xCB, $opcode];
             cpu.load(&program_1);
-            cpu.ram.write(test_addr, test_value_1);
+            cpu.write_memory(test_addr, test_value_1);
             cpu.registers.$set_reg_src(test_addr);
             cpu.registers.set_zero_flag(false);
             cpu.registers.set_negative_flag(true);
@@ -416,13 +416,13 @@ macro_rules! test_bit {
             let registers_copy = cpu.registers;
             let mut cycles = cpu.execute_next();
             assert_eq!(cycles, 4);
-            assert_eq!(cpu.ram.read(test_addr), test_value_1);
+            assert_eq!(cpu.read_memory(test_addr), test_value_1);
             assert_eq!(cpu.registers.$get_reg_src(), test_addr);
             test_flags!(cpu, true, false, true, registers_copy.get_carry_flag());
-            cpu.ram.write(test_addr, !test_value_1);
+            cpu.write_memory(test_addr, !test_value_1);
             cycles = cpu.execute_next();
             assert_eq!(cycles, 4);
-            assert_eq!(cpu.ram.read(test_addr), !test_value_1);
+            assert_eq!(cpu.read_memory(test_addr), !test_value_1);
             assert_eq!(cpu.registers.$get_reg_src(), test_addr);
             test_flags!(cpu, false, false, true, registers_copy.get_carry_flag());
         }
@@ -466,7 +466,7 @@ macro_rules! test_res {
     let mut cpu = CPU::new(Rc::clone(&memory_ref));
             let program_1: Vec<u8> = vec![0xCB, $opcode];
             cpu.load(&program_1);
-            cpu.ram.write(test_addr, test_value_1);
+            cpu.write_memory(test_addr, test_value_1);
             cpu.registers.$set_reg_src(test_addr);
             cpu.registers.set_zero_flag(false);
             cpu.registers.set_negative_flag(true);
@@ -475,7 +475,7 @@ macro_rules! test_res {
             let registers_copy = cpu.registers;
             let mut cycles = cpu.execute_next();
             assert_eq!(cycles, 4);
-            assert_eq!(cpu.ram.read(test_addr), test_value_1 & test_mask);
+            assert_eq!(cpu.read_memory(test_addr), test_value_1 & test_mask);
             assert_eq!(cpu.registers.$get_reg_src(), test_addr);
             test_flags!(
                 cpu,
@@ -524,7 +524,7 @@ macro_rules! test_set {
     let mut cpu = CPU::new(Rc::clone(&memory_ref));
             let program_1: Vec<u8> = vec![0xCB, $opcode];
             cpu.load(&program_1);
-            cpu.ram.write(test_addr, test_value_1);
+            cpu.write_memory(test_addr, test_value_1);
             cpu.registers.$set_reg_src(test_addr);
             cpu.registers.set_zero_flag(false);
             cpu.registers.set_negative_flag(true);
@@ -533,7 +533,7 @@ macro_rules! test_set {
             let registers_copy = cpu.registers;
             let mut cycles = cpu.execute_next();
             assert_eq!(cycles, 4);
-            assert_eq!(cpu.ram.read(test_addr), test_value_1 | test_mask);
+            assert_eq!(cpu.read_memory(test_addr), test_value_1 | test_mask);
             assert_eq!(cpu.registers.$get_reg_src(), test_addr);
             test_flags!(
                 cpu,

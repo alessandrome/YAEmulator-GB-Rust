@@ -2,12 +2,16 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use crate::GB::memory::{RAM, UseMemory, VRAM_BLOCK_0_ADDRESS, VRAM_BLOCK_1_ADDRESS, VRAM_BLOCK_2_ADDRESS};
 use crate::GB::memory::registers::{LCDC};
-use crate::GB::PPU::tile::{Tile, TILE_SIZE};
+use crate::GB::PPU::tile::{GbPaletteId, Tile, TILE_SIZE};
 use crate::mask_flag_enum_default_impl;
 
 pub mod tile;
 #[cfg(test)]
 mod tests;
+
+pub const SCREEN_WIDTH: usize = 160;
+pub const SCREEN_HEIGHT: usize = 144;
+pub const SCREEN_PIXELS: usize = SCREEN_WIDTH * SCREEN_HEIGHT;
 
 macro_rules! ppu_get_set_flag_bit {
     ($get_func: ident, $set_func: ident, $register_ident: ident, $mask_ident: expr) => {
@@ -39,14 +43,20 @@ pub enum LCDCMasks {
 mask_flag_enum_default_impl!(LCDCMasks);
 
 pub struct PPU {
-    memory: Rc<RefCell<RAM>>
+    memory: Rc<RefCell<RAM>>,
+    frame: Box<[GbPaletteId; SCREEN_PIXELS]>,
 }
 
 impl PPU {
     pub fn new(memory: Rc<RefCell<RAM>>) -> Self {
         Self {
             memory,
+            frame: Box::new([GbPaletteId::Id0; SCREEN_PIXELS]),
         }
+    }
+
+    pub fn cycle(&mut self) {
+
     }
 
     pub fn get_tile(&self, mut tile_id: u16, bg_win: bool) -> Tile {

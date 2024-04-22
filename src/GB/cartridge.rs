@@ -1,4 +1,4 @@
-mod addresses;
+pub mod addresses;
 
 #[cfg(test)]
 mod tests;
@@ -9,7 +9,7 @@ use std::io::prelude::*;
 use std::fs::File;
 use std::rc::Rc;
 use std::string::FromUtf8Error;
-use crate::GB::cartridge::addresses::{MBC_RAM_ENABLE_ADDRESS_START, MBC_RAM_ENABLE_ADDRESS_END, TITLE, TITLE_OLD_SIZE, MBC_ROM_BANK_SELECTION_ADDRESS_START, MBC_ROM_BANK_SELECTION_ADDRESS_END};
+use crate::GB::cartridge::addresses::{TITLE, TITLE_OLD_SIZE};
 use crate::GB::cartridge::addresses::mbc1::{MBC1_BANKING_MODE_ADDRESS_END, MBC1_BANKING_MODE_ADDRESS_START, MBC1_RAM_BANK_SELECTION_ADDRESS_END, MBC1_RAM_BANK_SELECTION_ADDRESS_START, MBC1_RAM_ENABLE_ADDRESS_START, MBC1_ROM_BANK_SELECTION_ADDRESS_END, MBC1_ROM_BANK_SELECTION_ADDRESS_START};
 use crate::GB::memory::{Memory};
 use crate::GB::memory::addresses::{ROM_BANK_0_ADDRESS, ROM_BANK_0_LAST_ADDRESS, EXTERNAL_RAM_ADDRESS, EXTERNAL_RAM_LAST_ADDRESS, ROM_BANK_1_LAST_ADDRESS, ROM_BANK_1_ADDRESS};
@@ -26,7 +26,7 @@ pub struct Cartridge {
     ram_enabled: bool,
     rom_bank: usize,
     ram_bank: usize,
-    bank_switch_mode: bool,
+    bank_switch_mode: bool, // False = ROM mode - True = RAM mode
 }
 
 #[derive(Copy, Clone, Debug)]
