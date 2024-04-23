@@ -4,14 +4,15 @@ use crate::GB::memory::{RAM, UseMemory, VRAM_BLOCK_0_ADDRESS, VRAM_BLOCK_1_ADDRE
 use crate::GB::memory::registers::{LCDC};
 use crate::GB::PPU::tile::{GbPaletteId, Tile, TILE_SIZE};
 use crate::mask_flag_enum_default_impl;
+use ppu_mode::PPUMode;
 
 pub mod tile;
+pub mod constants;
+pub mod ppu_mode;
 #[cfg(test)]
 mod tests;
+mod addresses;
 
-pub const SCREEN_WIDTH: usize = 160;
-pub const SCREEN_HEIGHT: usize = 144;
-pub const SCREEN_PIXELS: usize = SCREEN_WIDTH * SCREEN_HEIGHT;
 
 macro_rules! ppu_get_set_flag_bit {
     ($get_func: ident, $set_func: ident, $register_ident: ident, $mask_ident: expr) => {
@@ -44,19 +45,23 @@ mask_flag_enum_default_impl!(LCDCMasks);
 
 pub struct PPU {
     memory: Rc<RefCell<RAM>>,
-    frame: Box<[GbPaletteId; SCREEN_PIXELS]>,
+    frame: Box<[GbPaletteId; constants::SCREEN_PIXELS]>,
+    // mode: PPUMode, -> The mod is mapped in STAT - LCDC Register (bits 1/0)
+    line_dots: usize,
 }
 
 impl PPU {
     pub fn new(memory: Rc<RefCell<RAM>>) -> Self {
         Self {
             memory,
-            frame: Box::new([GbPaletteId::Id0; SCREEN_PIXELS]),
+            frame: Box::new([GbPaletteId::Id0; constants::SCREEN_PIXELS]),
+            // mode: PPUMode::OAMScan,
+            line_dots: 0,
         }
     }
 
     pub fn cycle(&mut self) {
-
+        self.line_dots = (self.line_dots + 1) % constants::LINE_DOTS;
     }
 
     pub fn get_tile(&self, mut tile_id: u16, bg_win: bool) -> Tile {

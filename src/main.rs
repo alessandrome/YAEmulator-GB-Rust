@@ -160,10 +160,10 @@ fn main() {
             read_bytes +=1;
         }
         gb.cycle();
-        println!("{:04} |  {:#06X} |  {} |  {}", i, addr, s, s_ins);
+        println!("|{:04} |  {:#06X} |  {} |  {}", i, addr, s, s_ins);
     }
 
-    println!("-----+---------+------------+-----------------+");
+    println!("+-----+---------+------------+-----------------+");
     println!();
 
     if fs::metadata(&args.rom).is_ok() {

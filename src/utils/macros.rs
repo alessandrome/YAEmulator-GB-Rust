@@ -82,3 +82,23 @@ macro_rules! mask_flag_enum_default_impl {
         }
     };
 }
+
+#[macro_export]
+macro_rules! default_enum_u8 {
+    ($type_name: ty {$($variant:ident = $value:expr),*}) => {
+        impl Into<u8> for $type_name {
+            fn into(self) -> u8 {
+                self as u8
+            }
+        }
+
+        impl From<u8> for $type_name {
+            fn from(value: u8) -> Self {
+                match value {
+                    $($value => Self::$variant),*,
+                    _ => panic!("Invalid value for enum {}", value),
+                }
+            }
+        }
+    }
+}
