@@ -1,12 +1,6 @@
 #[macro_export]
-macro_rules! mask_flag_enum_default_impl {
+macro_rules! default_enum_u8_bit_ops {
     ($type_name: ty) => {
-        impl Into<u8> for $type_name {
-            fn into(self) -> u8 {
-                self as u8
-            }
-        }
-
         impl std::ops::BitAnd<u8> for $type_name {
             type Output = u8;
 
@@ -80,6 +74,19 @@ macro_rules! mask_flag_enum_default_impl {
                 self ^ rhs as u8
             }
         }
+    }
+}
+
+
+#[macro_export]
+macro_rules! mask_flag_enum_default_impl {
+    ($type_name: ty) => {
+        impl Into<u8> for $type_name {
+            fn into(self) -> u8 {
+                self as u8
+            }
+        }
+        default_enum_u8_bit_ops!($type_name);
     };
 }
 
@@ -100,5 +107,6 @@ macro_rules! default_enum_u8 {
                 }
             }
         }
+        default_enum_u8_bit_ops!($type_name);
     }
 }

@@ -1,4 +1,4 @@
-use crate::mask_flag_enum_default_impl;
+use crate::{mask_flag_enum_default_impl, default_enum_u8_bit_ops};
 
 #[derive(Copy, Clone, Debug)]
 #[repr(u8)]

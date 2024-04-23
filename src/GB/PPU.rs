@@ -1,20 +1,23 @@
+use crate::mask_flag_enum_default_impl;
+use crate::GB::memory::registers::LCDC;
+use crate::GB::memory::{
+    UseMemory, RAM, VRAM_BLOCK_0_ADDRESS, VRAM_BLOCK_1_ADDRESS, VRAM_BLOCK_2_ADDRESS,
+};
+use crate::GB::PPU::tile::{GbPaletteId, Tile, TILE_SIZE};
+use lcd_stats_masks::LCDStatMasks;
+use lcdc_masks::LCDCMasks;
+use ppu_mode::PPUMode;
 use std::cell::RefCell;
 use std::rc::Rc;
-use crate::GB::memory::{RAM, UseMemory, VRAM_BLOCK_0_ADDRESS, VRAM_BLOCK_1_ADDRESS, VRAM_BLOCK_2_ADDRESS};
-use crate::GB::memory::registers::{LCDC};
-use crate::GB::PPU::tile::{GbPaletteId, Tile, TILE_SIZE};
-use crate::mask_flag_enum_default_impl;
-use ppu_mode::PPUMode;
-use lcdc_masks::LCDCMasks;
 
-pub mod tile;
+pub mod addresses;
 pub mod constants;
-pub mod ppu_mode;
+pub mod lcd_stats_masks;
 pub mod lcdc_masks;
+pub mod ppu_mode;
 #[cfg(test)]
 mod tests;
-mod addresses;
-
+pub mod tile;
 
 macro_rules! ppu_get_set_flag_bit {
     ($get_func: ident, $set_func: ident, $register_ident: ident, $mask_ident: expr) => {
@@ -25,11 +28,13 @@ macro_rules! ppu_get_set_flag_bit {
             let flag_byte = self.read_memory($register_ident as u16);
             let base_mask = !$mask_ident as u8;
             let bit_num = base_mask.trailing_ones();
-            self.write_memory($register_ident as u16, flag_byte & base_mask | ((flag as u8) << bit_num));
+            self.write_memory(
+                $register_ident as u16,
+                flag_byte & base_mask | ((flag as u8) << bit_num),
+            );
         }
     };
 }
-
 
 pub struct PPU {
     memory: Rc<RefCell<RAM>>,
@@ -50,6 +55,33 @@ impl PPU {
 
     pub fn cycle(&mut self) {
         self.line_dots = (self.line_dots + 1) % constants::LINE_DOTS;
+        let line = self.read_memory(addresses::LY_ADDRESS as u16) as usize;
+        if line > constants::SCREEN_HEIGHT - 2 {
+            self.set_mode(PPUMode::VBlank);
+        } else {
+            const SCAN_OAM_DOTS_END: usize = constants::SCAN_OAM_DOTS - 1;
+            const DRAW_DOTS_END: usize =
+                constants::DRAW_LINE_MIN_DOTS - 1 + constants::SCAN_OAM_DOTS;
+            const HBLANK_DOTS_START: usize = DRAW_DOTS_END + 1;
+            const HBLANK_DOTS_END: usize = HBLANK_DOTS_START + constants::HBLANK_MIN_DOTS - 1;
+            match self.line_dots {
+                0..=SCAN_OAM_DOTS_END => {
+                    self.set_mode(PPUMode::OAMScan);
+                }
+                constants::SCAN_OAM_DOTS..=DRAW_DOTS_END => {
+                    self.set_mode(PPUMode::Drawing);
+                }
+                _ => {
+                    self.set_mode(PPUMode::HBlank);
+                }
+            }
+        }
+    }
+
+    fn set_mode(&mut self, mode: PPUMode) {
+        const LCD_STAT_ADDR_USIZE: u16 = addresses::LCD_STAT_ADDRESS as u16;
+        let register = self.read_memory(LCD_STAT_ADDR_USIZE) & !LCDStatMasks::PPUMode;
+        self.write_memory(LCD_STAT_ADDR_USIZE, register | mode);
     }
 
     pub fn get_tile(&self, mut tile_id: u16, bg_win: bool) -> Tile {
@@ -59,7 +91,11 @@ impl PPU {
         if bg_win {
             let bg_wind_tile = (lcdc & LCDCMasks::BgWinTilesArea) == 0;
             if bg_wind_tile {
-                start_address = if tile_id > 127 { VRAM_BLOCK_1_ADDRESS } else { VRAM_BLOCK_2_ADDRESS };
+                start_address = if tile_id > 127 {
+                    VRAM_BLOCK_1_ADDRESS
+                } else {
+                    VRAM_BLOCK_2_ADDRESS
+                };
                 tile_id %= 128;
             }
         }
