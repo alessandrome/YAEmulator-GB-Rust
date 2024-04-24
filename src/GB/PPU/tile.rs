@@ -1,4 +1,6 @@
 use std::collections::HashMap;
+use std::fmt;
+use std::fmt::Formatter;
 
 pub const TILE_SIZE: usize = 16; // In Bytes
 
@@ -112,6 +114,23 @@ impl Tile {
             to_print.push('\n')
         }
         to_print
+    }
+}
+
+impl fmt::Display for Tile {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        let mut data_s = "".to_string();
+        for i in 0..self.data.len() {
+            data_s.push_str(format!("{:02X}", self.data[i]).as_str());
+            if i != self.data.len() - 1 {
+                data_s.push(' ');
+            }
+        }
+        write!(
+            f,
+            "Tile {{ Data: [{}] }}",
+            data_s,
+        )
     }
 }
 
