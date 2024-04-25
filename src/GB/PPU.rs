@@ -9,6 +9,7 @@ use lcdc_masks::LCDCMasks;
 use ppu_mode::PPUMode;
 use std::cell::RefCell;
 use std::rc::Rc;
+use crate::GB::PPU::constants::SCAN_OAM_DOTS;
 
 pub mod addresses;
 pub mod constants;
@@ -41,6 +42,8 @@ pub struct PPU {
     frame: Box<[GbPaletteId; constants::SCREEN_PIXELS]>,
     // mode: PPUMode, -> The mod is mapped in STAT - LCDC Register (bits 1/0)
     line_dots: usize,
+    dots_penalties: usize,
+    dots_penalties_counter: usize,
 }
 
 impl PPU {
@@ -50,30 +53,65 @@ impl PPU {
             frame: Box::new([GbPaletteId::Id0; constants::SCREEN_PIXELS]),
             // mode: PPUMode::OAMScan,
             line_dots: 0,
+            dots_penalties: 0,
+            dots_penalties_counter: 0,
         }
     }
 
     pub fn cycle(&mut self) {
-        self.line_dots = (self.line_dots + 1) % constants::LINE_DOTS;
-        let line = self.read_memory(addresses::LY_ADDRESS as u16) as usize;
+        const SCAN_OAM_DOTS_END: usize = constants::SCAN_OAM_DOTS - 1;
+        const DRAW_DOTS_END: usize = constants::DRAW_LINE_MAX_DOTS - 1 + constants::SCAN_OAM_DOTS;
+        const HBLANK_DOTS_START: usize = DRAW_DOTS_END + 1;
+        const HBLANK_DOTS_END: usize = HBLANK_DOTS_START + constants::HBLANK_MIN_DOTS - 1;
+
+        // Get line, check if we are counting penalties, increment line DOT (and line if needed)
+        let mut line = self.read_memory(addresses::LY_ADDRESS as u16) as usize;
+
+        // Execute
         if line > constants::SCREEN_HEIGHT - 2 {
             self.set_mode(PPUMode::VBlank);
         } else {
-            const SCAN_OAM_DOTS_END: usize = constants::SCAN_OAM_DOTS - 1;
-            const DRAW_DOTS_END: usize =
-                constants::DRAW_LINE_MIN_DOTS - 1 + constants::SCAN_OAM_DOTS;
-            const HBLANK_DOTS_START: usize = DRAW_DOTS_END + 1;
-            const HBLANK_DOTS_END: usize = HBLANK_DOTS_START + constants::HBLANK_MIN_DOTS - 1;
+            let scx = self.read_memory(addresses::SCX_ADDRESS as u16) as usize;
+            let scy = self.read_memory(addresses::SCY_ADDRESS as u16) as usize;
+            if self.line_dots == SCAN_OAM_DOTS {
+                // Just entered in draw mode
+                self.dots_penalties += scx % 8;
+            }
+
             match self.line_dots {
                 0..=SCAN_OAM_DOTS_END => {
-                    self.set_mode(PPUMode::OAMScan);
+
                 }
                 constants::SCAN_OAM_DOTS..=DRAW_DOTS_END => {
-                    self.set_mode(PPUMode::Drawing);
+
                 }
                 _ => {
-                    self.set_mode(PPUMode::HBlank);
+
                 }
+            }
+        }
+
+        // Update
+        if self.dots_penalties_counter > 0 {
+            self.dots_penalties_counter -= 1;
+        } else {
+            self.line_dots = (self.line_dots + 1) % constants::LINE_DOTS;
+            match self.line_dots {
+                0 => {
+                    self.set_mode(PPUMode::OAMScan);
+                    line += 1;
+                    line %= constants::FRAME_LINES;
+                    self.write_memory(addresses::LY_ADDRESS as u16, line as u8);
+                }
+                constants::SCAN_OAM_DOTS => {
+                    self.set_mode(PPUMode::Drawing);
+                }
+                HBLANK_DOTS_START => {
+                    self.line_dots += self.dots_penalties;
+                    self.set_mode(PPUMode::HBlank);
+                    self.dots_penalties = 0;
+                }
+                _ => {}
             }
         }
     }
@@ -104,6 +142,14 @@ impl PPU {
             data[i] = self.read_memory((start_address + i) as u16);
         }
         Tile::new(data)
+    }
+
+    pub fn get_bg_map(&self) -> Vec<Tile> {
+        let mut tiles = Vec::with_capacity(1024);
+        for i in 0..256 {
+            tiles.push(self.get_tile(i, true));
+        }
+        tiles
     }
 
     ppu_get_set_flag_bit!(get_bg_win_enabled_flag, set_bg_win_enabled_flag, LCDC, LCDCMasks::BgWinEnabled);
