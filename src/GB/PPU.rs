@@ -19,6 +19,7 @@ pub mod ppu_mode;
 #[cfg(test)]
 mod tests;
 pub mod tile;
+pub mod oam;
 
 macro_rules! ppu_get_set_flag_bit {
     ($get_func: ident, $set_func: ident, $register_ident: ident, $mask_ident: expr) => {
