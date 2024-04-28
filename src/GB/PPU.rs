@@ -10,6 +10,7 @@ use ppu_mode::PPUMode;
 use std::cell::RefCell;
 use std::rc::Rc;
 use crate::GB::PPU::constants::SCAN_OAM_DOTS;
+use crate::GB::PPU::oam::OAM;
 
 pub mod addresses;
 pub mod constants;
@@ -151,6 +152,10 @@ impl PPU {
             tiles.push(self.get_tile(i, true));
         }
         tiles
+    }
+
+    pub fn get_oam(&self, id: usize) -> OAM {
+        todo!("Add retrieving of OAM by ID")
     }
 
     ppu_get_set_flag_bit!(get_bg_win_enabled_flag, set_bg_win_enabled_flag, LCDC, LCDCMasks::BgWinEnabled);
