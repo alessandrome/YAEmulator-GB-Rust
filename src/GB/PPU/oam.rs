@@ -30,4 +30,15 @@ impl OAM {
             palette,
         }
     }
+
+    /// Return a tuple of 4 four bytes representing OAM in memory.
+    ///
+    /// Order of bytes is (Y, X, Tile ID, Attributes). Structure attributes are converted in its representing byte in memory.
+    pub fn get_oam_bytes(&self) -> (u8, u8, u8, u8) {
+        let attributes: u8 = (self.priority as u8) << (AttributesMasks::Priority as u8).leading_zeros()
+            | (self.y_flip as u8) << (AttributesMasks::YFlip as u8).leading_zeros()
+            | (self.x_flip as u8) << (AttributesMasks::XFlip as u8).leading_zeros()
+            | (self.palette as u8) << (AttributesMasks::Palette as u8).leading_zeros();
+        (self.y, self.x, self.tile_id, attributes)
+    }
 }
