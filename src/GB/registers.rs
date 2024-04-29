@@ -1,5 +1,5 @@
 use std::fmt;
-use crate::{GB, mask_flag_enum_default_impl};
+use crate::{GB, mask_flag_enum_default_impl, default_enum_u8_bit_ops};
 use crate::GB::debug_print;
 use crate::GB::memory::{WRAM_ADDRESS, WRAM_SIZE};
 

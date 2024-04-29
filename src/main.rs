@@ -16,6 +16,7 @@ mod tests;
 use GB::CPU::{CPU};
 use crate::GB::instructions::Instruction;
 use crate::GB::memory::Length;
+use crate::GB::PPU::tile::Tile;
 
 
 #[derive(Parser, Debug)]
@@ -160,11 +161,21 @@ fn main() {
             read_bytes +=1;
         }
         gb.cycle();
-        println!("{:04} |  {:#06X} |  {} |  {}", i, addr, s, s_ins);
+        println!("|{:04} |  {:#06X} |  {} |  {}", i, addr, s, s_ins);
     }
-
-    println!("-----+---------+------------+-----------------+");
+    println!("+ -----+---------+------------+-----------------+");
     println!();
+
+    {
+        // let map = gb.ppu.get_bg_map();
+        // for i in 0..32 {
+        //     for j in 0..32 {
+        //         print!("{}", gb.ppu.get_tile(i, false).get_printable_id_map(true));
+        //     }
+        //     println!()
+        // }
+        println!("{}", gb.ppu.get_tile(0, true));
+    }
 
     if fs::metadata(&args.rom).is_ok() {
         println!("La ROM \"{}\" esiste!", args.rom);
