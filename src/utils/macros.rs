@@ -74,6 +74,22 @@ macro_rules! default_enum_u8_bit_ops {
                 self ^ rhs as u8
             }
         }
+
+        impl std::ops::Shl<$type_name> for u8 {
+            type Output = u8;
+
+            fn shl(self, rhs: $type_name) -> Self::Output {
+                self << (rhs as u8)
+            }
+        }
+
+        impl std::ops::Shr<$type_name> for u8 {
+            type Output = u8;
+
+            fn shr(self, rhs: $type_name) -> Self::Output {
+                self >> (rhs as u8)
+            }
+        }
     }
 }
 
