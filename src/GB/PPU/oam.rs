@@ -2,6 +2,8 @@ use crate::GB::PPU::oam::attributes_masks::AttributesMasks;
 
 pub mod attributes_masks;
 
+pub const OAM_SIZE: usize = 4;
+
 pub struct OAM {
     id: Option<usize>, // Optional - Useful to manage as ID of OAM in GB Memory
     y: u8,

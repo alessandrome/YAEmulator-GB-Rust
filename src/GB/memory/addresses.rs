@@ -27,9 +27,9 @@ pub const WRAM_ADDRESS: usize = 0xC000; // 8KB Working RAM (normal used RAM moun
 pub const WRAM_SIZE: usize = 0x2000; // 8KB Working RAM (normal used RAM mounted on GB)
 
 pub const ECHO_WRAM_ADDRESS: usize = 0xE000; // Use Prohibited
-pub const ECHO_WRAM_SIZE: usize = OAM_ADDRESS - ECHO_WRAM_ADDRESS; // Use Prohibited
+pub const ECHO_WRAM_SIZE: usize = OAM_AREA_ADDRESS - ECHO_WRAM_ADDRESS; // Use Prohibited
 
-pub const OAM_ADDRESS: usize = 0xFE00; // OAM Items zone
+pub const OAM_AREA_ADDRESS: usize = 0xFE00; // OAM Items zone
 
 pub const PROHIBITED_AREA_ADDRESS: usize = 0xFEA0; // Prohibited by GB documents
 pub const PROHIBITED_AREA_SIZE: usize = IO_REGISTERS_ADDRESS - PROHIBITED_AREA_ADDRESS; // Prohibited by GB documents
