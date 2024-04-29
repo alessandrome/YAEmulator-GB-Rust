@@ -15,3 +15,5 @@ pub const VBLANK_DOTS: usize = LINE_DOTS * VBLANK_LINES;
 
 pub const FRAME_LINES: usize = SCREEN_HEIGHT + VBLANK_LINES;
 pub const FRAME_DOTS: usize = SCREEN_DOTS + VBLANK_DOTS;
+
+pub const OAM_NUMBERS: usize = 40;

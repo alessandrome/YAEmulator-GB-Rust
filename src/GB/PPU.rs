@@ -9,8 +9,9 @@ use lcdc_masks::LCDCMasks;
 use ppu_mode::PPUMode;
 use std::cell::RefCell;
 use std::rc::Rc;
+use crate::GB::memory::addresses::OAM_AREA_ADDRESS;
 use crate::GB::PPU::constants::SCAN_OAM_DOTS;
-use crate::GB::PPU::oam::OAM;
+use crate::GB::PPU::oam::{OAM, OAM_SIZE};
 
 pub mod addresses;
 pub mod constants;
@@ -155,7 +156,13 @@ impl PPU {
     }
 
     pub fn get_oam(&self, id: usize) -> OAM {
-        todo!("Add retrieving of OAM by ID")
+        let address = (id * OAM_SIZE + OAM_AREA_ADDRESS) as u16;
+        let (y, x, tile_id, attributes) =
+            (self.read_memory(address),
+             self.read_memory(address + 1),
+             self.read_memory(address + 2),
+             self.read_memory(address + 3));
+        OAM::new(y, x, tile_id, attributes, Option::from(id))
     }
 
     ppu_get_set_flag_bit!(get_bg_win_enabled_flag, set_bg_win_enabled_flag, LCDC, LCDCMasks::BgWinEnabled);
