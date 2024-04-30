@@ -3,7 +3,7 @@ use crate::GB::memory::registers::LCDC;
 use crate::GB::memory::{
     UseMemory, RAM, VRAM_BLOCK_0_ADDRESS, VRAM_BLOCK_1_ADDRESS, VRAM_BLOCK_2_ADDRESS,
 };
-use crate::GB::PPU::tile::{GbPaletteId, Tile, TILE_SIZE};
+use crate::GB::PPU::tile::{GbPaletteId, Tile, TILE_SIZE, TILE_HEIGHT, TILE_WIDTH};
 use lcd_stats_masks::LCDStatMasks;
 use lcdc_masks::LCDCMasks;
 use ppu_mode::PPUMode;
@@ -11,7 +11,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use crate::GB::memory::addresses::OAM_AREA_ADDRESS;
 use crate::GB::PPU::constants::SCAN_OAM_DOTS;
-use crate::GB::PPU::oam::{OAM, OAM_SIZE};
+use crate::GB::PPU::oam::{OAM, OAM_BYTE_SIZE};
 
 pub mod addresses;
 pub mod constants;
@@ -47,6 +47,7 @@ pub struct PPU {
     line_dots: usize,
     dots_penalties: usize,
     dots_penalties_counter: usize,
+    line_oam: Vec<OAM>
 }
 
 impl PPU {
@@ -58,9 +59,13 @@ impl PPU {
             line_dots: 0,
             dots_penalties: 0,
             dots_penalties_counter: 0,
+            line_oam: Vec::with_capacity(constants::MAX_SPRITE_PER_LINE),
         }
     }
 
+    /// Execute a cycle of PPU. Each cycle is the equivalent of 1 Dot.
+    ///
+    /// Drawing penalties are emulated doing nothing during them. Theme are then added to HBlank mode to reduce its available dots.
     pub fn cycle(&mut self) {
         const SCAN_OAM_DOTS_END: usize = constants::SCAN_OAM_DOTS - 1;
         const DRAW_DOTS_END: usize = constants::DRAW_LINE_MAX_DOTS - 1 + constants::SCAN_OAM_DOTS;
@@ -83,7 +88,14 @@ impl PPU {
 
             match self.line_dots {
                 0..=SCAN_OAM_DOTS_END => {
-
+                    if self.line_dots < constants::OAM_NUMBERS || self.line_oam.len() < constants::MAX_SPRITE_PER_LINE {
+                        let line_isize = line as isize;
+                        let oam = self.get_oam(self.line_dots);
+                        let oam_y_screen = oam.get_y_screen();
+                        if oam_y_screen <= line_isize && (oam_y_screen + TILE_HEIGHT as isize) > line_isize {
+                            self.line_oam.push(oam);
+                        }
+                    }
                 }
                 constants::SCAN_OAM_DOTS..=DRAW_DOTS_END => {
 
@@ -113,6 +125,7 @@ impl PPU {
                     self.line_dots += self.dots_penalties;
                     self.set_mode(PPUMode::HBlank);
                     self.dots_penalties = 0;
+                    self.line_oam.clear();
                 }
                 _ => {}
             }
@@ -147,6 +160,12 @@ impl PPU {
         Tile::new(data)
     }
 
+    /// Retrieve tile/obj size mode. Return False if OBJ is a single 8x8 obj or True if a dual tile in 8x16 obj
+    pub fn get_tile_mode(&self) -> bool {
+        let lcdc = self.read_memory(addresses::LCDC_ADDRESS as u16);
+        (lcdc & LCDCMasks:: ObjSize) != 0
+    }
+
     pub fn get_bg_map(&self) -> Vec<Tile> {
         let mut tiles = Vec::with_capacity(1024);
         for i in 0..256 {
@@ -156,7 +175,7 @@ impl PPU {
     }
 
     pub fn get_oam(&self, id: usize) -> OAM {
-        let address = (id * OAM_SIZE + OAM_AREA_ADDRESS) as u16;
+        let address = (id * OAM_BYTE_SIZE + OAM_AREA_ADDRESS) as u16;
         let (y, x, tile_id, attributes) =
             (self.read_memory(address),
              self.read_memory(address + 1),

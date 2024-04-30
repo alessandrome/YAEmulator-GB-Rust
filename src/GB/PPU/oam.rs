@@ -1,9 +1,12 @@
+use std::cmp::Ordering;
 use crate::GB::PPU::oam::attributes_masks::AttributesMasks;
+use crate::GB::PPU::tile::{TILE_HEIGHT, TILE_WIDTH};
 
 pub mod attributes_masks;
 
-pub const OAM_SIZE: usize = 4;
+pub const OAM_BYTE_SIZE: usize = 4;
 
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct OAM {
     id: Option<usize>, // Optional - Useful to manage as ID of OAM in GB Memory
     y: u8,
@@ -46,6 +49,32 @@ impl OAM {
             | (self.original_attributes & 0x0F);
         (self.y, self.x, self.tile_id, attributes)
     }
+
+    pub fn get_y_screen(&self) -> isize {
+        self.y as isize - TILE_HEIGHT as isize * 2
+    }
+
+    pub fn get_x_screen(&self) -> isize {
+        self.x as isize - TILE_WIDTH as isize
+    }
+}
+
+impl Ord for OAM {
+    fn cmp(&self, other: &Self) -> Ordering {
+        let x_cmp = self.x.cmp(&other.x);
+        if x_cmp == std::cmp::Ordering::Equal {
+            self.id.cmp(&other.id)
+        } else {
+            x_cmp
+        }
+    }
+}
+
+
+impl PartialOrd<Self> for OAM {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
 }
 
 #[cfg(test)]
@@ -53,15 +82,21 @@ mod test {
     use crate::GB::PPU::oam::attributes_masks::AttributesMasks;
     use crate::GB::PPU::oam::OAM;
 
+    macro_rules! new_oam {
+        ($oam: ident, $x_ident: ident, $y_ident: ident, $tile_ident: ident, $id_ident: ident, $attr_ident: ident, $x: expr, $y: expr, $tile_id: expr, $id: expr, $attributes: expr) => {
+            let ($y_ident, $x_ident, $tile_ident, $id_ident) = ($y, $x, $tile_id, $id);
+            let $attr_ident: u8 = $attributes;
+            let $oam = OAM::new($y_ident, $x_ident, $tile_ident, $attr_ident, $id_ident);
+        };
+    }
+
     #[test]
     fn new_oam() {
-        let (test_y, test_x, test_tile_id, test_id) = (56u8, 131u8, 33u8, 1usize);
-        let attributes: u8 = 0b1111_0000;
-        let oam = OAM::new(test_y, test_x, test_tile_id, attributes, Option::from(test_id));
+        new_oam!(oam, test_x, test_y, test_tile_id, test_id, attributes, 56u8, 131u8, 33u8, Some(1usize), 0b1111_0000);
         assert_eq!(oam.y, test_y);
         assert_eq!(oam.x, test_x);
         assert_eq!(oam.tile_id, test_tile_id);
-        assert_eq!(oam.id, Some(test_id));
+        assert_eq!(oam.id, test_id);
         assert_eq!(oam.priority, true);
         assert_eq!(oam.y_flip, true);
         assert_eq!(oam.x_flip, true);
@@ -70,14 +105,21 @@ mod test {
 
     #[test]
     fn get_oam_bytes() {
-        let (test_y, test_x, test_tile_id, test_id) = (56u8, 131u8, 33u8, None);
-        let attributes: u8 = 0b1001_0110;
-        let oam = OAM::new(test_y, test_x, test_tile_id, attributes, test_id);
+        new_oam!(oam, test_x, test_y, test_tile_id, test_id, attributes, 56u8, 131u8, 33u8, None, 0b1001_0110);
         assert_eq!(oam.id, None);
         assert_eq!(oam.priority, true);
         assert_eq!(oam.y_flip, false);
         assert_eq!(oam.x_flip, false);
         assert_eq!(oam.palette, true);
         assert_eq!(oam.get_oam_bytes(), (test_y, test_x, test_tile_id, attributes));
+    }
+
+    #[test]
+    fn test_order() {
+        new_oam!(oam_1, test_x, test_y, test_tile_id, test_id, attributes, 56u8, 131u8, 33u8, Some(1), 0b1001_0110);
+        new_oam!(oam_2, test_x, test_y, test_tile_id, test_id, attributes, 56u8, 131u8, 33u8, Some(2), 0b1001_0110);
+        new_oam!(oam_3, test_x, test_y, test_tile_id, test_id, attributes, 39u8, 131u8, 33u8, Some(3), 0b1001_0110);
+        assert_eq!(oam_1 < oam_2, true);
+        assert_eq!(oam_2 < oam_3, false);
     }
 }
