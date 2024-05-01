@@ -32,7 +32,8 @@ pub struct GB {
     pub bios: BIOS,
     pub cpu: CPU::CPU,
     pub ppu: PPU::PPU,
-    cartridge: Rc<RefCell<Option<Cartridge>>>
+    cartridge: Rc<RefCell<Option<Cartridge>>>,
+    pub cpu_cycles: u64, // Number to cycle needed to complete current CPU instruction. cpu.cycle() is skipped if different from 0
 }
 
 impl GB {
@@ -57,6 +58,7 @@ impl GB {
             memory: ram_ref,
             bios: rom,
             cartridge: cartridge_ref,
+            cpu_cycles: 0,
         }
     }
 
@@ -79,8 +81,11 @@ impl GB {
     }
 
     pub fn cycle(&mut self) {
-        let mut cycles = 0;
-        cycles = self.cpu.execute_next();
+        if !(self.cpu_cycles > 0) {
+            self.cpu_cycles = self.cpu.execute_next();
+        }
+        self.cpu_cycles -= 1;
+        self.ppu.cycle();
     }
 
     pub fn set_use_boot(&mut self, use_boot: bool) {
@@ -110,6 +115,7 @@ impl Default for GB {
             memory: ram_ref,
             bios: BIOS::new(),
             cartridge: cartridge_ref,
+            cpu_cycles: 0,
         }
     }
 }

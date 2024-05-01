@@ -57,6 +57,10 @@ impl OAM {
     pub fn get_x_screen(&self) -> isize {
         self.x as isize - TILE_WIDTH as isize
     }
+
+    pub fn get_tile_id(&self) -> u8 {
+        self.tile_id
+    }
 }
 
 impl Ord for OAM {
