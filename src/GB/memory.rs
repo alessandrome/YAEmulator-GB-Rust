@@ -9,6 +9,7 @@ use std::ops::{Deref, DerefMut};
 use std::rc::Rc;
 use crate::GB::cartridge::{Cartridge, UseCartridge};
 use crate::GB::memory::addresses::{*};
+use crate::GB::memory::registers::MemoryRegisters;
 use crate::GB::PPU::tile::TILE_SIZE;
 
 pub const RST_INSTRUCTIONS: usize = 0x0000; // Location in memory for RST instructions (not used on emulation)
@@ -165,6 +166,10 @@ impl RAM {
         for i in 0..bios.len() {
             self.memory[i] = self.read(i as u16);
         }
+    }
+
+    pub fn get_memory_registers(&self) -> MemoryRegisters {
+        MemoryRegisters::new(&self)
     }
 
     read_ram_space!(read_wram, WRAM_ADDRESS);
