@@ -10,7 +10,7 @@ use std::fs::File;
 use std::rc::Rc;
 use std::string::FromUtf8Error;
 use crate::GB::cartridge::addresses::{TITLE, TITLE_OLD_SIZE};
-use crate::GB::cartridge::addresses::mbc1::{MBC1_BANKING_MODE_ADDRESS_END, MBC1_BANKING_MODE_ADDRESS_START, MBC1_RAM_BANK_SELECTION_ADDRESS_END, MBC1_RAM_BANK_SELECTION_ADDRESS_START, MBC1_RAM_ENABLE_ADDRESS_START, MBC1_ROM_BANK_SELECTION_ADDRESS_END, MBC1_ROM_BANK_SELECTION_ADDRESS_START};
+use crate::GB::cartridge::addresses::mbc1::{MBC1_BANKING_MODE_ADDRESS_END, MBC1_BANKING_MODE_ADDRESS_START, MBC1_RAM_BANK_SELECTION_ADDRESS_END, MBC1_RAM_BANK_SELECTION_ADDRESS_START, MBC1_RAM_ENABLE_ADDRESS_END, MBC1_RAM_ENABLE_ADDRESS_START, MBC1_ROM_BANK_SELECTION_ADDRESS_END, MBC1_ROM_BANK_SELECTION_ADDRESS_START};
 use crate::GB::memory::{Memory};
 use crate::GB::memory::addresses::{ROM_BANK_0_ADDRESS, ROM_BANK_0_LAST_ADDRESS, EXTERNAL_RAM_ADDRESS, EXTERNAL_RAM_LAST_ADDRESS, ROM_BANK_1_LAST_ADDRESS, ROM_BANK_1_ADDRESS};
 use crate::GB::registers::Registers;
@@ -147,7 +147,7 @@ impl Cartridge {
 
     fn write_mbc1(&mut self, address: usize, value: u8) {
         match address {
-            MBC1_RAM_ENABLE_ADDRESS_START..=MBC1_ROM_BANK_SELECTION_ADDRESS_END => {
+            MBC1_RAM_ENABLE_ADDRESS_START..=MBC1_RAM_ENABLE_ADDRESS_END => {
                 self.ram_enabled = value == 0x0A;
             }
             MBC1_ROM_BANK_SELECTION_ADDRESS_START..=MBC1_ROM_BANK_SELECTION_ADDRESS_END => {
@@ -262,10 +262,11 @@ impl fmt::Display for Cartridge {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "Cartridge \"{}\"(0x{:02x}) {{ ROM/RAM: {}KB/{}KB, Title: \"{}\", Path: \"{}\" }}",
+            "Cartridge \"{}\"(0x{:02x}) {{ ROM/RAM: {}KB/{}KB, ROM B.: {}, RAM B.: {}, Title: \"{}\", Path: \"{}\" }}",
             Self::get_cartridge_type_string(&self.cartridge_type),
             self.rom[addresses::CARTRIDGE_TYPE],
             self.rom.len() / 1024, self.ram.len() / 1024,
+            self.rom_bank, self.ram_bank,
             self.get_title(),
             self.rom_path,
         )
