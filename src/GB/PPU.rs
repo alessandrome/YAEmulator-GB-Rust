@@ -3,15 +3,17 @@ use crate::GB::memory::registers::LCDC;
 use crate::GB::memory::{
     UseMemory, RAM, VRAM_BLOCK_0_ADDRESS, VRAM_BLOCK_1_ADDRESS, VRAM_BLOCK_2_ADDRESS,
 };
-use crate::GB::PPU::tile::{GbPaletteId, Tile, TILE_SIZE};
+use crate::GB::PPU::tile::{GbPaletteId, Tile, TILE_SIZE, TILE_HEIGHT, TILE_WIDTH};
 use lcd_stats_masks::LCDStatMasks;
 use lcdc_masks::LCDCMasks;
 use ppu_mode::PPUMode;
 use std::cell::RefCell;
+use std::fmt;
+use std::fmt::Formatter;
 use std::rc::Rc;
 use crate::GB::memory::addresses::OAM_AREA_ADDRESS;
-use crate::GB::PPU::constants::SCAN_OAM_DOTS;
-use crate::GB::PPU::oam::{OAM, OAM_SIZE};
+use crate::GB::PPU::constants::{SCAN_OAM_DOTS, SCREEN_WIDTH};
+use crate::GB::PPU::oam::{OAM, OAM_BYTE_SIZE};
 
 pub mod addresses;
 pub mod constants;
@@ -45,8 +47,11 @@ pub struct PPU {
     frame: Box<[GbPaletteId; constants::SCREEN_PIXELS]>,
     // mode: PPUMode, -> The mod is mapped in STAT - LCDC Register (bits 1/0)
     line_dots: usize,
+    screen_dot: usize,
     dots_penalties: usize,
     dots_penalties_counter: usize,
+    line_oam: Vec<OAM>,
+    line_oam_number: usize,
 }
 
 impl PPU {
@@ -56,11 +61,17 @@ impl PPU {
             frame: Box::new([GbPaletteId::Id0; constants::SCREEN_PIXELS]),
             // mode: PPUMode::OAMScan,
             line_dots: 0,
+            screen_dot: 0, // Actual elaborated pixel on screen (between 0 - 143)
             dots_penalties: 0,
             dots_penalties_counter: 0,
+            line_oam: Vec::with_capacity(constants::MAX_SPRITE_PER_LINE),
+            line_oam_number: 0,
         }
     }
 
+    /// Execute a cycle of PPU. Each cycle is the equivalent of 1 Dot.
+    ///
+    /// Drawing penalties are emulated doing nothing during them. Theme are then added to HBlank mode to reduce its available dots.
     pub fn cycle(&mut self) {
         const SCAN_OAM_DOTS_END: usize = constants::SCAN_OAM_DOTS - 1;
         const DRAW_DOTS_END: usize = constants::DRAW_LINE_MAX_DOTS - 1 + constants::SCAN_OAM_DOTS;
@@ -71,7 +82,7 @@ impl PPU {
         let mut line = self.read_memory(addresses::LY_ADDRESS as u16) as usize;
 
         // Execute
-        if line > constants::SCREEN_HEIGHT - 2 {
+        if line > constants::SCREEN_HEIGHT - 1 {
             self.set_mode(PPUMode::VBlank);
         } else {
             let scx = self.read_memory(addresses::SCX_ADDRESS as u16) as usize;
@@ -83,10 +94,32 @@ impl PPU {
 
             match self.line_dots {
                 0..=SCAN_OAM_DOTS_END => {
-
+                    if self.line_dots < constants::OAM_NUMBERS && self.line_oam.len() < constants::MAX_SPRITE_PER_LINE {
+                        let line_isize = line as isize;
+                        let oam = self.get_oam(self.line_dots);
+                        let oam_y_screen = oam.get_y_screen();
+                        if oam_y_screen <= line_isize && (oam_y_screen + TILE_HEIGHT as isize) > line_isize {
+                            self.line_oam.push(oam);
+                        }
+                    }
                 }
                 constants::SCAN_OAM_DOTS..=DRAW_DOTS_END => {
-
+                    if self.screen_dot < SCREEN_WIDTH {
+                        if self.line_oam_number < self.line_oam.len() {
+                            let oam = &self.line_oam[self.line_oam_number];
+                            let drawing_dot = (self.line_dots - constants::SCAN_OAM_DOTS - self.dots_penalties) as isize;
+                            let obj_dot = self.screen_dot as isize - oam.get_x_screen();
+                            if obj_dot >= 0 && obj_dot < TILE_WIDTH as isize {
+                                let obj_line = line as isize - oam.get_y_screen();
+                                let tile = self.get_tile(oam.get_tile_id(), false);
+                                let screen_index = self.screen_dot + line * SCREEN_WIDTH;
+                                let tile_index = obj_dot + obj_line * TILE_WIDTH as isize;
+                                self.frame[screen_index] = tile.get_tile_map()[tile_index as usize].clone();
+                            }
+                            let tile = self.get_tile(oam.get_tile_id(), false);
+                        }
+                        self.screen_dot += 1;
+                    }
                 }
                 _ => {
 
@@ -108,11 +141,15 @@ impl PPU {
                 }
                 constants::SCAN_OAM_DOTS => {
                     self.set_mode(PPUMode::Drawing);
+                    self.line_oam.sort();
                 }
                 HBLANK_DOTS_START => {
                     self.line_dots += self.dots_penalties;
                     self.set_mode(PPUMode::HBlank);
                     self.dots_penalties = 0;
+                    self.line_oam.clear();
+                    self.line_oam_number = 0;
+                    self.screen_dot = 0;
                 }
                 _ => {}
             }
@@ -125,7 +162,7 @@ impl PPU {
         self.write_memory(LCD_STAT_ADDR_USIZE, register | mode);
     }
 
-    pub fn get_tile(&self, mut tile_id: u16, bg_win: bool) -> Tile {
+    pub fn get_tile(&self, mut tile_id: u8, bg_win: bool) -> Tile {
         let mut data: [u8; TILE_SIZE] = [0; TILE_SIZE];
         let lcdc = self.read_memory(LCDC);
         let mut start_address = VRAM_BLOCK_0_ADDRESS;
@@ -147,16 +184,22 @@ impl PPU {
         Tile::new(data)
     }
 
+    /// Retrieve tile/obj size mode. Return False if OBJ is a single 8x8 obj or True if a dual tile in 8x16 obj
+    pub fn get_tile_mode(&self) -> bool {
+        let lcdc = self.read_memory(addresses::LCDC_ADDRESS as u16);
+        (lcdc & LCDCMasks:: ObjSize) != 0
+    }
+
     pub fn get_bg_map(&self) -> Vec<Tile> {
         let mut tiles = Vec::with_capacity(1024);
-        for i in 0..256 {
+        for i in 0..=255 {
             tiles.push(self.get_tile(i, true));
         }
         tiles
     }
 
     pub fn get_oam(&self, id: usize) -> OAM {
-        let address = (id * OAM_SIZE + OAM_AREA_ADDRESS) as u16;
+        let address = (id * OAM_BYTE_SIZE + OAM_AREA_ADDRESS) as u16;
         let (y, x, tile_id, attributes) =
             (self.read_memory(address),
              self.read_memory(address + 1),
@@ -182,5 +225,16 @@ impl UseMemory for PPU {
 
     fn write_memory(&self, address: u16, data: u8) {
         self.memory.borrow_mut().write(address, data)
+    }
+}
+
+impl fmt::Display for PPU {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        let line = self.read_memory(addresses::LY_ADDRESS as u16);
+        write!(
+            f,
+            "PPU {{ Y: {}, X: {}, ldot: {} }}",
+            line, self.screen_dot, self.line_dots
+        )
     }
 }

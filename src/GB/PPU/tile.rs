@@ -3,6 +3,8 @@ use std::fmt;
 use std::fmt::Formatter;
 
 pub const TILE_SIZE: usize = 16; // In Bytes
+pub const TILE_WIDTH: usize = 8;
+pub const TILE_HEIGHT: usize = 8;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 #[repr(u8)]

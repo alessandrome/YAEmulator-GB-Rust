@@ -17,3 +17,5 @@ pub const FRAME_LINES: usize = SCREEN_HEIGHT + VBLANK_LINES;
 pub const FRAME_DOTS: usize = SCREEN_DOTS + VBLANK_DOTS;
 
 pub const OAM_NUMBERS: usize = 40;
+pub const MAX_SPRITE_PER_LINE: usize = 10;
+pub const MAX_SPRITE_ON_SCREEN: usize = 40;
