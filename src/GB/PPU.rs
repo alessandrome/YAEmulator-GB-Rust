@@ -93,16 +93,20 @@ impl PPU {
             }
 
             match self.line_dots {
+                //! Read OAM data to retrieve line sprites
                 0..=SCAN_OAM_DOTS_END => {
                     if self.line_dots < constants::OAM_NUMBERS && self.line_oam.len() < constants::MAX_SPRITE_PER_LINE {
                         let line_isize = line as isize;
+                        let tile_mod = self.get_tile_mode();
                         let oam = self.get_oam(self.line_dots);
                         let oam_y_screen = oam.get_y_screen();
-                        if oam_y_screen <= line_isize && (oam_y_screen + TILE_HEIGHT as isize) > line_isize {
+                        let tile_height = TILE_HEIGHT * (tile_mod as usize + 1); // If dual tile sprite is enabled sprite has doubled the height
+                        if oam_y_screen <= line_isize && (oam_y_screen + tile_height as isize) > line_isize {
                             self.line_oam.push(oam);
                         }
                     }
                 }
+                //! Update pixels of the frame
                 constants::SCAN_OAM_DOTS..=DRAW_DOTS_END => {
                     if self.screen_dot < SCREEN_WIDTH {
                         if self.line_oam_number < self.line_oam.len() {
@@ -121,6 +125,7 @@ impl PPU {
                         self.screen_dot += 1;
                     }
                 }
+                //! During HBlank PPU is doing nothing
                 _ => {
 
                 }
