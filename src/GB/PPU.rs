@@ -195,10 +195,16 @@ impl PPU {
         (lcdc & LCDCMasks::ObjSize) != 0
     }
 
-    /// Retrieve tile/obj size mode. Return False if OBJ is a single 8x8 obj or True if a dual tile in 8x16 obj
+    /// Get true if BG/Window should be drawn
     pub fn is_bg_win_enabled(&self) -> bool {
         let lcdc = self.read_memory(addresses::LCDC_ADDRESS as u16);
         (lcdc & LCDCMasks::BgWinEnabled) != 0
+    }
+
+    /// Get true if OBJs should be drawn
+    pub fn is_obj_enabled(&self) -> bool {
+        let lcdc = self.read_memory(addresses::LCDC_ADDRESS as u16);
+        (lcdc & LCDCMasks::ObjEnabled) != 0
     }
 
     pub fn get_bg_map(&self) -> Vec<Tile> {
