@@ -22,7 +22,7 @@ pub const SCY: u16 = 0xFF42;
 pub const SCX: u16 = 0xFF43;
 pub const LY: u16 = 0xFF44;
 pub const LYC: u16 = 0xFF45;
-pub const DNA: u16 = 0xFF46;
+pub const DMA: u16 = 0xFF46;
 pub const BGP: u16 = 0xFF47;
 pub const OBP0: u16 = 0xFF48;
 pub const OBP1: u16 = 0xFF49;
@@ -45,7 +45,7 @@ pub struct MemoryRegisters {
     pub scx: u8,
     pub ly: u8,
     pub lyc: u8,
-    pub dna: u8,
+    pub dma: u8,
     pub bgp: u8,
     pub obp0: u8,
     pub obp1: u8,
@@ -71,7 +71,7 @@ impl MemoryRegisters {
             scx: memory.read(SCX),
             ly: memory.read(LY),
             lyc: memory.read(LYC),
-            dna: memory.read(DNA),
+            dma: memory.read(DMA),
             bgp: memory.read(BGP),
             obp0: memory.read(OBP0),
             obp1: memory.read(OBP1),

@@ -7,6 +7,7 @@ use crate::GB::CPU::CPU;
 use crate::GB::debug_print;
 use crate::GB::registers::{FlagBits, Flags};
 use crate::GB::memory::{UseMemory};
+use crate::GB::memory;
 
 #[derive(Debug, Clone)]
 pub struct Instruction {
@@ -112,6 +113,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         flags: &[],
         execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
             cpu.write_memory(cpu.registers.get_bc(), cpu.registers.get_a());
+            if cpu.registers.get_bc() == memory::registers::DMA {
+                cpu.dma_transfer = true;
+            }
             opcode.cycles as u64
         },
     });
@@ -337,6 +341,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         flags: &[],
         execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
             cpu.write_memory(cpu.registers.get_de(), cpu.registers.get_a());
+            if cpu.registers.get_de() == memory::registers::DMA {
+                cpu.dma_transfer = true;
+            }
             opcode.cycles as u64
         },
     });
@@ -565,6 +572,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         flags: &[],
         execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
             cpu.write_memory(cpu.registers.get_hl(), cpu.registers.get_a());
+            if cpu.registers.get_hl() == memory::registers::DMA {
+                cpu.dma_transfer = true;
+            }
             cpu.registers.set_hl(cpu.registers.get_hl() + 1);
             opcode.cycles as u64
         },
@@ -786,6 +796,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         flags: &[],
         execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
             cpu.write_memory(cpu.registers.get_hl(), cpu.registers.get_a());
+            if cpu.registers.get_hl() == memory::registers::DMA {
+                cpu.dma_transfer = true;
+            }
             cpu.registers.set_hl(cpu.registers.get_hl() - 1);
             opcode.cycles as u64
         },
@@ -809,6 +822,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H],
         execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
             let original_hl_ram = cpu.read_memory(cpu.registers.get_hl());
+            if cpu.registers.get_hl() == memory::registers::DMA {
+                cpu.dma_transfer = true;
+            }
             cpu.write_memory(cpu.registers.get_hl(), original_hl_ram.wrapping_add(1));
             cpu.registers.set_half_carry_flag((cpu.read_memory(cpu.registers.get_hl()) & 0x0F) < (original_hl_ram & 0x0F));
             cpu.registers.set_zero_flag(cpu.read_memory(cpu.registers.get_hl()) == 0);
@@ -824,6 +840,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H],
         execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
             let original_byte = cpu.read_memory(cpu.registers.get_hl());
+            if cpu.registers.get_hl() == memory::registers::DMA {
+                cpu.dma_transfer = true;
+            }
             cpu.write_memory(cpu.registers.get_hl(), original_byte.wrapping_sub(1));
             cpu.registers.set_half_carry_flag((cpu.read_memory(cpu.registers.get_hl()) & 0x0F) > (original_byte & 0x0F));
             cpu.registers.set_zero_flag(cpu.read_memory(cpu.registers.get_hl()) == 0);
@@ -840,6 +859,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
             let byte = cpu.fetch_next();
             cpu.write_memory(cpu.registers.get_hl(), byte);
+            if cpu.registers.get_hl() == memory::registers::DMA {
+                cpu.dma_transfer = true;
+            }
             opcode.cycles as u64
         },
     });
@@ -1503,6 +1525,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         flags: &[],
         execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
             cpu.write_memory(cpu.registers.get_hl(), cpu.registers.get_b());
+            if cpu.registers.get_hl() == memory::registers::DMA {
+                cpu.dma_transfer = true;
+            }
             opcode.cycles as u64
         },
     });
@@ -1514,6 +1539,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         flags: &[],
         execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
             cpu.write_memory(cpu.registers.get_hl(), cpu.registers.get_c());
+            if cpu.registers.get_hl() == memory::registers::DMA {
+                cpu.dma_transfer = true;
+            }
             opcode.cycles as u64
         },
     });
@@ -1525,6 +1553,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         flags: &[],
         execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
             cpu.write_memory(cpu.registers.get_hl(), cpu.registers.get_d());
+            if cpu.registers.get_hl() == memory::registers::DMA {
+                cpu.dma_transfer = true;
+            }
             opcode.cycles as u64
         },
     });
@@ -1536,6 +1567,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         flags: &[],
         execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
             cpu.write_memory(cpu.registers.get_hl(), cpu.registers.get_e());
+            if cpu.registers.get_hl() == memory::registers::DMA {
+                cpu.dma_transfer = true;
+            }
             opcode.cycles as u64
         },
     });
@@ -1547,6 +1581,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         flags: &[],
         execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
             cpu.write_memory(cpu.registers.get_hl(), cpu.registers.get_h());
+            if cpu.registers.get_hl() == memory::registers::DMA {
+                cpu.dma_transfer = true;
+            }
             opcode.cycles as u64
         },
     });
@@ -1558,6 +1595,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         flags: &[],
         execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
             cpu.write_memory(cpu.registers.get_hl(), cpu.registers.get_l());
+            if cpu.registers.get_hl() == memory::registers::DMA {
+                cpu.dma_transfer = true;
+            }
             opcode.cycles as u64
         },
     });
@@ -1580,6 +1620,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         flags: &[],
         execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
             cpu.write_memory(cpu.registers.get_hl(), cpu.registers.get_a());
+            if cpu.registers.get_hl() == memory::registers::DMA {
+                cpu.dma_transfer = true;
+            }
             opcode.cycles as u64
         },
     });
@@ -3252,6 +3295,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
             let byte = (cpu.fetch_next() as u16) & 0xFF;
             let mem_addr = 0xFF00 | byte;
             cpu.write_memory(mem_addr, cpu.registers.get_a());
+            if mem_addr == memory::registers::DMA {
+                cpu.dma_transfer = true;
+            }
             opcode.cycles as u64
         },
     });
@@ -3279,6 +3325,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
             let byte = (cpu.registers.get_c() as u16) & 0xFF;
             let mem_addr = 0xFF00 | byte;
             cpu.write_memory(mem_addr, cpu.registers.get_a());
+            if mem_addr == memory::registers::DMA {
+                cpu.dma_transfer = true;
+            }
             opcode.cycles as u64
         },
     });
@@ -3371,6 +3420,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
             imm_address |= cpu.fetch_next() as u16 & 0xFF;
             imm_address |= (cpu.fetch_next() as u16) << 8;
             cpu.write_memory(imm_address, cpu.registers.get_a());
+            if imm_address == memory::registers::DMA {
+                cpu.dma_transfer = true;
+            }
             opcode.cycles as u64
         },
     });
@@ -3416,6 +3468,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
             let byte = (cpu.fetch_next() as u16) & 0xFF;
             let mem_addr = 0xFF00 | byte;
             cpu.registers.set_a(cpu.read_memory(mem_addr));
+            if mem_addr == memory::registers::DMA {
+                cpu.dma_transfer = true;
+            }
             opcode.cycles as u64
         },
     });
@@ -3443,6 +3498,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
             let byte = (cpu.registers.get_c() as u16) & 0xFF;
             let mem_addr = 0xFF00 | byte;
             cpu.registers.set_a(cpu.read_memory(mem_addr));
+            if mem_addr == memory::registers::DMA {
+                cpu.dma_transfer = true;
+            }
             opcode.cycles as u64
         },
     });

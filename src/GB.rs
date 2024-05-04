@@ -5,6 +5,9 @@ use crate::GB::cartridge::{Cartridge, UseCartridge};
 use crate::GB::memory::{RAM};
 use crate::GB::memory::BIOS::BIOS;
 use crate::GB::cartridge::addresses as cartridge_addresses;
+use crate::GB::memory::addresses::OAM_AREA_ADDRESS;
+use crate::GB::PPU::constants::OAM_NUMBERS;
+use crate::GB::PPU::oam::OAM_BYTE_SIZE;
 
 pub mod registers;
 pub mod instructions;
@@ -83,6 +86,9 @@ impl GB {
     pub fn cycle(&mut self) {
         if !(self.cpu_cycles > 0) {
             self.cpu_cycles = self.cpu.execute_next();
+            if self.cpu.dma_transfer {
+                self.dma_transfer();
+            }
         }
         self.cpu_cycles -= 1;
         self.ppu.cycle();
@@ -99,6 +105,23 @@ impl GB {
 
     pub fn get_bios(&self) -> &BIOS {
         &self.bios
+    }
+
+    pub fn dma_transfer(&mut self) {
+        let start_address = (self.memory.borrow().read(memory::registers::DMA) as u16) << 8;
+        let mut mem = self.memory.borrow_mut();
+        for i in 0..OAM_NUMBERS as u16 {
+            let oam_from_addr = start_address + i * OAM_BYTE_SIZE as u16;
+            let oam_to_addr = OAM_AREA_ADDRESS as u16 + i * OAM_BYTE_SIZE as u16;
+            let val =  mem.read(oam_from_addr);
+            mem.write(oam_to_addr, val);
+            let val =  mem.read(oam_from_addr + 1);
+            mem.write(oam_to_addr + 1, val);
+            let val =  mem.read(oam_from_addr + 2);
+            mem.write(oam_to_addr + 2, val);
+            let val =  mem.read(oam_from_addr + 3);
+            mem.write(oam_to_addr + 3, val);
+        }
     }
 }
 

@@ -256,6 +256,14 @@ impl Cartridge {
         };
         s.to_string()
     }
+
+    pub fn get_rom_bank(&self) -> usize {
+        self.rom_bank
+    }
+
+    pub fn get_ram_bank(&self) -> usize {
+        self.ram_bank
+    }
 }
 
 impl fmt::Display for Cartridge {

@@ -34,7 +34,7 @@ pub enum RGBPalette {
 }
 
 lazy_static! {
-pub static ref CONSOLE_PALETTE: HashMap<GbPalette, char> = HashMap::from([
+    pub static ref CONSOLE_PALETTE: HashMap<GbPalette, char> = HashMap::from([
         (GbPalette::White, '█'),
         (GbPalette::LightGray, '▓'),
         (GbPalette::DarkGray, '▒'),
