@@ -82,10 +82,11 @@ mod test {
 
 pub struct CPU {
     pub registers: registers::Registers,
-    pub ime: bool,      // Interrupt Master Enable - True if you want to enable and intercept interrupts
-    pub opcode: u8,     // Running Instruction Opcode
-    pub cycles: u64,     // Total Cycles Count
-    pub divider_counter: u8,     // Total Cycles Count
+    pub ime: bool,  // Interrupt Master Enable - True if you want to enable and intercept interrupts
+    pub opcode: u8,  // Running Instruction Opcode
+    pub cycles: u64,  // Total Cycles Count
+    pub divider_counter: u8,  // Total Cycles Count
+    pub dma_transfer: bool,  // True When DMA RAM to VRAM is enabled
     pub memory: Rc<RefCell<RAM>>,
     cartridge: Rc<RefCell<Option<Cartridge>>>,
 }
@@ -98,6 +99,7 @@ impl CPU {
             opcode: 0,
             cycles: 0,
             divider_counter: 0,
+            dma_transfer: false,
             memory,
             cartridge: Rc::new(RefCell::new(None)),
         }

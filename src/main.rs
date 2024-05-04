@@ -107,8 +107,8 @@ fn main() {
         println!();
         println!("| n°   |  Adr. |  Hex       |  Instruction    |");
         println!("+------+-------+------------+-----------------+");
-        while i < 9999999 {
-            if false {
+        while i < 999999 {
+            if true {
                 if !(gb.cpu_cycles > 0) {
                     let mut s = "".to_string();
                     let mut pc = gb.cpu.registers.get_pc();
@@ -171,12 +171,17 @@ fn main() {
                     }
 
                     let mem_registers = gb.memory.borrow().get_memory_registers();
-                    println!("| {:04} |  {:#06X} |  {} |  {}{}|  {} {} {}",
-                             i, addr, s, s_ins, " ".repeat(15 - s_ins.len()), gb.ppu, mem_registers, gb.get_cartridge().as_ref().unwrap());
+                    println!("| {:04} |  {:#06X} |  {} |  {}{}|  {} {} RoB: {} RaB: {}",
+                             i, addr, s, s_ins, " ".repeat(15 - s_ins.len()), gb.ppu, mem_registers,
+                             gb.get_cartridge().as_ref().unwrap().get_rom_bank(), gb.get_cartridge().as_ref().unwrap().get_ram_bank());
                     if addr == 0x38 { break; }
+
+                    // if gb.cpu.opcode == 0xE0 {
+                    //     println!("E0");
+                    // }
                 }
             }
-            if true {
+            if false {
                 // let now = time::Instant::now();
                 // let delta_time = now.duration_since(last_frame_time);
                 if cycles == 0 {
