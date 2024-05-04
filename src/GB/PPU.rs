@@ -93,7 +93,7 @@ impl PPU {
             }
 
             match self.line_dots {
-                //! Read OAM data to retrieve line sprites
+                // Read OAM data to retrieve line sprites
                 0..=SCAN_OAM_DOTS_END => {
                     if self.line_dots < constants::OAM_NUMBERS && self.line_oam.len() < constants::MAX_SPRITE_PER_LINE {
                         let line_isize = line as isize;
@@ -106,26 +106,41 @@ impl PPU {
                         }
                     }
                 }
-                //! Update pixels of the frame
+                // Update pixels of the frame
                 constants::SCAN_OAM_DOTS..=DRAW_DOTS_END => {
                     if self.screen_dot < SCREEN_WIDTH {
-                        if self.line_oam_number < self.line_oam.len() {
+                        let screen_pixel_index = self.screen_dot + line * SCREEN_WIDTH;
+                        let is_bg_enabled = self.is_bg_win_enabled();
+                        let is_sprite_enabled = self.is_bg_win_enabled();
+                        let mut pixel_set = false;
+                        if is_sprite_enabled && self.line_oam_number < self.line_oam.len() {
                             let oam = &self.line_oam[self.line_oam_number];
                             let drawing_dot = (self.line_dots - constants::SCAN_OAM_DOTS - self.dots_penalties) as isize;
                             let obj_dot = self.screen_dot as isize - oam.get_x_screen();
                             if obj_dot >= 0 && obj_dot < TILE_WIDTH as isize {
                                 let obj_line = line as isize - oam.get_y_screen();
                                 let tile = self.get_tile(oam.get_tile_id(), false);
-                                let screen_index = self.screen_dot + line * SCREEN_WIDTH;
-                                let tile_index = obj_dot + obj_line * TILE_WIDTH as isize;
-                                self.frame[screen_index] = tile.get_tile_map()[tile_index as usize].clone();
+                                let tile_pixel_index = obj_dot + obj_line * TILE_WIDTH as isize;
+                                let pixel = tile.get_tile_map()[tile_pixel_index as usize].clone();
+                                if pixel != GbPaletteId::Id0 {
+                                    self.frame[screen_pixel_index] = pixel;
+                                    pixel_set = true;
+                                }
                             }
-                            let tile = self.get_tile(oam.get_tile_id(), false);
+                        } else if is_bg_enabled && !pixel_set {
+                            let tile = self.get_tile(
+                                self.get_map_chr_id(self.screen_dot as u8, line as u8),
+                                true);
+                            let x_tile = self.get_bg_x() as usize % TILE_WIDTH;
+                            let y_tile = self.get_bg_y() as usize % TILE_HEIGHT;
+                            self.frame[screen_pixel_index] = tile.get_tile_map()[x_tile + y_tile * TILE_WIDTH].clone();
+                        } else {
+                            self.frame[screen_pixel_index] = GbPaletteId::Id0;
                         }
                         self.screen_dot += 1;
                     }
                 }
-                //! During HBlank PPU is doing nothing
+                // During HBlank PPU is doing nothing
                 _ => {
 
                 }
@@ -215,6 +230,14 @@ impl PPU {
         tiles
     }
 
+    pub fn get_scy(&self) -> u8 {
+        self.read_memory(addresses::SCY_ADDRESS as u16)
+    }
+
+    pub fn get_scx(&self) -> u8 {
+        self.read_memory(addresses::SCX_ADDRESS as u16)
+    }
+
     pub fn get_oam(&self, id: usize) -> OAM {
         let address = (id * OAM_BYTE_SIZE + OAM_AREA_ADDRESS) as u16;
         let (y, x, tile_id, attributes) =
@@ -223,6 +246,40 @@ impl PPU {
              self.read_memory(address + 2),
              self.read_memory(address + 3));
         OAM::new(y, x, tile_id, attributes, Option::from(id))
+    }
+
+    pub fn get_bg_x(&self) -> u8 {
+        ((self.get_scx() as usize + self.line_dots) % constants::MAP_ROW_PIXELS) as u8
+    }
+
+    pub fn get_bg_y(&self) -> u8 {
+        ((self.get_scy() as usize + self.line_dots) % constants::MAP_HEIGHT_PIXELS) as u8
+    }
+
+    /// In DMG CHR represent ID of the in-memory tile.
+    pub fn get_bg_chr(&self, id: usize) -> u8 {
+        self.read_memory((addresses::BG_DATA_1_ADDRESS + id) as u16)
+    }
+
+    pub fn get_map_chr_id(&self, x: u8, y: u8) -> u8 {
+        let scy = self.get_scy() as usize;
+        let scx = self.get_scx() as usize;
+        let y = (scy + y as usize) % constants::MAP_HEIGHT_PIXELS;
+        let x = (scx + x as usize) % constants::MAP_ROW_PIXELS;
+        let map_row = y / TILE_HEIGHT;
+        let map_column = x / TILE_WIDTH;
+        (map_column + map_row * constants::MAP_ROW_TILES) as u8
+    }
+
+    pub fn get_frame_string(&self) -> String {
+        let mut s = "".to_string();
+        for i in 0..constants::SCREEN_HEIGHT {
+            for j in 0..constants::SCREEN_WIDTH {
+                s.push_str(tile::PALETTE_ID_REPR[&self.frame[j + i * constants::SCREEN_WIDTH]]);
+            }
+            s.push('\n')
+        }
+        s
     }
 
     ppu_get_set_flag_bit!(get_bg_win_enabled_flag, set_bg_win_enabled_flag, LCDC, LCDCMasks::BgWinEnabled);

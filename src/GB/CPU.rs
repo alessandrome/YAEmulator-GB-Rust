@@ -6,9 +6,9 @@ use crate::GB::registers;
 use crate::GB::memory::{self, RAM, UseMemory, USER_PROGRAM_ADDRESS};
 
 
-const CPU_CLOCK_MULTIPLIER: u64 = 4;
-const CPU_CLOCK_SPEED: u64 = SYSTEM_FREQUENCY_CLOCK * CPU_CLOCK_MULTIPLIER; // In Hz - 4 Time System Clock
-const DIVIDER_FREQUENCY: u64 = 16384; // Divider Update Frequency in Hz
+pub const CPU_CLOCK_MULTIPLIER: u64 = 4;
+pub const CPU_CLOCK_SPEED: u64 = SYSTEM_FREQUENCY_CLOCK * CPU_CLOCK_MULTIPLIER; // In Hz - 4 Time System Clock
+pub const DIVIDER_FREQUENCY: u64 = 16384; // Divider Update Frequency in Hz
 
 #[cfg(test)]
 mod test {
