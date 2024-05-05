@@ -3361,7 +3361,7 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         opcode: 0xE6,
         name: "AND A, imm8",
         cycles: 2,
-        size: 1,
+        size: 2,
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
         execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
             let old_value = cpu.registers.get_a();
@@ -3444,7 +3444,7 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         opcode: 0xEE,
         name: "XOR A, imm8",
         cycles: 2,
-        size: 1,
+        size: 2,
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
         execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
             let old_value = cpu.registers.get_a();
@@ -3545,7 +3545,7 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         opcode: 0xF6,
         name: "OR A, imm8",
         cycles: 2,
-        size: 1,
+        size: 2,
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
         execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
             let old_value = cpu.registers.get_a();
