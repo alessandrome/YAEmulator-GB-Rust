@@ -426,7 +426,6 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         size: 2,
         flags: &[],
         execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            // TODO: Test
             let byte = cpu.fetch_next() as i8;
             if byte > 0 {
                 cpu.registers.set_pc(cpu.registers.get_pc().wrapping_add(byte as u16));
@@ -540,10 +539,13 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         size: 2,
         flags: &[],
         execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            // TODO: Test
             let byte = cpu.fetch_next() as i8;
             if !cpu.registers.get_zero_flag() {
-                cpu.registers.set_pc(cpu.registers.get_pc() - if byte < 0 { byte.abs() } else { byte } as u16);
+                if byte > 0 {
+                    cpu.registers.set_pc(cpu.registers.get_pc().wrapping_add(byte as u16));
+                } else {
+                    cpu.registers.set_pc(cpu.registers.get_pc().wrapping_sub((byte as i16).abs() as u16));
+                }
                 return opcode.cycles as u64;
             }
             2
@@ -656,7 +658,11 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
             // TODO: Test
             let byte = cpu.fetch_next() as i8;
             if cpu.registers.get_zero_flag() {
-                cpu.registers.set_pc(cpu.registers.get_pc() - if byte < 0 { byte.abs() } else { byte } as u16);
+                if byte > 0 {
+                    cpu.registers.set_pc(cpu.registers.get_pc().wrapping_add(byte as u16));
+                } else {
+                    cpu.registers.set_pc(cpu.registers.get_pc().wrapping_sub((byte as i16).abs() as u16));
+                }
                 return opcode.cycles as u64;
             }
             2
@@ -767,7 +773,11 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
             // TODO: Test
             let byte = cpu.fetch_next() as i8;
             if !cpu.registers.get_carry_flag() {
-                cpu.registers.set_pc(cpu.registers.get_pc() - if byte < 0 { byte.abs() } else { byte } as u16);
+                if byte > 0 {
+                    cpu.registers.set_pc(cpu.registers.get_pc().wrapping_add(byte as u16));
+                } else {
+                    cpu.registers.set_pc(cpu.registers.get_pc().wrapping_sub((byte as i16).abs() as u16));
+                }
                 return opcode.cycles as u64;
             }
             2
@@ -888,7 +898,11 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
             // TODO: Test
             let byte = cpu.fetch_next() as i8;
             if cpu.registers.get_carry_flag() {
-                cpu.registers.set_pc(cpu.registers.get_pc() - if byte < 0 { byte.abs() } else { byte } as u16);
+                if byte > 0 {
+                    cpu.registers.set_pc(cpu.registers.get_pc().wrapping_add(byte as u16));
+                } else {
+                    cpu.registers.set_pc(cpu.registers.get_pc().wrapping_sub((byte as i16).abs() as u16));
+                }
                 return opcode.cycles as u64;
             }
             2
