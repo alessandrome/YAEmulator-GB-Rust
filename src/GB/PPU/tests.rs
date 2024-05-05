@@ -88,7 +88,7 @@ fn test_ppu_get_tile() {
         0x3C, 0x7E,
         0x00, 0x3C,
     ];
-    let tile_id: u16 = 3;
+    let tile_id: u8 = 3;
     let tile_address = VRAM_BLOCK_0_ADDRESS + TILE_SIZE * tile_id as usize;
     for i in 0..TILE_SIZE {
         mem.borrow_mut().write((tile_address + i) as u16, test_sprite[i]);
@@ -111,7 +111,7 @@ fn test_ppu_get_bg_win_tile() {
         0x3C, 0x7E,
         0x00, 0x3C,
     ];
-    let tile_id: u16 = 128;
+    let tile_id: u8 = 128;
     let tile_address = VRAM_BLOCK_1_ADDRESS;
     for i in 0..TILE_SIZE {
         mem.borrow_mut().write((tile_address + i) as u16, test_sprite[i]);
@@ -125,7 +125,7 @@ fn test_ppu_get_bg_win_tile() {
     for i in 0..TILE_SIZE {
         mem.borrow_mut().write((tile_address + i) as u16, 0);
     }
-    let tile_id: u16 = 0;
+    let tile_id: u8 = 0;
     let tile_address = VRAM_BLOCK_2_ADDRESS;
     for i in 0..TILE_SIZE {
         mem.borrow_mut().write((tile_address + i) as u16, test_sprite[i]);

@@ -29,7 +29,7 @@ pub struct Cartridge {
     bank_switch_mode: bool, // False = ROM mode - True = RAM mode
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Ord, PartialOrd, Eq, PartialEq)]
 #[repr(u8)]
 enum CartridgeType {
     RomOnly = 0,
@@ -227,7 +227,7 @@ impl Cartridge {
             CartridgeType::RomOnly => "ROM-Only",
             CartridgeType::Mbc1 => "MBC1",
             CartridgeType::Mbc1Ram => "MBC1+RAN",
-            CartridgeType::Mbc1RamBattery => "MBC1+RAN+BATTERY",
+            CartridgeType::Mbc1RamBattery => "MBC1+RAM+BATTERY",
             CartridgeType::Mbc2 => "MBC2",
             CartridgeType::Mbc2Battery => "MBC2+BATTERY",
             CartridgeType::RomRam => "ROM+RAM",
@@ -263,6 +263,18 @@ impl Cartridge {
 
     pub fn get_ram_bank(&self) -> usize {
         self.ram_bank
+    }
+
+    pub fn get_rom_size(&self) -> usize {
+        self.rom.len()
+    }
+
+    pub fn get_ram_size(&self) -> usize {
+        self.ram.len()
+    }
+
+    pub fn get_cart_type(&self) -> CartridgeType {
+        self.cartridge_type
     }
 }
 
