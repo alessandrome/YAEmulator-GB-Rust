@@ -131,7 +131,9 @@ impl CPU {
                 println!("UNKNOWN Opcode '{:#04x}'", self.opcode);
             }
         }
-        self.cycles += cycles;
+        if !cb_subset {
+            self.cycles += cycles;
+        }
         cycles
     }
 
