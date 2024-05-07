@@ -146,6 +146,13 @@ impl CPU {
         self.registers.set_pc(USER_PROGRAM_ADDRESS as u16);
     }
 
+    /// Check and jump to requested interrupt address after take a snapshot of status on stack.
+    pub fn interrupt(&mut self) {
+        if self.ime {
+            todo!("")
+        }
+    }
+
     /*
         CPU Push 1-byte using SP register (to not confuse with instruction PUSH r16, that PUSH in a 2-bytes value from a double-register)
      */
