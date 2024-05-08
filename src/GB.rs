@@ -5,6 +5,7 @@ use crate::GB::cartridge::{Cartridge, UseCartridge};
 use crate::GB::memory::{RAM};
 use crate::GB::memory::BIOS::BIOS;
 use crate::GB::cartridge::addresses as cartridge_addresses;
+use crate::GB::CPU::CPU_CLOCK_SPEED;
 use crate::GB::memory::addresses::OAM_AREA_ADDRESS;
 use crate::GB::PPU::constants::OAM_NUMBERS;
 use crate::GB::PPU::oam::OAM_BYTE_SIZE;
@@ -28,6 +29,7 @@ fn debug_print(_args: std::fmt::Arguments) {
 }
 
 const SYSTEM_FREQUENCY_CLOCK: u64 = 1_048_576;
+const CYCLES_PER_FRAME: u64 = CPU_CLOCK_SPEED / 60;
 
 pub struct GB {
     is_booting: bool,
