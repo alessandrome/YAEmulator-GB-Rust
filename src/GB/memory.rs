@@ -1,6 +1,7 @@
 pub mod registers;
 pub mod addresses;
 pub mod BIOS;
+pub mod interrupts;
 
 use std::cell::RefCell;
 use std::fs::File;
@@ -170,6 +171,10 @@ impl RAM {
 
     pub fn get_memory_registers(&self) -> MemoryRegisters {
         MemoryRegisters::new(&self)
+    }
+
+    pub fn get_enabled_interrupts(&self) {
+        let ie = self.read(registers::IE);
     }
 
     read_ram_space!(read_wram, WRAM_ADDRESS);
