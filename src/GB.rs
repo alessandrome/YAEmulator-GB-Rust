@@ -94,6 +94,7 @@ impl GB {
         }
         self.cpu_cycles -= 1;
         self.ppu.cycle();
+        self.cpu.interrupt();
     }
 
     pub fn set_use_boot(&mut self, use_boot: bool) {

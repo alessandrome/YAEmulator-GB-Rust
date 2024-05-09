@@ -3,7 +3,7 @@ use std::rc::Rc;
 use crate::GB::{instructions, SYSTEM_FREQUENCY_CLOCK};
 use crate::GB::cartridge::{Cartridge, UseCartridge};
 use crate::GB::registers;
-use crate::GB::memory::{self, RAM, UseMemory, USER_PROGRAM_ADDRESS};
+use crate::GB::memory::{self, interrupts, RAM, UseMemory, USER_PROGRAM_ADDRESS};
 
 
 pub const CPU_CLOCK_MULTIPLIER: u64 = 4;
@@ -89,6 +89,8 @@ pub struct CPU {
     pub dma_transfer: bool,  // True When DMA RAM to VRAM is enabled
     pub memory: Rc<RefCell<RAM>>,
     cartridge: Rc<RefCell<Option<Cartridge>>>,
+    interrupt_routine_cycle: Option<u8>,
+    interrupt_routine_addr: u16,
 }
 
 impl CPU {
@@ -102,6 +104,8 @@ impl CPU {
             dma_transfer: false,
             memory,
             cartridge: Rc::new(RefCell::new(None)),
+            interrupt_routine_cycle: None,
+            interrupt_routine_addr: 0xFFFF,
         }
     }
     
@@ -118,21 +122,28 @@ impl CPU {
         instructions::OPCODES[opcode_usize]
     }
 
-    pub fn execute_next(&mut self) -> u64{
-        let cb_subset = self.opcode == 0xCB;
-        self.opcode = self.fetch_next();
-        let instruction = Self::decode(self.opcode, cb_subset);
+    pub fn execute_next(&mut self) -> u64 {
         let mut cycles: u64 = 1;
-        match (instruction) {
-            Some(ins) => {
-                cycles = (ins.execute)(&ins, self);
-            },
-            None => {
-                println!("UNKNOWN Opcode '{:#04x}'", self.opcode);
+        match self.interrupt_routine_cycle {
+            Some(_) => {
+                cycles = self.interrupt_routine();
             }
-        }
-        if !cb_subset {
-            self.cycles += cycles;
+            None => {
+                let cb_subset = self.opcode == 0xCB;
+                self.opcode = self.fetch_next();
+                let instruction = Self::decode(self.opcode, cb_subset);
+                match (instruction) {
+                    Some(ins) => {
+                        cycles = (ins.execute)(&ins, self);
+                    },
+                    None => {
+                        println!("UNKNOWN Opcode '{:#04x}'", self.opcode);
+                    }
+                }
+                if !cb_subset {
+                    self.cycles += cycles;
+                }
+            }
         }
         cycles
     }
@@ -147,10 +158,59 @@ impl CPU {
     }
 
     /// Check and jump to requested interrupt address after take a snapshot of status on stack.
+    /// 
+    /// Interrupt bit has priority from lower bit to higher (bit 0 has the higher priority).
     pub fn interrupt(&mut self) {
         if self.ime {
-            todo!("")
+            let flags = interrupts::Interrupts::new(self.read_memory(memory::registers::IF));
+            let enabled_flags = interrupts::Interrupts::new(self.read_memory(memory::registers::IE));
+            if enabled_flags.v_blank && flags.v_blank {
+                // Bit 0
+                self.interrupt_routine_addr = memory::interrupts::INTERRUPT_VBLANK_ADDR;
+            } else if enabled_flags.lcd && flags.lcd {
+                // Bit 1
+                self.interrupt_routine_addr = memory::interrupts::INTERRUPT_STAT_ADDR;
+            } else if enabled_flags.timer && flags.timer {
+                // Bit 2
+                self.interrupt_routine_addr = memory::interrupts::INTERRUPT_TIMER_ADDR;
+            } else if enabled_flags.serial && flags.serial {
+                // Bit 3
+                self.interrupt_routine_addr = memory::interrupts::INTERRUPT_SERIAL_ADDR;
+            } else if enabled_flags.joy_pad && flags.joy_pad {
+                // Bit 4
+                self.interrupt_routine_addr = memory::interrupts::INTERRUPT_JOYPAD_ADDR;
+            }
+            if self.interrupt_routine_addr < 0x70 /* Arbitrary greater than max int addr */ {
+                self.ime = false;
+                self.interrupt_routine_cycle = Some(0);
+            }
         }
+    }
+
+    /// CPU should run this only when "interrupt_routine_cycle" is not None. Every service routine last 5 cycles.
+    fn interrupt_routine(&mut self) -> u64 {
+        let routine_cycle = self.interrupt_routine_cycle.unwrap();
+        let mut cycles: u64 = 1;
+        match routine_cycle {
+            0 | 1 => {
+                // NOP, just increment routine cycle count
+            }
+            2 => {
+                self.push((self.registers.get_pc() >> 8) as u8);
+                self.push((self.registers.get_pc() & 0xFF) as u8);
+                cycles = 2;
+            }
+            4 => {
+                self.registers.set_pc(self.interrupt_routine_addr);
+                self.interrupt_routine_cycle = None;
+            }
+            v if v > 4 => {
+                self.interrupt_routine_cycle = None;
+            }
+            _ => {}
+        }
+        self.interrupt_routine_cycle = Some(routine_cycle + 1);
+        cycles
     }
 
     /*
