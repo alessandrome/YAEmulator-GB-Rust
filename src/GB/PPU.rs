@@ -282,6 +282,28 @@ impl PPU {
         s
     }
 
+    /// String/Draw map of tiles in VRAM. Can be useful for debug.
+    pub fn get_tile_map(&self, bank: u8) -> String {
+        let bank = bank % 2;
+        // TODO: we should use Tile Map bank as GB switch between 2 different VRAM banks
+        let mut ret_s = "".to_string();
+        let tile_per_row: u8 = 16;
+        let tile_rows: u8 = 16;
+        for i in 0..tile_rows {
+            let mut row_tiles: Vec<String> = vec!["".to_string(); TILE_HEIGHT];
+            for j in 0..tile_per_row {
+                let tile = self.get_tile(i * 16 + j, false).get_printable_id_map(true);
+                let tile_lines: Vec<&str> = tile.split('\n').collect();
+                for line in 0..tile_lines.len()-1 {
+                    row_tiles[line].push_str(tile_lines[line]);
+                }
+            }
+            ret_s.push_str(&row_tiles.join("\n"));
+            ret_s.push('\n');
+        }
+        ret_s
+    }
+
     ppu_get_set_flag_bit!(get_bg_win_enabled_flag, set_bg_win_enabled_flag, LCDC, LCDCMasks::BgWinEnabled);
     ppu_get_set_flag_bit!(get_obj_enabled_flag, set_obj_enabled_flag, LCDC, LCDCMasks::ObjEnabled);
     ppu_get_set_flag_bit!(get_obj_size_flag, set_obj_size_flag, LCDC, LCDCMasks::ObjSize);
