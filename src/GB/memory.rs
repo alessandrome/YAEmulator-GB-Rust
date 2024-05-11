@@ -133,6 +133,10 @@ impl RAM {
                     }
                 }
             }
+            io::JOYP => {
+                //todo!("Implement read from input");
+                return_val = 0xEF;
+            }
             _ => {
                 return_val = self.memory[address_usize]
             }

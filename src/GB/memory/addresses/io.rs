@@ -1,10 +1,10 @@
 use crate::GB::memory::registers;
 
-pub const JOYP: u16 = 0xFF00;
-pub const SB: u16 = 0xFF01;
-pub const SC: u16 = 0xFF02;
-pub const DIV: u16 = registers::DIV;
-pub const TIMA: u16 = registers::TIMA;
-pub const TMA: u16 = registers::TMA;
+pub const JOYP: usize = 0xFF00;
+pub const SB: usize = 0xFF01;
+pub const SC: usize = 0xFF02;
+pub const DIV: usize = registers::DIV as usize;
+pub const TIMA: usize = registers::TIMA as usize;
+pub const TMA: usize = registers::TMA as usize;
 
-todo!("Implement all other I/O registers/addresses");
+// TODO: "Implement all other I/O registers/addresses"

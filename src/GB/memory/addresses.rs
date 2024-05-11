@@ -1,3 +1,5 @@
+pub mod io;
+
 pub const INTERRUPT_RST_TABLE_ADDRESS: usize = 0x00;
 pub const INTERRUPT_RST_TABLE_SIZE: usize = 0x100;
 
