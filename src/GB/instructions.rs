@@ -767,7 +767,7 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         opcode: 0x20,
         name: "JR NC, e8",
         cycles: 3, // 2 Cycles if condition doesn't match
-        size: 1,
+        size: 2,
         flags: &[],
         execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
             // TODO: Test
@@ -892,7 +892,7 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         opcode: 0x38,
         name: "JR C, e8",
         cycles: 3, // 2 Cycles if condition doesn't match
-        size: 1,
+        size: 2,
         flags: &[],
         execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
             // TODO: Test
