@@ -135,7 +135,7 @@ impl RAM {
             }
             io::JOYP => {
                 //todo!("Implement read from input");
-                return_val = 0xEF;
+                return_val = (self.memory[address] & 0xF0) | 0x0F; // Lower nibble depends on INPUT
             }
             _ => {
                 return_val = self.memory[address_usize]
