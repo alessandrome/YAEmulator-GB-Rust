@@ -1,6 +1,12 @@
 use crate::{mask_flag_enum_default_impl, default_enum_u8_bit_ops};
 
 
+pub const INTERRUPT_VBLANK_ADDR: u16 = 0x40;
+pub const INTERRUPT_STAT_ADDR: u16 = 0x48;
+pub const INTERRUPT_TIMER_ADDR: u16 = 0x50;
+pub const INTERRUPT_SERIAL_ADDR: u16 = 0x58;
+pub const INTERRUPT_JOYPAD_ADDR: u16 = 0x60;
+
 #[derive(Debug, Copy, Clone)]
 #[repr(u8)]
 pub enum InterruptEnableMask {
