@@ -10,14 +10,14 @@ pub const GB_LEFT_BUTTON: u32 = 0x06;
 pub const GB_RIGHT_BUTTON: u32 = 0x07;
 
 struct GBInputMapping {
-    a: u32,
-    b: u32,
-    start: u32,
-    select: u32,
-    up: u32,
-    down: u32,
-    left: u32,
-    right: u32,
+    pub a: u32,
+    pub b: u32,
+    pub start: u32,
+    pub select: u32,
+    pub up: u32,
+    pub down: u32,
+    pub left: u32,
+    pub right: u32,
 }
 
 impl GBInputMapping {
@@ -48,5 +48,13 @@ impl InputMapping {
             mapping: hashmap,
             gb_mapping: gb_map,
         }
+    }
+
+    pub fn set_mapping(&mut self, input_code: u32, key_code: u32) {
+        self.mapping.insert(input_code, key_code);
+    }
+
+    pub fn get_key_code(&self, input_code: u32) -> Option<&u32> {
+        self.mapping.get(&input_code)
     }
 }
