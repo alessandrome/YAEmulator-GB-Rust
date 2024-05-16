@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+// use winit::event::VirtualKeyCode;
 
 pub const GB_A_BUTTON: u32 = 0x00;
 pub const GB_B_BUTTON: u32 = 0x01;
@@ -43,6 +44,7 @@ struct InputMapping {
 impl InputMapping {
     pub fn new() -> Self {
         let mut hashmap: HashMap<u32, u32> = HashMap::new();
+        hashmap.insert(GB_A_BUTTON, 0x5A);
         let mut gb_map = GBInputMapping::new();
         Self {
             mapping: hashmap,
