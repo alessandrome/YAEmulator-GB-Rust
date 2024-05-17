@@ -310,6 +310,30 @@ impl PPU {
         ret_s
     }
 
+    /// String/Draw map of OAM tiles in VRAM. OAM item contain ID of its tile and other useful data. This function can be useful for debug.
+    pub fn get_oam_tile_map(&self, oam_bank: u8, tile_bank: u8) -> String {
+        let tile_bank = tile_bank % 2;
+        let oam_bank = oam_bank % 2;
+        // TODO: we should use Tile Map bank as GB switch between 2 different VRAM banks
+        let mut ret_s = "".to_string();
+        let tile_per_row: u8 = 10;
+        let tile_rows: u8 = 4;
+        for i in 0..tile_rows {
+            let mut row_tiles: Vec<String> = vec!["".to_string(); TILE_HEIGHT];
+            for j in 0..tile_per_row {
+                let oam = self.get_oam((i * tile_per_row + j) as usize);
+                let tile = self.get_tile(oam.get_tile_id(), false).get_printable_id_map(true);
+                let tile_lines: Vec<&str> = tile.split('\n').collect();
+                for line in 0..tile_lines.len()-1 {
+                    row_tiles[line].push_str(tile_lines[line]);
+                }
+            }
+            ret_s.push_str(&row_tiles.join("\n"));
+            ret_s.push('\n');
+        }
+        ret_s
+    }
+
     ppu_get_set_flag_bit!(get_bg_win_enabled_flag, set_bg_win_enabled_flag, LCDC, LCDCMasks::BgWinEnabled);
     ppu_get_set_flag_bit!(get_obj_enabled_flag, set_obj_enabled_flag, LCDC, LCDCMasks::ObjEnabled);
     ppu_get_set_flag_bit!(get_obj_size_flag, set_obj_size_flag, LCDC, LCDCMasks::ObjSize);
