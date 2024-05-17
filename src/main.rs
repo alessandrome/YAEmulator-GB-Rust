@@ -3,9 +3,11 @@ extern crate lazy_static;
 
 use std::fs;
 use std::env;
+use std::fs::OpenOptions;
 use std::time;
-use std::io::Read;
+use std::io::{Read,  Write};
 use clap::Parser;
+use winit;
 
 mod GB;
 mod gui;
@@ -15,9 +17,11 @@ mod utils;
 mod tests;
 
 use GB::CPU::{CPU, CPU_CLOCK_SPEED};
+use GB::memory;
 use crate::GB::instructions::Instruction;
 use crate::GB::memory::Length;
 use crate::GB::PPU::tile::Tile;
+use winit::{event, event_loop, window};
 
 
 #[derive(Parser, Debug)]
@@ -96,6 +100,11 @@ fn main() {
         // }
     }
     gb.set_use_boot(false);
+    let mut file_result = OpenOptions::new()
+        .write(true)
+        .truncate(true)
+        .create(true)
+        .open("output.txt");
 
     if true {
         let mut i: u32 = 0;
@@ -103,20 +112,25 @@ fn main() {
         let target_frame_time = time::Duration::from_secs_f64(1.0 / 60.0);
         let mut cycles_per_frame = CPU_CLOCK_SPEED / 60;
         let mut cycles = 0;
+        let mut debug_i = 142268;
 
         println!();
         println!("| n°   |  Adr. |  Hex       |  Instruction    |");
         println!("+------+-------+------------+-----------------+");
-        while i < 999999 {
+        while i < 300000 {
             if true {
                 if !(gb.cpu_cycles > 0) {
+                    if debug_i == i {
+                        print!("");
+                    }
                     let mut s = "".to_string();
                     let mut pc = gb.cpu.registers.get_pc();
                     let addr = pc;
                     let mut read_bytes: usize = 0;
                     let mut opcode = gb.memory.borrow().read(pc);
                     let mut s_ins = "UNKNOWN".to_string();
-                    let mut opt_ins = CPU::decode(opcode, cb);
+                    let mut opt_ins = CPU::decode(opcode, false);
+
                     i += 1;
                     pc += 1;
                     read_bytes += 1;
@@ -171,9 +185,28 @@ fn main() {
                     }
 
                     let mem_registers = gb.memory.borrow().get_memory_registers();
-                    println!("| {:04} |  {:#06X} |  {} |  {}{}|  {} {} RoB: {} RaB: {}",
-                             i, addr, s, s_ins, " ".repeat(15 - s_ins.len()), gb.ppu, mem_registers,
-                             gb.get_cartridge().as_ref().unwrap().get_rom_bank(), gb.get_cartridge().as_ref().unwrap().get_ram_bank());
+                    {
+
+                        let formatted = format!("| {:04} |  {:#06X} |  {} |  {}{}|  {} {} RxM B: {}/{}, {{AF: {:04X}, BC: {:04X}, DE: {:04X}, HL: {:04X}, SP: {:04X}}}, IE: {}, IF: {}, IME: {}",
+                                 i, addr, s, s_ins, " ".repeat(15 - s_ins.len()), gb.ppu,
+                                 mem_registers,
+                                 gb.get_cartridge().as_ref().unwrap().get_rom_bank(),
+                                 gb.get_cartridge().as_ref().unwrap().get_ram_bank(),
+                                 gb.cpu.registers.get_af(), gb.cpu.registers.get_bc(),
+                                 gb.cpu.registers.get_de(), gb.cpu.registers.get_hl(),
+                                 gb.cpu.registers.get_sp(),
+                                 gb.memory.borrow().read(memory::registers::IE),
+                                 gb.memory.borrow().read(memory::registers::IF),
+                                 if gb.cpu.ime {"T"} else {"F"},
+                        );
+                        println!("{}", formatted);
+                        match file_result {
+                            Ok(ref mut file) => {
+                                writeln!(file, "{}", formatted);
+                            }
+                            _ => {}
+                        }
+                    }
                     if addr == 0x38 { break; }
 
                     // if gb.cpu.opcode == 0xE0 {
@@ -196,14 +229,16 @@ fn main() {
     }
 
     {
+        println!("{}", gb.ppu.get_frame_string());
         // let map = gb.ppu.get_bg_map();
-        // for i in 0..32 {
-        //     for j in 0..32 {
-        //         print!("{}", gb.ppu.get_tile(i, false).get_printable_id_map(true));
+        // for i in 0..16 {
+        //     for j in 0..16 {
+        //         print!("{}", gb.ppu.get_tile(i * 16 + j, false).get_printable_id_map(true));
         //     }
         //     println!()
         // }
-        println!("{}", gb.ppu.get_tile(0, true));
+        // println!("{}", gb.ppu.get_tile(0, true));
+        // println!("{}", gb.ppu.get_tile_map(0));
     }
 
     if fs::metadata(&args.rom).is_ok() {

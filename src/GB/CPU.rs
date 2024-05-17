@@ -209,7 +209,10 @@ impl CPU {
             }
             _ => {}
         }
-        self.interrupt_routine_cycle = Some(routine_cycle + 1);
+        match self.interrupt_routine_cycle {
+            None => {}
+            _ => {self.interrupt_routine_cycle = Some(routine_cycle + 1);}
+        }
         cycles
     }
 

@@ -11,7 +11,9 @@ use std::cell::RefCell;
 use std::fmt;
 use std::fmt::Formatter;
 use std::rc::Rc;
+use crate::GB::memory;
 use crate::GB::memory::addresses::OAM_AREA_ADDRESS;
+use crate::GB::memory::interrupts::InterruptFlagsMask;
 use crate::GB::PPU::constants::{SCAN_OAM_DOTS, SCREEN_WIDTH};
 use crate::GB::PPU::oam::{OAM, OAM_BYTE_SIZE};
 
@@ -83,7 +85,11 @@ impl PPU {
 
         // Execute
         if line > constants::SCREEN_HEIGHT - 1 {
-            self.set_mode(PPUMode::VBlank);
+            if line == constants::SCREEN_HEIGHT && self.line_dots == 0 {
+                self.set_mode(PPUMode::VBlank);
+                let old_if = self.memory.borrow().read(memory::registers::IF);
+                self.memory.borrow_mut().write(memory::registers::IF, old_if | InterruptFlagsMask::VBlank);
+            }
         } else {
             let scx = self.read_memory(addresses::SCX_ADDRESS as u16) as usize;
             let scy = self.read_memory(addresses::SCY_ADDRESS as u16) as usize;
