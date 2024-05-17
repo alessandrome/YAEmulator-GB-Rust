@@ -4,3 +4,5 @@
 /rom/.gitkeep
 /bios/*
 !/bios/.gitkeep
+/logs/*
+!/logs/.gitkeep

@@ -104,7 +104,7 @@ fn main() {
         .write(true)
         .truncate(true)
         .create(true)
-        .open("output.txt");
+        .open("logs\\output.txt");
 
     if true {
         let mut i: u32 = 0;
@@ -117,7 +117,7 @@ fn main() {
         println!();
         println!("| n°   |  Adr. |  Hex       |  Instruction    |");
         println!("+------+-------+------------+-----------------+");
-        while i < 300000 {
+        while i < 200000 {
             if true {
                 if !(gb.cpu_cycles > 0) {
                     if debug_i == i {
