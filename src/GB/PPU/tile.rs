@@ -117,6 +117,18 @@ impl Tile {
         }
         to_print
     }
+
+    pub fn concat_tile_id_map_string(&self, s: &String) -> Result<String, &'static str> {
+        let line_count = s.lines().count();
+
+        // Verify that String has the same number of line as the height of a tile
+        if line_count != TILE_HEIGHT {
+            return Err(format!("String to concat with should have {} lines!", TILE_HEIGHT));
+        }
+        todo!("Implement");
+        let mut concat_s = s.clone();
+        Ok(concat_s)
+    }
 }
 
 impl fmt::Display for Tile {
