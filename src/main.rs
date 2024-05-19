@@ -229,7 +229,7 @@ fn main() {
     }
 
     {
-        println!("{}", gb.ppu.get_frame_string());
+        println!("{}\n\n", gb.ppu.get_frame_string());
         // let map = gb.ppu.get_bg_map();
         // for i in 0..16 {
         //     for j in 0..16 {
@@ -239,6 +239,7 @@ fn main() {
         // }
         // println!("{}", gb.ppu.get_tile(0, true));
         // println!("{}", gb.ppu.get_tile_map(0));
+        println!("{}\n\n", gb.ppu.get_bg_map())
     }
 
     if fs::metadata(&args.rom).is_ok() {

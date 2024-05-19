@@ -228,10 +228,10 @@ impl PPU {
         (lcdc & LCDCMasks::ObjEnabled) != 0
     }
 
-    pub fn get_bg_map(&self) -> Vec<Tile> {
+    pub fn get_bg(&self) -> Vec<Tile> {
         let mut tiles = Vec::with_capacity(1024);
-        for i in 0..=255 {
-            tiles.push(self.get_tile(i, true));
+        for i in 0..constants::MAP_TILES {
+            tiles.push(self.get_tile(self.get_bg_chr(i), true));
         }
         tiles
     }
@@ -329,6 +329,24 @@ impl PPU {
                 }
             }
             ret_s.push_str(&row_tiles.join("\n"));
+            ret_s.push('\n');
+        }
+        ret_s
+    }
+
+    pub fn get_bg_map(&self) -> String {
+        let tiles = self.get_bg();
+        let mut ret_s = "".to_string();
+        for i in 0..constants::MAP_LINES {
+            let mut row: Vec<String> = vec!["".to_string(); TILE_HEIGHT];
+            for j in 0..constants::MAP_ROW_TILES {
+                let tile = tiles[i * constants::MAP_ROW_TILES + j].get_printable_id_map(true);
+                let tile_lines: Vec<&str> = tile.split('\n').collect();
+                for line in 0..tile_lines.len()-1 {
+                    row[line].push_str(tile_lines[line]);
+                }
+            }
+            ret_s.push_str(&row.join("\n"));
             ret_s.push('\n');
         }
         ret_s

@@ -118,15 +118,20 @@ impl Tile {
         to_print
     }
 
-    pub fn concat_tile_id_map_string(&self, s: &String) -> Result<String, &'static str> {
-        let line_count = s.lines().count();
+    pub fn append_tile_id_map_to_string(&self, s: &String, doubled: bool) -> Result<String, String> {
+        let s_lines: Vec<&str> = s.lines().collect();
 
         // Verify that String has the same number of line as the height of a tile
-        if line_count != TILE_HEIGHT {
-            return Err(format!("String to concat with should have {} lines!", TILE_HEIGHT));
+        if s_lines.len() != TILE_HEIGHT {
+            let err = format!("String to concat with should have {} lines!", TILE_HEIGHT);
+            return Err(err);
         }
-        todo!("Implement");
+
         let mut concat_s = s.clone();
+        let mut tile_lines: Vec<String> = self.get_printable_id_map(doubled).lines().map(|line| line.to_string()).collect();
+        for i in 0..s_lines.len() {
+            tile_lines[i].push_str(s_lines[i]);
+        }
         Ok(concat_s)
     }
 }
