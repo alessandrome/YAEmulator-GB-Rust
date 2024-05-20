@@ -1,5 +1,6 @@
 use std::cell::RefCell;
 use std::rc::Rc;
+use crate::GB::memory;
 use crate::GB::memory::{RAM, VRAM_BLOCK_0_ADDRESS, VRAM_BLOCK_1_ADDRESS, VRAM_BLOCK_2_ADDRESS};
 use crate::GB::memory::registers::LCDC;
 use crate::GB::PPU::PPU;
@@ -132,4 +133,28 @@ fn test_ppu_get_bg_win_tile() {
     }
     let result_tile = ppu.get_tile(tile_id, true);
     assert_eq!(result_tile.data, test_sprite);
+}
+
+#[test]
+fn test_ppu_get_bg_chr_id() {
+    let mut x = 0;
+    let mut y = 0;
+    let mem = create_memory!();
+    mem.borrow_mut().write(memory::registers::SCX, 0);
+    mem.borrow_mut().write(memory::registers::SCY, 0);
+    let ppu = PPU::new(mem);
+    assert_eq!(ppu.get_bg_chr_id(x, y), 0);
+    x = 50;
+    y = 2;
+    assert_eq!(ppu.get_bg_chr_id(x, y), 6);
+    assert_eq!(ppu.get_bg_chr_id(50, 9), 38);
+    assert_eq!(ppu.get_bg_chr_id(255, 255), 1023);
+
+    let mem = create_memory!();
+    mem.borrow_mut().write(memory::registers::SCX, 32);
+    mem.borrow_mut().write(memory::registers::SCY, 64);
+    let ppu = PPU::new(mem);
+    assert_eq!(ppu.get_bg_chr_id(0, 0), 260);
+    assert_eq!(ppu.get_bg_chr_id(12, 1), 261);
+    assert_eq!(ppu.get_bg_chr_id(255, 255), 227);
 }
