@@ -118,7 +118,7 @@ fn main() {
         println!("| n°   |  Adr. |  Hex       |  Instruction    |");
         println!("+------+-------+------------+-----------------+");
         while i < 200000 {
-            if true {
+            if false {
                 if !(gb.cpu_cycles > 0) {
                     if debug_i == i {
                         print!("");
@@ -131,7 +131,6 @@ fn main() {
                     let mut s_ins = "UNKNOWN".to_string();
                     let mut opt_ins = CPU::decode(opcode, false);
 
-                    i += 1;
                     pc += 1;
                     read_bytes += 1;
 
@@ -208,19 +207,16 @@ fn main() {
                         }
                     }
                     if addr == 0x38 { break; }
-
-                    // if gb.cpu.opcode == 0xE0 {
-                    //     println!("E0");
-                    // }
                 }
             }
             if false {
                 // let now = time::Instant::now();
                 // let delta_time = now.duration_since(last_frame_time);
                 if cycles == 0 {
-                    println!("{}", gb.ppu.get_frame_string());
+                    println!("{}", gb.ppu.get_frame_string(true));
                 }
             }
+            if gb.cpu_cycles == 0 { i += 1; }
             gb.cycle();
             cycles = (cycles + 1) % cycles_per_frame;
         }
@@ -229,7 +225,7 @@ fn main() {
     }
 
     {
-        println!("{}\n\n", gb.ppu.get_frame_string());
+        println!("{}\n\n", gb.ppu.get_frame_string(true));
         // let map = gb.ppu.get_bg_map();
         // for i in 0..16 {
         //     for j in 0..16 {
@@ -239,7 +235,8 @@ fn main() {
         // }
         // println!("{}", gb.ppu.get_tile(0, true));
         // println!("{}", gb.ppu.get_tile_map(0));
-        println!("{}\n\n", gb.ppu.get_bg_map())
+        println!("{}\n", &(gb.ppu.get_bg_map())[..256*2*3*144+144]);
+        println!("SCX {} | SCY {}", gb.ppu.get_scx(), gb.ppu.get_scy())
     }
 
     if fs::metadata(&args.rom).is_ok() {
