@@ -81,7 +81,7 @@ impl PPU {
         const HBLANK_DOTS_END: usize = HBLANK_DOTS_START + constants::HBLANK_MIN_DOTS - 1;
 
         // Get line, check if we are counting penalties, increment line DOT (and line if needed)
-        let mut line = self.read_memory(addresses::LY_ADDRESS as u16) as usize;
+        let mut line = self.get_line() as usize;
 
         // Execute
         if line > constants::SCREEN_HEIGHT - 1 {
@@ -118,7 +118,7 @@ impl PPU {
                     if self.screen_dot < SCREEN_WIDTH {
                         let screen_pixel_index = self.screen_dot + line * SCREEN_WIDTH;
                         let is_bg_enabled = self.is_bg_win_enabled();
-                        let is_sprite_enabled = false;//self.is_obj_enabled();
+                        let is_sprite_enabled = self.is_obj_enabled();
                         let mut pixel_set = false;
                         if is_sprite_enabled && self.line_oam_number < self.line_oam.len() {
                             let oam = &self.line_oam[self.line_oam_number];
@@ -238,6 +238,10 @@ impl PPU {
         tiles
     }
 
+    pub fn get_line(&self) -> u8 {
+        self.read_memory(addresses::LY_ADDRESS as u16)
+    }
+
     pub fn get_scy(&self) -> u8 {
         self.read_memory(addresses::SCY_ADDRESS as u16)
     }
@@ -257,11 +261,11 @@ impl PPU {
     }
 
     pub fn get_bg_x(&self) -> u8 {
-        ((self.get_scx() as usize + self.line_dots) % constants::MAP_ROW_PIXELS) as u8
+        ((self.get_scx() as usize + self.screen_dot) % constants::MAP_ROW_PIXELS) as u8
     }
 
     pub fn get_bg_y(&self) -> u8 {
-        ((self.get_scy() as usize + self.line_dots) % constants::MAP_HEIGHT_PIXELS) as u8
+        ((self.get_scy() as usize + self.get_line() as usize) % constants::MAP_HEIGHT_PIXELS) as u8
     }
 
     /// In DMG CHR represent ID of the in-memory tile.

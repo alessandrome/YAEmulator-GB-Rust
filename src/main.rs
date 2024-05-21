@@ -235,8 +235,9 @@ fn main() {
         // }
         // println!("{}", gb.ppu.get_tile(0, true));
         // println!("{}", gb.ppu.get_tile_map(0));
-        println!("{}\n", &(gb.ppu.get_bg_map())[..256*2*3*144+144]);
-        println!("SCX {} | SCY {}", gb.ppu.get_scx(), gb.ppu.get_scy())
+        let lines_to_print = 10;
+        // println!("{}\n", &(gb.ppu.get_bg_map())[..256*2*3*lines_to_print+lines_to_print]); // x3 because characters used in UTF-8 occupy 3 bytes + 1 byte per line for carriage return
+        // println!("SCX {} | SCY {}", gb.ppu.get_scx(), gb.ppu.get_scy())
     }
 
     if fs::metadata(&args.rom).is_ok() {
