@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use winit::{keyboard::{KeyCode, PhysicalKey}};
 // use winit::event::VirtualKeyCode;
 
 pub const GB_A_BUTTON: u32 = 0x00;
@@ -34,6 +35,17 @@ impl GBInputMapping {
             right: 0,
         }
     }
+}
+
+pub struct GBInput {
+    pub a: bool,
+    pub b: bool,
+    pub start: bool,
+    pub select: bool,
+    pub up: bool,
+    pub down: bool,
+    pub left: bool,
+    pub right: bool,
 }
 
 struct InputMapping {

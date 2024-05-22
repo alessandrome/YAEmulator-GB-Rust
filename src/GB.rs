@@ -16,6 +16,8 @@ pub mod CPU;
 pub mod memory;
 pub mod PPU;
 pub mod cartridge;
+pub mod input;
+pub mod audio;
 
 
 #[cfg(feature = "debug")]
@@ -37,6 +39,7 @@ pub struct GB {
     pub bios: BIOS,
     pub cpu: CPU::CPU,
     pub ppu: PPU::PPU,
+    pub input: input::GBInput,
     cartridge: Rc<RefCell<Option<Cartridge>>>,
     pub cpu_cycles: u64, // Number to cycle needed to complete current CPU instruction. cpu.cycle() is skipped if different from 0
 }
@@ -49,6 +52,16 @@ impl GB {
         let cpu = CPU::CPU::new(Rc::clone(&ram_ref));
         let mut rom = BIOS::new();
         let mut is_booting = false;
+        let inputs = input::GBInput {
+            a: false,
+            b: false,
+            start: false,
+            select: false,
+            up: false,
+            down: false,
+            left: false,
+            right: false,
+        };
         match bios {
             None => {}
             Some(bios) => {
@@ -64,6 +77,7 @@ impl GB {
             bios: rom,
             cartridge: cartridge_ref,
             cpu_cycles: 0,
+            input: inputs,
         }
     }
 
@@ -86,6 +100,7 @@ impl GB {
     }
 
     pub fn cycle(&mut self) {
+        let a = self.memory.borrow().read(0xFF80);
         if !(self.cpu_cycles > 0) {
             self.cpu_cycles = self.cpu.execute_next();
             if self.cpu.dma_transfer {
@@ -134,12 +149,23 @@ impl Default for GB {
         let ram_ref = Rc::new(RefCell::new(ram));
         let cartridge_ref = Rc::new(RefCell::new(None));
         let cpu = CPU::CPU::new(Rc::clone(&ram_ref));
+        let inputs = input::GBInput {
+            a: false,
+            b: false,
+            start: false,
+            select: false,
+            up: false,
+            down: false,
+            left: false,
+            right: false,
+        };
         Self {
             is_booting: false,
             cpu,
             ppu: PPU::PPU::new(Rc::clone(&ram_ref)),
             memory: ram_ref,
             bios: BIOS::new(),
+            input: inputs,
             cartridge: cartridge_ref,
             cpu_cycles: 0,
         }
