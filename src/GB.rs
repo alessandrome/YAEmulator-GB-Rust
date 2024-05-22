@@ -61,6 +61,7 @@ impl GB {
             down: false,
             left: false,
             right: false,
+            memory: Rc::clone(&ram_ref)
         };
         match bios {
             None => {}
@@ -158,6 +159,7 @@ impl Default for GB {
             down: false,
             left: false,
             right: false,
+            memory: Rc::clone(&ram_ref),
         };
         Self {
             is_booting: false,

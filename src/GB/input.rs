@@ -1,5 +1,8 @@
+use std::cell::RefCell;
 use std::collections::HashMap;
+use std::rc::Rc;
 use winit::{keyboard::{KeyCode, PhysicalKey}};
+use crate::GB::memory::{addresses, RAM, UseMemory};
 // use winit::event::VirtualKeyCode;
 
 pub const GB_A_BUTTON: u32 = 0x00;
@@ -37,6 +40,9 @@ impl GBInputMapping {
     }
 }
 
+/// Struct representing state of all buttons on GameBoy. Each button as 2 states: "true" when is pressed, "false" when is not.
+///
+/// This input structure can write to memory to update status of buttons as reading 0xFF00 memory address returns the status of buttons (bit 0 if button pressed, 1 if not)
 pub struct GBInput {
     pub a: bool,
     pub b: bool,
@@ -46,6 +52,25 @@ pub struct GBInput {
     pub down: bool,
     pub left: bool,
     pub right: bool,
+    pub memory: Rc<RefCell<RAM>>,
+}
+
+impl GBInput {
+    pub fn update_memory(&mut self) {
+        let data: u8 = 0;
+        todo!("This should check which group should memory contain and then write needed data based on inputs!");
+        self.write_memory(addresses::io::JOYP as u16, data);
+    }
+}
+
+impl UseMemory for GBInput {
+    fn read_memory(&self, address: u16) -> u8 {
+        self.memory.borrow().read(address)
+    }
+
+    fn write_memory(&self, address: u16, data: u8) {
+        self.memory.borrow_mut().write(address, data)
+    }
 }
 
 struct InputMapping {
