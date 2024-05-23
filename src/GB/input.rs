@@ -52,24 +52,23 @@ pub struct GBInput {
     pub down: bool,
     pub left: bool,
     pub right: bool,
-    pub memory: Rc<RefCell<RAM>>,
 }
 
 impl GBInput {
-    pub fn update_memory(&mut self) {
-        let data: u8 = 0;
-        todo!("This should check which group should memory contain and then write needed data based on inputs!");
-        self.write_memory(addresses::io::JOYP as u16, data);
-    }
 }
 
-impl UseMemory for GBInput {
-    fn read_memory(&self, address: u16) -> u8 {
-        self.memory.borrow().read(address)
-    }
-
-    fn write_memory(&self, address: u16, data: u8) {
-        self.memory.borrow_mut().write(address, data)
+impl Default for GBInput {
+    fn default() -> Self {
+        Self {
+            a: false,
+            b: false,
+            start: false,
+            select: false,
+            up: false,
+            down: false,
+            left: false,
+            right: false,
+        }
     }
 }
 

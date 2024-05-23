@@ -9,6 +9,7 @@ use std::io::Read;
 use std::ops::{Deref, DerefMut};
 use std::rc::Rc;
 use crate::GB::cartridge::{Cartridge, UseCartridge};
+use crate::GB::input;
 use crate::GB::memory::addresses::{*};
 use crate::GB::memory::registers::MemoryRegisters;
 use crate::GB::PPU::tile::TILE_SIZE;
@@ -107,13 +108,15 @@ pub struct RAM {
     pub memory: Memory<u8>,
     #[cfg(not(test))]
     memory: Memory<u8>,
-    cartridge: Rc<RefCell<Option<Cartridge>>>
+    inputs: Rc<RefCell<input::GBInput>>,
+    cartridge: Rc<RefCell<Option<Cartridge>>>,
 }
 
 impl RAM {
-    pub fn new() -> Self {
+    pub fn new(inputs: Rc<RefCell<input::GBInput>>) -> Self {
         RAM {
             memory: Memory::<u8>::new(0, 65536),
+            inputs,
             cartridge: Rc::new(RefCell::new(None))
         }
     }
@@ -206,11 +209,15 @@ impl UseCartridge for RAM {
 
 #[cfg(test)]
 mod test {
+    use std::cell::RefCell;
+    use std::rc::Rc;
+    use crate::GB::input;
     use crate::GB::memory::RAM;
 
     #[test]
     fn test_memory_read() {
-        let mut ram = RAM::new();
+        let inputs_ref = Rc::new(RefCell::new(input::GBInput::default()));
+        let mut ram = RAM::new(inputs_ref);
         let address: usize = 0xC0D0;
         let data: u8 = 0x44;
         ram.memory[address] = data;
@@ -219,7 +226,8 @@ mod test {
 
     #[test]
     fn test_memory_write() {
-        let mut ram = RAM::new();
+        let inputs_ref = Rc::new(RefCell::new(input::GBInput::default()));
+        let mut ram = RAM::new(inputs_ref);
         let address: usize = 0xC0D0;
         let data: u8 = 0x45;
         ram.memory[address] = 0xFF;
@@ -230,7 +238,8 @@ mod test {
 
     #[test]
     fn test_memory_read_vec() {
-        let mut ram = RAM::new();
+        let inputs_ref = Rc::new(RefCell::new(input::GBInput::default()));
+        let mut ram = RAM::new(inputs_ref);
         let start_address: usize = 0xC000;
         let data: Vec<u8> = vec![0x44, 0x55, 0xF0, 0x0F, 0x75, 0x1A, 0xA1, 0x92];
         for i in 0..data.len() {

@@ -39,19 +39,13 @@ pub struct GB {
     pub bios: BIOS,
     pub cpu: CPU::CPU,
     pub ppu: PPU::PPU,
-    pub input: input::GBInput,
+    pub input: Rc<RefCell<input::GBInput>>,
     cartridge: Rc<RefCell<Option<Cartridge>>>,
     pub cpu_cycles: u64, // Number to cycle needed to complete current CPU instruction. cpu.cycle() is skipped if different from 0
 }
 
 impl GB {
     pub fn new(bios: Option<String>) -> Self{
-        let mut ram = RAM::new();
-        let ram_ref = Rc::new(RefCell::new(ram));
-        let cartridge_ref = Rc::new(RefCell::new(None));
-        let cpu = CPU::CPU::new(Rc::clone(&ram_ref));
-        let mut rom = BIOS::new();
-        let mut is_booting = false;
         let inputs = input::GBInput {
             a: false,
             b: false,
@@ -61,8 +55,16 @@ impl GB {
             down: false,
             left: false,
             right: false,
-            memory: Rc::clone(&ram_ref)
         };
+        let inputs_ref = Rc::new(RefCell::new(inputs));
+
+        let mut ram = RAM::new(Rc::clone(&inputs_ref));
+        let ram_ref = Rc::new(RefCell::new(ram));
+        let cartridge_ref = Rc::new(RefCell::new(None));
+        let cpu = CPU::CPU::new(Rc::clone(&ram_ref));
+        let mut rom = BIOS::new();
+        let mut is_booting = false;
+
         match bios {
             None => {}
             Some(bios) => {
@@ -70,6 +72,7 @@ impl GB {
                 is_booting = true;
             }
         }
+
         Self {
             is_booting,
             cpu,
@@ -78,7 +81,7 @@ impl GB {
             bios: rom,
             cartridge: cartridge_ref,
             cpu_cycles: 0,
-            input: inputs,
+            input: inputs_ref,
         }
     }
 
@@ -146,7 +149,8 @@ impl GB {
 
 impl Default for GB {
     fn default() -> Self {
-        let ram = RAM::new();
+        let inputs_ref = Rc::new(RefCell::new(input::GBInput::default()));
+        let ram = RAM::new(Rc::clone(&inputs_ref));
         let ram_ref = Rc::new(RefCell::new(ram));
         let cartridge_ref = Rc::new(RefCell::new(None));
         let cpu = CPU::CPU::new(Rc::clone(&ram_ref));
@@ -159,7 +163,6 @@ impl Default for GB {
             down: false,
             left: false,
             right: false,
-            memory: Rc::clone(&ram_ref),
         };
         Self {
             is_booting: false,
@@ -167,7 +170,7 @@ impl Default for GB {
             ppu: PPU::PPU::new(Rc::clone(&ram_ref)),
             memory: ram_ref,
             bios: BIOS::new(),
-            input: inputs,
+            input: inputs_ref,
             cartridge: cartridge_ref,
             cpu_cycles: 0,
         }
