@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use std::rc::Rc;
 use winit::{keyboard::{KeyCode, PhysicalKey}};
 use crate::GB::memory::{addresses, RAM, UseMemory};
+use crate::{mask_flag_enum_default_impl, default_enum_u8_bit_ops};
 // use winit::event::VirtualKeyCode;
 
 pub const GB_A_BUTTON: u32 = 0x00;
@@ -13,6 +14,35 @@ pub const GB_UP_BUTTON: u32 = 0x04;
 pub const GB_DOWN_BUTTON: u32 = 0x05;
 pub const GB_LEFT_BUTTON: u32 = 0x06;
 pub const GB_RIGHT_BUTTON: u32 = 0x07;
+
+
+#[derive(Copy, Clone, Debug)]
+#[repr(u8)]
+pub enum GBInputSelectionBits {
+    Buttons = 0b_0100_0000,
+    DPad = 0b_0010_0000,
+}
+mask_flag_enum_default_impl!(GBInputSelectionBits);
+
+#[derive(Copy, Clone, Debug)]
+#[repr(u8)]
+pub enum GBInputButtonsBits {
+    A = 0b_0000_0001,
+    B = 0b_0000_0010,
+    Select = 0b_0000_0100,
+    Start = 0b_0000_1000,
+}
+mask_flag_enum_default_impl!(GBInputButtonsBits);
+
+#[derive(Copy, Clone, Debug)]
+#[repr(u8)]
+pub enum GBInputDPadBits {
+    Right = 0b_0000_0001,
+    Left = 0b_0000_0010,
+    Up = 0b_0000_0100,
+    Down = 0b_0000_1000,
+}
+mask_flag_enum_default_impl!(GBInputDPadBits);
 
 struct GBInputMapping {
     pub a: u32,
@@ -40,7 +70,7 @@ impl GBInputMapping {
     }
 }
 
-/// Struct representing state of all buttons on GameBoy. Each button as 2 states: "true" when is pressed, "false" when is not.
+/// Struct representing state of all buttons on Game Boy. Each button as 2 states: "true" when is pressed, "false" when is not.
 ///
 /// This input structure can write to memory to update status of buttons as reading 0xFF00 memory address returns the status of buttons (bit 0 if button pressed, 1 if not)
 pub struct GBInput {
@@ -55,6 +85,21 @@ pub struct GBInput {
 }
 
 impl GBInput {
+    pub fn get_buttons_byte(&self) -> u8 {
+        0_u8
+            | ((!self.a as u8) << (GBInputButtonsBits::A as u8).trailing_zeros() | (GBInputButtonsBits::A as u8))
+            | ((!self.b as u8) << (GBInputButtonsBits::B as u8).trailing_zeros() | (GBInputButtonsBits::B as u8))
+            | ((!self.select as u8) << (GBInputButtonsBits::Select as u8).trailing_zeros() | (GBInputButtonsBits::Select as u8))
+            | ((!self.start as u8) << (GBInputButtonsBits::Start as u8).trailing_zeros() | (GBInputButtonsBits::Start as u8))
+    }
+
+    pub fn get_dpad_byte(&self) -> u8 {
+        0_u8
+            | ((!self.right as u8) << (GBInputDPadBits::Right as u8).trailing_zeros() | (GBInputDPadBits::Right as u8))
+            | ((!self.left as u8) << (GBInputDPadBits::Left as u8).trailing_zeros() | (GBInputDPadBits::Left as u8))
+            | ((!self.up as u8) << (GBInputDPadBits::Up as u8).trailing_zeros() | (GBInputDPadBits::Up as u8))
+            | ((!self.down as u8) << (GBInputDPadBits::Down as u8).trailing_zeros() | (GBInputDPadBits::Down as u8))
+    }
 }
 
 impl Default for GBInput {
