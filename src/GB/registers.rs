@@ -89,17 +89,18 @@ pub struct Registers {
 
 impl Registers {
     pub fn new() -> Registers {
+        // Based on DMG version
         Registers {
-            a: 0,
+            a: 0x01,
             b: 0,
-            c: 0,
+            c: 0x13,
             d: 0,
-            e: 0,
-            f: 0,
-            h: 0,
-            l: 0,
-            sp: (WRAM_ADDRESS + WRAM_SIZE - 1) as u16,
-            pc: 0,
+            e: 0xD8,
+            f: 0x0B,
+            h: 0x01,
+            l: 0x4D,
+            sp: 0xFFFE,
+            pc: 0x0100,
         }
     }
 
