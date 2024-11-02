@@ -105,7 +105,6 @@ impl GB {
     }
 
     pub fn cycle(&mut self) {
-        let a = self.memory.borrow().read(0xFF80);
         // Execute next only if it hasn't to wait more executing instruction cycles
         if !(self.cpu_cycles > 0) {
             if !self.cpu.interrupt().0 {
@@ -120,10 +119,6 @@ impl GB {
             self.cpu_cycles -= 1;
         }
         self.ppu.cycle();
-        if (self.cpu.cycles % (CYCLES_PER_FRAME / 10)) == 0 {
-            println!("{}\n{}\n\n", self.cpu.cycles, self.ppu.get_frame_string(true));
-        }
-        // std::
     }
 
     // fn check_interrupt(&mut self) {

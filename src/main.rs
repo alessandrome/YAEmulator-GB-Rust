@@ -2,11 +2,12 @@
 extern crate lazy_static;
 
 use clap::Parser;
-use crossterm::event::{self, Event, KeyCode, KeyEventKind};
+use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind};
 use std::{env, thread};
 use std::fs;
 use std::fs::{File, OpenOptions};
 use std::io::{Read, stdout, Write};
+use std::sync::mpsc;
 use std::time;
 use std::time::{Duration, Instant};
 use winit;
@@ -72,70 +73,48 @@ fn main() {
         .open("logs\\output.txt");
     let mut log_line: u64 = 0;
 
+    // ------------------------------------------------------------------------
+
     // Frame time
     let frame_duration = Duration::from_millis(33);
     let cycle_duration = Duration::from_nanos(238);
     let mut cycles: u64 = 0;
+    let mut time = Instant::now();
+
+    // Input TX/RX Channels
+    let (tx, rx) = mpsc::channel();
+    thread::spawn(move || {
+        loop {
+            if event::poll(Duration::from_millis(30)).unwrap() {
+                if let Event::Key(key_event) = event::read().unwrap() {
+                    tx.send(key_event).unwrap();
+                }
+            }
+        }
+    });
 
     // Running in loop Game Boy execution
     'running: loop {
         let start = Instant::now();
 
-        if cycles >= GB::CYCLES_PER_FRAME*2 {
-            // println!("\x1B[2J\x1B[H{}", gb.get_frame_string(true));
-            // stdout().flush().unwrap();
+        if (cycles % (GB::CYCLES_PER_FRAME)) == 0  {
+            println!("\x1B[2J\x1B[H{}", gb.get_frame_string(true));
+            // println!("{}", gb.get_frame_string(true));
+            println!("S/f: {:?}", (Instant::now() - time).as_secs_f64());
+            println!("C/s: {:?}", cycles as f64/(Instant::now() - time).as_secs_f64());
+            stdout().flush().unwrap();
+            time = Instant::now();
             cycles = 0;
         }
 
         // Polling input
-        if event::poll(std::time::Duration::from_nanos(0)).unwrap() {
-            if let Event::Key(key_event) = event::read().unwrap() {
-                match key_event.kind {
-                    KeyEventKind::Press => {
-                        match key_event.code {
-                            KeyCode::Char('z') => {
-                                gb.press_button(GBInputButtonsBits::A, true);
-                            }
-                            KeyCode::Char('x') => {
-                                gb.press_button(GBInputButtonsBits::B, true);
-                            }
-                            KeyCode::Char('o') => {
-                                gb.press_button(GBInputButtonsBits::Start, true);
-                            }
-                            KeyCode::Enter => {
-                                gb.press_button(GBInputButtonsBits::Start, true);
-                            }
-                            KeyCode::Backspace => {
-                                gb.press_button(GBInputButtonsBits::Select, true);
-                            }
-                            KeyCode::Esc => break, // Esci con ESC
-                            _ => {}
-                        }
-                    }
-                    KeyEventKind::Release => {
-                        match key_event.code {
-                            KeyCode::Char('z') => {
-                                gb.press_button(GBInputButtonsBits::A, false);
-                            }
-                            KeyCode::Char('x') => {
-                                gb.press_button(GBInputButtonsBits::B, false);
-                            }
-                            KeyCode::Char('o') => {
-                                gb.press_button(GBInputButtonsBits::Start, false);
-                            }
-                            KeyCode::Enter => {
-                                gb.press_button(GBInputButtonsBits::Start, false);
-                            }
-                            KeyCode::Backspace => {
-                                gb.press_button(GBInputButtonsBits::Select, false);
-                            }
-                            _ => {}
-                        }
-                    }
-                    _ => {} // Puoi gestire altri tipi di eventi se necessario
-                }
+        if let Some(key_event) = rx.try_recv().ok() {
+            if key_event.kind == KeyEventKind::Press && key_event.code == KeyCode::Esc {
+                break;
             }
+            manage_gb_input_event(&mut gb, key_event);
         }
+
 
         match file_result {
             Ok(ref mut file) => {
@@ -148,10 +127,9 @@ fn main() {
         gb.cycle();
         cycles += 1;
         let elapsed = start.elapsed();
-        if elapsed < cycle_duration {
-            print!("sleep");
-            thread::sleep(cycle_duration - elapsed);
-        }
+        // if elapsed < cycle_duration {
+        //     thread::sleep(cycle_duration - elapsed);
+        // }
     }
 
     if false {
@@ -411,4 +389,50 @@ fn log(log_channel: &mut File, gb: &GB::GB, log_line: u64) {
         }
     }
 
+}
+
+fn manage_gb_input_event(gb: &mut GB::GB, key_event: KeyEvent) {
+    match key_event.kind {
+        KeyEventKind::Press => {
+            match key_event.code {
+                KeyCode::Char('z') => {
+                    gb.press_button(GBInputButtonsBits::A, true);
+                }
+                KeyCode::Char('x') => {
+                    gb.press_button(GBInputButtonsBits::B, true);
+                }
+                KeyCode::Char('o') => {
+                    gb.press_button(GBInputButtonsBits::Start, true);
+                }
+                KeyCode::Enter => {
+                    gb.press_button(GBInputButtonsBits::Start, true);
+                }
+                KeyCode::Backspace => {
+                    gb.press_button(GBInputButtonsBits::Select, true);
+                }
+                _ => {}
+            }
+        }
+        KeyEventKind::Release => {
+            match key_event.code {
+                KeyCode::Char('z') => {
+                    gb.press_button(GBInputButtonsBits::A, false);
+                }
+                KeyCode::Char('x') => {
+                    gb.press_button(GBInputButtonsBits::B, false);
+                }
+                KeyCode::Char('o') => {
+                    gb.press_button(GBInputButtonsBits::Start, false);
+                }
+                KeyCode::Enter => {
+                    gb.press_button(GBInputButtonsBits::Start, false);
+                }
+                KeyCode::Backspace => {
+                    gb.press_button(GBInputButtonsBits::Select, false);
+                }
+                _ => {}
+            }
+        }
+        _ => {} // Puoi gestire altri tipi di eventi se necessario
+    }
 }
