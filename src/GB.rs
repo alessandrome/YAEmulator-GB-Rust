@@ -30,9 +30,9 @@ fn debug_print(_args: std::fmt::Arguments) {
     // Do nothing
 }
 
-const SYSTEM_FREQUENCY_CLOCK: u64 = 1_048_576;
-const CYCLES_PER_FRAME: u64 = CPU_CLOCK_SPEED / 60;
-const FRAME_TIME: f64 = 1_f64 / 60_f64;
+pub const SYSTEM_FREQUENCY_CLOCK: u64 = 1_048_576;
+pub const CYCLES_PER_FRAME: u64 = CPU_CLOCK_SPEED / 60;
+pub const FRAME_TIME: f64 = 1_f64 / 60_f64;
 
 pub struct GB {
     is_booting: bool,
@@ -120,6 +120,10 @@ impl GB {
             self.cpu_cycles -= 1;
         }
         self.ppu.cycle();
+        if (self.cpu.cycles % (CYCLES_PER_FRAME / 10)) == 0 {
+            println!("{}\n{}\n\n", self.cpu.cycles, self.ppu.get_frame_string(true));
+        }
+        // std::
     }
 
     // fn check_interrupt(&mut self) {
@@ -204,6 +208,10 @@ impl GB {
 
     pub fn get_bios(&self) -> &BIOS {
         &self.bios
+    }
+
+    pub fn get_frame_string(&self, doubled: bool) -> String {
+        self.ppu.get_frame_string(doubled)
     }
 
     pub fn dma_transfer(&mut self) {
