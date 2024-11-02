@@ -212,6 +212,7 @@ impl CPU {
                 cycles = 2;
             }
             v if v >= 4 => {
+                self.registers.set_pc(self.interrupt_routine_addr);
                 let if_register = self.memory.borrow().read(addresses::interrupt::IF as u16);
                 self.memory.borrow_mut().write(addresses::interrupt::IF as u16, if_register & !self.interrupt_type);
                 self.interrupt_routine_cycle = None;
