@@ -1,24 +1,24 @@
-use std::cell::{Ref, RefCell};
-use std::io::Error;
-use std::rc::Rc;
-use crate::GB::cartridge::{Cartridge, UseCartridge};
-use crate::GB::memory::{RAM};
-use crate::GB::memory::BIOS::BIOS;
 use crate::GB::cartridge::addresses as cartridge_addresses;
+use crate::GB::cartridge::{Cartridge, UseCartridge};
+use crate::GB::input::{GBInputButtonsBits, GBInputDPadBits};
+use crate::GB::memory::addresses::{self, OAM_AREA_ADDRESS};
+use crate::GB::memory::BIOS::BIOS;
+use crate::GB::memory::{interrupts, RAM};
 use crate::GB::CPU::CPU_CLOCK_SPEED;
-use crate::GB::memory::addresses::OAM_AREA_ADDRESS;
 use crate::GB::PPU::constants::OAM_NUMBERS;
 use crate::GB::PPU::oam::OAM_BYTE_SIZE;
+use std::cell::{Ref, RefCell};
+use std::rc::Rc;
+use crate::GB::memory::interrupts::InterruptFlagsMask;
 
-pub mod registers;
-pub mod instructions;
 pub mod CPU;
-pub mod memory;
 pub mod PPU;
+pub mod audio;
 pub mod cartridge;
 pub mod input;
-pub mod audio;
-
+pub mod instructions;
+pub mod memory;
+pub mod registers;
 
 #[cfg(feature = "debug")]
 fn debug_print(args: std::fmt::Arguments) {
@@ -45,7 +45,7 @@ pub struct GB {
 }
 
 impl GB {
-    pub fn new(bios: Option<String>) -> Self{
+    pub fn new(bios: Option<String>) -> Self {
         let inputs = input::GBInput {
             a: false,
             b: false,
@@ -105,13 +105,19 @@ impl GB {
 
     pub fn cycle(&mut self) {
         let a = self.memory.borrow().read(0xFF80);
+        // Execute next only if it hasn't to wait more executing instruction cycles
         if !(self.cpu_cycles > 0) {
-            self.cpu_cycles = self.cpu.execute_next();
-            if self.cpu.dma_transfer {
-                self.dma_transfer();
+            if !self.cpu.interrupt().0 {
+                // self.check_interrupt(); // Check if an Interrupt is requested, and redirect exec to it
+                self.cpu_cycles = self.cpu.execute_next();
+                if self.cpu.dma_transfer {
+                    self.dma_transfer();
+                }
             }
         }
-        self.cpu_cycles -= 1;
+        if self.cpu_cycles > 0 {
+            self.cpu_cycles -= 1;
+        }
         self.ppu.cycle();
         self.cpu.interrupt();
     }
@@ -135,15 +141,20 @@ impl GB {
         for i in 0..OAM_NUMBERS as u16 {
             let oam_from_addr = start_address + i * OAM_BYTE_SIZE as u16;
             let oam_to_addr = OAM_AREA_ADDRESS as u16 + i * OAM_BYTE_SIZE as u16;
-            let val =  mem.read(oam_from_addr);
+            let val = mem.read(oam_from_addr);
             mem.write(oam_to_addr, val);
-            let val =  mem.read(oam_from_addr + 1);
+            let val = mem.read(oam_from_addr + 1);
             mem.write(oam_to_addr + 1, val);
-            let val =  mem.read(oam_from_addr + 2);
+            let val = mem.read(oam_from_addr + 2);
             mem.write(oam_to_addr + 2, val);
-            let val =  mem.read(oam_from_addr + 3);
+            let val = mem.read(oam_from_addr + 3);
             mem.write(oam_to_addr + 3, val);
         }
+        self.cpu.dma_transfer = false;
+    }
+
+    pub fn is_managing_interrupt(&self) -> (InterruptFlagsMask, Option<u8>) {
+        (self.cpu.interrupt_type, self.cpu.interrupt_routine_cycle)
     }
 }
 

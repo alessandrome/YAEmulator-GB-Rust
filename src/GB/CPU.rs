@@ -3,7 +3,8 @@ use std::rc::Rc;
 use crate::GB::{instructions, SYSTEM_FREQUENCY_CLOCK};
 use crate::GB::cartridge::{Cartridge, UseCartridge};
 use crate::GB::registers;
-use crate::GB::memory::{self, interrupts, RAM, UseMemory, USER_PROGRAM_ADDRESS};
+use crate::GB::memory::{self, addresses, interrupts, RAM, UseMemory, USER_PROGRAM_ADDRESS};
+use crate::GB::memory::interrupts::InterruptFlagsMask;
 
 
 pub const CPU_CLOCK_MULTIPLIER: u64 = 4;
@@ -89,8 +90,9 @@ pub struct CPU {
     pub dma_transfer: bool,  // True When DMA RAM to VRAM is enabled
     pub memory: Rc<RefCell<RAM>>,
     cartridge: Rc<RefCell<Option<Cartridge>>>,
-    interrupt_routine_cycle: Option<u8>,
+    pub interrupt_routine_cycle: Option<u8>,
     interrupt_routine_addr: u16,
+    pub interrupt_type: InterruptFlagsMask
 }
 
 impl CPU {
@@ -106,6 +108,7 @@ impl CPU {
             cartridge: Rc::new(RefCell::new(None)),
             interrupt_routine_cycle: None,
             interrupt_routine_addr: 0xFFFF,
+            interrupt_type: InterruptFlagsMask::VBlank
         }
     }
     
@@ -160,31 +163,39 @@ impl CPU {
     /// Check and jump to requested interrupt address after take a snapshot of status on stack.
     /// 
     /// Interrupt bit has priority from lower bit to higher (bit 0 has the higher priority).
-    pub fn interrupt(&mut self) {
+    pub fn interrupt(&mut self) -> (bool, InterruptFlagsMask, Option<u8>) {
+        let mut interrupt_found = false;
         if self.ime {
             let flags = interrupts::Interrupts::new(self.read_memory(memory::registers::IF));
             let enabled_flags = interrupts::Interrupts::new(self.read_memory(memory::registers::IE));
             if enabled_flags.v_blank && flags.v_blank {
                 // Bit 0
                 self.interrupt_routine_addr = memory::interrupts::INTERRUPT_VBLANK_ADDR;
+                self.interrupt_type = InterruptFlagsMask::VBlank;
             } else if enabled_flags.lcd && flags.lcd {
                 // Bit 1
                 self.interrupt_routine_addr = memory::interrupts::INTERRUPT_STAT_ADDR;
+                self.interrupt_type = InterruptFlagsMask::LCD;
             } else if enabled_flags.timer && flags.timer {
                 // Bit 2
                 self.interrupt_routine_addr = memory::interrupts::INTERRUPT_TIMER_ADDR;
+                self.interrupt_type = InterruptFlagsMask::Timer;
             } else if enabled_flags.serial && flags.serial {
                 // Bit 3
                 self.interrupt_routine_addr = memory::interrupts::INTERRUPT_SERIAL_ADDR;
+                self.interrupt_type = InterruptFlagsMask::Serial;
             } else if enabled_flags.joy_pad && flags.joy_pad {
                 // Bit 4
                 self.interrupt_routine_addr = memory::interrupts::INTERRUPT_JOYPAD_ADDR;
+                self.interrupt_type = InterruptFlagsMask::JoyPad;
             }
             if self.interrupt_routine_addr < 0x70 /* Arbitrary greater than max int addr */ {
                 self.ime = false;
                 self.interrupt_routine_cycle = Some(0);
+                interrupt_found = true;
             }
         }
+        (interrupt_found, self.interrupt_type, self.interrupt_routine_cycle)
     }
 
     /// CPU should run this only when "interrupt_routine_cycle" is not None. Every service routine last 5 cycles.
@@ -200,12 +211,11 @@ impl CPU {
                 self.push((self.registers.get_pc() & 0xFF) as u8);
                 cycles = 2;
             }
-            4 => {
-                self.registers.set_pc(self.interrupt_routine_addr);
+            v if v >= 4 => {
+                let if_register = self.memory.borrow().read(addresses::interrupt::IF as u16);
+                self.memory.borrow_mut().write(addresses::interrupt::IF as u16, if_register & !self.interrupt_type);
                 self.interrupt_routine_cycle = None;
-            }
-            v if v > 4 => {
-                self.interrupt_routine_cycle = None;
+                self.interrupt_routine_addr = 0xFFFF;
             }
             _ => {}
         }
