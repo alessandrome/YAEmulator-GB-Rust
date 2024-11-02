@@ -32,6 +32,7 @@ fn debug_print(_args: std::fmt::Arguments) {
 
 const SYSTEM_FREQUENCY_CLOCK: u64 = 1_048_576;
 const CYCLES_PER_FRAME: u64 = CPU_CLOCK_SPEED / 60;
+const FRAME_TIME: f64 = 1_f64 / 60_f64;
 
 pub struct GB {
     is_booting: bool,
@@ -119,7 +120,77 @@ impl GB {
             self.cpu_cycles -= 1;
         }
         self.ppu.cycle();
-        self.cpu.interrupt();
+    }
+
+    // fn check_interrupt(&mut self) {
+    //     if self.cpu.ime {
+    //         let memory_borrow = self.memory.borrow();
+    //         let interrupt_flags = memory_borrow.read(addresses::interrupt::IF as u16);
+    //         let ie = memory_borrow.read(addresses::interrupt::IE as u16);
+    //         match ie | interrupt_flags {
+    //             x if x & memory::interrupts::InterruptFlagsMask::VBlank != 0 => {
+    //
+    //             }
+    //             x if x & memory::interrupts::InterruptFlagsMask::LCD != 0 => {
+    //
+    //             }
+    //             _ => {}
+    //         }
+    //     }
+    // }
+
+    pub fn press_dpad(&mut self, dpad: GBInputDPadBits, pressed: bool) {
+        let mut input = self.input.borrow_mut();
+        match dpad {
+            GBInputDPadBits::Right => {
+                input.right = pressed;
+            }
+            GBInputDPadBits::Left => {
+                input.left = pressed;
+            }
+            GBInputDPadBits::Up => {
+                input.up = pressed;
+            }
+            GBInputDPadBits::Down => {
+                input.down = pressed;
+            }
+        }
+
+        // Update IF (Interrupt Flags) for button pressed
+        if pressed {
+            let interrupt_flags = self.memory.borrow().read(addresses::interrupt::IF as u16);
+            self.memory.borrow_mut().write(
+                addresses::interrupt::IF as u16,
+                interrupt_flags | interrupts::InterruptFlagsMask::JoyPad,
+            );
+        }
+    }
+
+    pub fn press_button(&mut self, dpad: GBInputButtonsBits, pressed: bool) {
+        let mut input = self.input.borrow_mut();
+        match dpad {
+            GBInputButtonsBits::A => {
+                input.a = pressed;
+            }
+            GBInputButtonsBits::B => {
+                input.b = pressed;
+            }
+            GBInputButtonsBits::Select => {
+                input.select = pressed;
+            }
+            GBInputButtonsBits::Start => {
+                input.start = pressed;
+            }
+        }
+
+        // Update IF (Interrupt Flags) for button pressed
+        if pressed {
+            let interrupt_flags = self.memory.borrow().read(addresses::interrupt::IF as u16);
+            self.memory.borrow_mut().write(
+                addresses::interrupt::IF as u16,
+                interrupt_flags | interrupts::InterruptFlagsMask::JoyPad,
+            );
+        }
     }
 
     pub fn set_use_boot(&mut self, use_boot: bool) {
