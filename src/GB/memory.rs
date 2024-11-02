@@ -14,6 +14,8 @@ use crate::GB::memory::addresses::{*};
 use crate::GB::memory::registers::MemoryRegisters;
 use crate::GB::PPU::tile::TILE_SIZE;
 
+use crate::GB::input::{GBInputSelectionBits, GBInputButtonsBits, GBInputDPadBits};
+
 pub const RST_INSTRUCTIONS: usize = 0x0000; // Location in memory for RST instructions (not used on emulation)
 pub const CARTRIDGE_HEADER_ADDRESS: usize = 0x0100; // Location for ROM metadata (as name) (not used on emulation)
 pub const USER_PROGRAM_ADDRESS: usize = 0x0150; // Location User Program (not used on emulation)
@@ -137,8 +139,18 @@ impl RAM {
                 }
             }
             io::JOYP => {
-                //todo!("Implement read from input");
-                return_val = (self.memory[address_usize] & 0xF0) | 0x0F; // Lower nibble depends on INPUT
+                //todo!("Test read from input");
+                return_val = self.memory[address_usize] & 0xF0;
+                if (return_val & GBInputSelectionBits::Buttons == 0 && return_val & GBInputSelectionBits::DPad == 0) {
+                    return_val |= 0x0F;
+                } else if return_val & GBInputSelectionBits::Buttons == 0 {
+                    return_val |= self.inputs.borrow().get_buttons_byte();
+                } else if return_val & GBInputSelectionBits::DPad == 0 {
+                    return_val |= self.inputs.borrow().get_dpad_byte();
+                } else {
+                    return_val |= 0x0F;
+                }
+                // println!("{}", return_val);
             }
             _ => {
                 return_val = self.memory[address_usize]
