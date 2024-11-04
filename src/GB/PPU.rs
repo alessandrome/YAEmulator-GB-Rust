@@ -87,8 +87,13 @@ impl PPU {
         if line > constants::SCREEN_HEIGHT - 1 {
             if line == constants::SCREEN_HEIGHT && self.line_dots == 0 {
                 self.set_mode(PPUMode::VBlank);
-                let old_if = self.memory.borrow().read(memory::registers::IF);
-                self.memory.borrow_mut().write(memory::registers::IF, old_if | InterruptFlagsMask::VBlank);
+                let mut old_if = self.memory.borrow().read(memory::registers::IF) | InterruptFlagsMask::VBlank;
+                // Check if VBlank Interrupt mode is enabled on STAT register
+                let stat_reg = self.memory.borrow().read(memory::registers::STAT);
+                if (stat_reg & LCDStatMasks::Mode1Interrupt) != 0 {
+                    old_if = old_if | InterruptFlagsMask::LCD;
+                }
+                self.memory.borrow_mut().write(memory::registers::IF, old_if);
             }
         } else {
             let scx = self.read_memory(addresses::SCX_ADDRESS as u16) as usize;
@@ -163,6 +168,12 @@ impl PPU {
             match self.line_dots {
                 0 => {
                     self.set_mode(PPUMode::OAMScan);
+                    // Check if HBlank Interrupt mode is enabled on STAT register
+                    let stat_reg = self.memory.borrow().read(memory::registers::STAT);
+                    if (stat_reg & LCDStatMasks::Mode2Interrupt) != 0 {
+                        let old_if = self.memory.borrow().read(memory::registers::IF);
+                        self.memory.borrow_mut().write(memory::registers::IF, old_if | InterruptFlagsMask::LCD);
+                    }
                     line += 1;
                     line %= constants::FRAME_LINES;
                     self.write_memory(addresses::LY_ADDRESS as u16, line as u8);
@@ -174,6 +185,12 @@ impl PPU {
                 HBLANK_DOTS_START => {
                     self.line_dots += self.dots_penalties;
                     self.set_mode(PPUMode::HBlank);
+                    // Check if HBlank Interrupt mode is enabled on STAT register
+                    let stat_reg = self.memory.borrow().read(memory::registers::STAT);
+                    if (stat_reg & LCDStatMasks::Mode0Interrupt) != 0 {
+                        let old_if = self.memory.borrow().read(memory::registers::IF);
+                        self.memory.borrow_mut().write(memory::registers::IF, old_if | InterruptFlagsMask::LCD);
+                    }
                     self.dots_penalties = 0;
                     self.line_oam.clear();
                     self.line_oam_number = 0;
@@ -181,6 +198,18 @@ impl PPU {
                 }
                 _ => {}
             }
+        }
+
+        // Update STAT register LY == LYC bit and
+        let stat_reg = self.memory.borrow().read(memory::registers::STAT);
+        if line as u8 == self.get_line_compare() {
+            self.memory.borrow_mut().write(memory::registers::STAT, stat_reg | LCDStatMasks::LYCeLY);
+            if (stat_reg & LCDStatMasks::LYCInterrupt) != 0 {
+                let old_if = self.memory.borrow().read(memory::registers::IF);
+                self.memory.borrow_mut().write(memory::registers::IF, old_if | InterruptFlagsMask::LCD);
+            }
+        } else {
+            self.memory.borrow_mut().write(memory::registers::STAT, stat_reg & !LCDStatMasks::LYCeLY);
         }
     }
 
@@ -240,6 +269,10 @@ impl PPU {
 
     pub fn get_line(&self) -> u8 {
         self.read_memory(addresses::LY_ADDRESS as u16)
+    }
+
+    pub fn get_line_compare(&self) -> u8 {
+        self.read_memory(addresses::LYC_ADDRESS as u16)
     }
 
     pub fn get_scy(&self) -> u8 {
