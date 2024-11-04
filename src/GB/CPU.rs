@@ -89,6 +89,9 @@ pub struct CPU {
     pub opcode: u8,  // Running Instruction Opcode
     pub cycles: u64,  // Total Cycles Count
     pub divider_counter: u8,  // Total Cycles Count
+    pub div_timer_cycles: u64,  // Total Cycles Count
+    pub timer_cycles: u64,  // Total Cycles Count
+    pub timer_enabled: bool,
     pub dma_transfer: bool,  // True When DMA RAM to VRAM is enabled
     pub memory: Rc<RefCell<RAM>>,
     cartridge: Rc<RefCell<Option<Cartridge>>>,
@@ -105,6 +108,9 @@ impl CPU {
             opcode: 0,
             cycles: 0,
             divider_counter: 0,
+            div_timer_cycles: 0,
+            timer_cycles: 0,
+            timer_enabled: false,
             dma_transfer: false,
             memory,
             cartridge: Rc::new(RefCell::new(None)),
@@ -245,13 +251,46 @@ impl CPU {
         self.read_memory(self.registers.get_sp())
     }
 
-    pub fn update_divider(&mut self, cycles: u64) {
-        let cycles_per_update = CPU_CLOCK_SPEED / DIVIDER_FREQUENCY;
+    /// Update the timer DIV and TIMA based on cycle count. Enabled IF Timer flag when TIMA overflows.
+    pub fn update_timers(&mut self, cycles: u8) {
+        let mut memory_mut = self.memory.borrow_mut();
+        self.div_timer_cycles += 1;
+        if (self.div_timer_cycles % timer::M64_CLOCK_CYCLES) == 0 {
+            let (new_div, div_overflow) = memory_mut.read(memory::registers::DIV).overflowing_add(cycles);
+            memory_mut.write(memory::registers::DIV, new_div);
+            self.div_timer_cycles = 0;
+        }
 
-        self.cycles += cycles;
-        while self.cycles >= cycles_per_update {
-            self.divider_counter = self.divider_counter.wrapping_add(1);
-            self.cycles -= cycles_per_update;
+        let tac = memory_mut.read(memory::registers::TAC);
+        if (tac & timer::TACMask::Enabled) != 0 {
+            if !self.timer_enabled {
+                // Timer has just been re-enabled, resetting timer cycles count
+                self.timer_cycles = 0;
+                self.timer_enabled = true;
+            }
+            let mut mode_cycles: u64 = 0;
+            match (tac & timer::TACMask::TimerClock) {
+                timer::M256_CLOCK_MODE => { mode_cycles = timer::M256_CLOCK_CYCLES; }
+                timer::M4_CLOCK_MODE => { mode_cycles = timer::M4_CLOCK_CYCLES; }
+                timer::M16_CLOCK_MODE => { mode_cycles = timer::M16_CLOCK_CYCLES; }
+                _ => { mode_cycles = timer::M64_CLOCK_CYCLES; }
+            }
+            self.timer_cycles += 1;
+
+            // Increment and managed TIMA overflow
+            for _ in 0..(self.timer_cycles / mode_cycles) {
+                let (new_tima, overflowed) = memory_mut.read(memory::registers::TIMA).overflowing_add(1);
+                if overflowed {
+                    let tma = memory_mut.read(memory::registers::TMA);
+                    memory_mut.write(memory::registers::TIMA, tma);
+                    let interrupts = memory_mut.read(memory::registers::IF);
+                    memory_mut.write(memory::registers::IF, interrupts | InterruptFlagsMask::Timer);
+                } else {
+                    memory_mut.write(memory::registers::TIMA, new_tima);
+                }
+            }
+        } else {
+            self.timer_enabled = false;
         }
     }
 }
