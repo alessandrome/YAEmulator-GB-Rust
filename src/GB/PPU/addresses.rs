@@ -5,6 +5,7 @@ pub const LCD_STAT_ADDRESS: usize = 0xFF41;
 pub const SCY_ADDRESS: usize = 0xFF42;
 pub const SCX_ADDRESS: usize = 0xFF43;
 pub const LY_ADDRESS: usize = 0xFF44;
+pub const LYC_ADDRESS: usize = 0xFF45;
 pub const PALETTE_ADDRESS: usize = 0xFF47;
 pub const OBP0_ADDRESS: usize = 0xFF48;
 pub const OBP1_ADDRESS: usize = 0xFF49;
