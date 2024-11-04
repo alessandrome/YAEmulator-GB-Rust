@@ -9,6 +9,7 @@ use crate::GB::PPU::constants::OAM_NUMBERS;
 use crate::GB::PPU::oam::OAM_BYTE_SIZE;
 use std::cell::{Ref, RefCell};
 use std::rc::Rc;
+use std::time::Instant;
 use crate::GB::memory::interrupts::InterruptFlagsMask;
 
 pub mod CPU;
@@ -105,20 +106,22 @@ impl GB {
     }
 
     pub fn cycle(&mut self) {
+        // let time = Instant::now();
         // Execute next only if it hasn't to wait more executing instruction cycles
         if !(self.cpu_cycles > 0) {
-            if !self.cpu.interrupt().0 {
-                // self.check_interrupt(); // Check if an Interrupt is requested, and redirect exec to it
-                self.cpu_cycles = self.cpu.execute_next();
-                if self.cpu.dma_transfer {
-                    self.dma_transfer();
-                }
+            self.cpu_cycles = self.cpu.execute_next();
+            if self.cpu.dma_transfer {
+                self.dma_transfer();
             }
         }
         if self.cpu_cycles > 0 {
             self.cpu_cycles -= 1;
         }
+        if self.cpu_cycles == 0 {
+            self.cpu.interrupt();
+        }
         self.ppu.cycle();
+        // println!("{:?}", time.elapsed());
     }
 
     // fn check_interrupt(&mut self) {
