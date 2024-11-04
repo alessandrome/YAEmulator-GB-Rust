@@ -9,6 +9,7 @@ use crate::GB::PPU::constants::OAM_NUMBERS;
 use crate::GB::PPU::oam::OAM_BYTE_SIZE;
 use std::cell::{Ref, RefCell};
 use std::rc::Rc;
+use std::time::Instant;
 use crate::GB::memory::interrupts::InterruptFlagsMask;
 
 pub mod CPU;
@@ -30,8 +31,9 @@ fn debug_print(_args: std::fmt::Arguments) {
     // Do nothing
 }
 
-const SYSTEM_FREQUENCY_CLOCK: u64 = 1_048_576;
-const CYCLES_PER_FRAME: u64 = CPU_CLOCK_SPEED / 60;
+pub const SYSTEM_FREQUENCY_CLOCK: u64 = 1_048_576;
+pub const CYCLES_PER_FRAME: u64 = CPU_CLOCK_SPEED / 60;
+pub const FRAME_TIME: f64 = 1_f64 / 60_f64;
 
 pub struct GB {
     is_booting: bool,
@@ -104,22 +106,93 @@ impl GB {
     }
 
     pub fn cycle(&mut self) {
-        let a = self.memory.borrow().read(0xFF80);
+        // let time = Instant::now();
         // Execute next only if it hasn't to wait more executing instruction cycles
         if !(self.cpu_cycles > 0) {
-            if !self.cpu.interrupt().0 {
-                // self.check_interrupt(); // Check if an Interrupt is requested, and redirect exec to it
-                self.cpu_cycles = self.cpu.execute_next();
-                if self.cpu.dma_transfer {
-                    self.dma_transfer();
-                }
+            self.cpu_cycles = self.cpu.execute_next();
+            if self.cpu.dma_transfer {
+                self.dma_transfer();
             }
         }
         if self.cpu_cycles > 0 {
             self.cpu_cycles -= 1;
         }
+        if self.cpu_cycles == 0 {
+            self.cpu.interrupt();
+        }
         self.ppu.cycle();
-        self.cpu.interrupt();
+        // println!("{:?}", time.elapsed());
+    }
+
+    // fn check_interrupt(&mut self) {
+    //     if self.cpu.ime {
+    //         let memory_borrow = self.memory.borrow();
+    //         let interrupt_flags = memory_borrow.read(addresses::interrupt::IF as u16);
+    //         let ie = memory_borrow.read(addresses::interrupt::IE as u16);
+    //         match ie | interrupt_flags {
+    //             x if x & memory::interrupts::InterruptFlagsMask::VBlank != 0 => {
+    //
+    //             }
+    //             x if x & memory::interrupts::InterruptFlagsMask::LCD != 0 => {
+    //
+    //             }
+    //             _ => {}
+    //         }
+    //     }
+    // }
+
+    pub fn press_dpad(&mut self, dpad: GBInputDPadBits, pressed: bool) {
+        let mut input = self.input.borrow_mut();
+        match dpad {
+            GBInputDPadBits::Right => {
+                input.right = pressed;
+            }
+            GBInputDPadBits::Left => {
+                input.left = pressed;
+            }
+            GBInputDPadBits::Up => {
+                input.up = pressed;
+            }
+            GBInputDPadBits::Down => {
+                input.down = pressed;
+            }
+        }
+
+        // Update IF (Interrupt Flags) for button pressed
+        if pressed {
+            let interrupt_flags = self.memory.borrow().read(addresses::interrupt::IF as u16);
+            self.memory.borrow_mut().write(
+                addresses::interrupt::IF as u16,
+                interrupt_flags | interrupts::InterruptFlagsMask::JoyPad,
+            );
+        }
+    }
+
+    pub fn press_button(&mut self, dpad: GBInputButtonsBits, pressed: bool) {
+        let mut input = self.input.borrow_mut();
+        match dpad {
+            GBInputButtonsBits::A => {
+                input.a = pressed;
+            }
+            GBInputButtonsBits::B => {
+                input.b = pressed;
+            }
+            GBInputButtonsBits::Select => {
+                input.select = pressed;
+            }
+            GBInputButtonsBits::Start => {
+                input.start = pressed;
+            }
+        }
+
+        // Update IF (Interrupt Flags) for button pressed
+        if pressed {
+            let interrupt_flags = self.memory.borrow().read(addresses::interrupt::IF as u16);
+            self.memory.borrow_mut().write(
+                addresses::interrupt::IF as u16,
+                interrupt_flags | interrupts::InterruptFlagsMask::JoyPad,
+            );
+        }
     }
 
     pub fn set_use_boot(&mut self, use_boot: bool) {
@@ -133,6 +206,10 @@ impl GB {
 
     pub fn get_bios(&self) -> &BIOS {
         &self.bios
+    }
+
+    pub fn get_frame_string(&self, doubled: bool) -> String {
+        self.ppu.get_frame_string(doubled)
     }
 
     pub fn dma_transfer(&mut self) {
