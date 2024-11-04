@@ -136,4 +136,12 @@ macro_rules! define_enum_u8 {
             $( $variant = $value ),*
         }
     };
+
+    (pub $name:ident { $($variant:ident = $value:expr),* $(,)? }) => {
+        #[derive(Debug, Copy, Clone)]
+        #[repr(u8)]
+        pub enum $name {
+            $( $variant = $value ),*
+        }
+    };
 }
