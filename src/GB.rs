@@ -43,7 +43,7 @@ pub struct GB {
     pub ppu: PPU::PPU,
     pub input: Rc<RefCell<input::GBInput>>,
     cartridge: Rc<RefCell<Option<Cartridge>>>,
-    pub cpu_cycles: u64, // Number to cycle needed to complete current CPU instruction. cpu.cycle() is skipped if different from 0
+    // pub cpu_cycles: u64, // Number to cycle needed to complete current CPU instruction. cpu.cycle() is skipped if different from 0
 }
 
 impl GB {
@@ -82,7 +82,7 @@ impl GB {
             memory: ram_ref,
             bios: rom,
             cartridge: cartridge_ref,
-            cpu_cycles: 0,
+            // cpu_cycles: 0,
             input: inputs_ref,
         }
     }
@@ -108,17 +108,21 @@ impl GB {
     pub fn cycle(&mut self) {
         // let time = Instant::now();
         // Execute next only if it hasn't to wait more executing instruction cycles
-        if !(self.cpu_cycles > 0) {
-            self.cpu_cycles = self.cpu.execute_next();
-            if self.cpu.dma_transfer {
-                self.dma_transfer();
-            }
-        }
-        if self.cpu_cycles > 0 {
-            self.cpu_cycles -= 1;
-        }
-        if self.cpu_cycles == 0 {
-            self.cpu.interrupt();
+        // if !(self.cpu_cycles > 0) {
+        //     self.cpu_cycles = self.cpu.execute_next();
+        //     if self.cpu.dma_transfer {
+        //         self.dma_transfer();
+        //     }
+        // }
+        // if self.cpu_cycles > 0 {
+        //     self.cpu_cycles -= 1;
+        // }
+        // if self.cpu_cycles == 0 {
+        //     self.cpu.interrupt();
+        // }
+        self.cpu.execute_next();
+        if self.cpu.dma_transfer {
+            self.dma_transfer();
         }
         self.ppu.cycle();
         // println!("{:?}", time.elapsed());
@@ -233,6 +237,21 @@ impl GB {
     pub fn is_managing_interrupt(&self) -> (InterruptFlagsMask, Option<u8>) {
         (self.cpu.interrupt_type, self.cpu.interrupt_routine_cycle)
     }
+
+    pub fn is_cpu_managing_interrupt(&self) -> bool {
+        match self.cpu.interrupt_routine_cycle {
+            Some(_) => { true }
+            _ => false
+        }
+    }
+
+    pub fn cpu_interrupt_type(&self) -> interrupts::InterruptFlagsMask {
+        self.cpu.interrupt_type
+    }
+
+    pub fn cpu_left_instruction_cycles(&self) -> u64 {
+        self.cpu.left_cycles
+    }
 }
 
 impl Default for GB {
@@ -260,7 +279,6 @@ impl Default for GB {
             bios: BIOS::new(),
             input: inputs_ref,
             cartridge: cartridge_ref,
-            cpu_cycles: 0,
         }
     }
 }

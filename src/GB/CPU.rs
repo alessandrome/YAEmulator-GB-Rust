@@ -12,6 +12,7 @@ use crate::GB::memory::interrupts::InterruptFlagsMask;
 pub const CPU_CLOCK_MULTIPLIER: u64 = 4;
 pub const CPU_CLOCK_SPEED: u64 = SYSTEM_FREQUENCY_CLOCK * CPU_CLOCK_MULTIPLIER; // In Hz - 4 Time System Clock
 pub const DIVIDER_FREQUENCY: u64 = 16384; // Divider Update Frequency in Hz
+pub const CPU_INTERRUPT_CYCLES: u64 = 5; // Number of cycle to manage a requested Interrupt
 
 #[cfg(test)]
 mod test {
@@ -88,7 +89,7 @@ pub struct CPU {
     pub ime: bool,  // Interrupt Master Enable - True if you want to enable and intercept interrupts
     pub opcode: u8,  // Running Instruction Opcode
     pub cycles: u64,  // Total Cycles Count
-    pub divider_counter: u8,  // Total Cycles Count
+    pub left_cycles: u64,  // Left Cycles to complete currently executing instruction
     pub div_timer_cycles: u64,  // Total Cycles Count
     pub timer_cycles: u64,  // Total Cycles Count
     pub timer_enabled: bool,
@@ -107,7 +108,7 @@ impl CPU {
             ime: false,
             opcode: 0,
             cycles: 0,
-            divider_counter: 0,
+            left_cycles: 0,
             div_timer_cycles: 0,
             timer_cycles: 0,
             timer_enabled: false,
@@ -140,23 +141,31 @@ impl CPU {
                 cycles = self.interrupt_routine();
             }
             None => {
-                let cb_subset = self.opcode == 0xCB;
-                self.opcode = self.fetch_next();
-                let instruction = Self::decode(self.opcode, cb_subset);
-                match (instruction) {
-                    Some(ins) => {
-                        cycles = (ins.execute)(&ins, self);
-                    },
-                    None => {
-                        println!("UNKNOWN Opcode '{:#04x}'", self.opcode);
+                if self.left_cycles == 0 {
+                    let cb_subset = self.opcode == 0xCB;
+                    self.opcode = self.fetch_next();
+                    let instruction = Self::decode(self.opcode, cb_subset);
+                    match (instruction) {
+                        Some(ins) => {
+                            cycles = (ins.execute)(&ins, self);
+                        },
+                        None => {
+                            println!("UNKNOWN Opcode '{:#04x}'", self.opcode);
+                        }
                     }
-                }
-                if !cb_subset {
-                    self.cycles += cycles;
+                    self.left_cycles = cycles;
                 }
             }
         }
-        cycles
+        self.cycles += 1;
+        self.left_cycles -= 1;
+        if self.left_cycles == 0 {
+            if self.interrupt().0 {
+                self.left_cycles = CPU_INTERRUPT_CYCLES;
+            }
+        }
+        self.update_timers(1);
+        1
     }
 
     pub fn load(&mut self, data: &Vec<u8>) {
