@@ -1,3 +1,5 @@
+pub mod timer;
+
 use std::cell::RefCell;
 use std::rc::Rc;
 use crate::GB::{instructions, SYSTEM_FREQUENCY_CLOCK};

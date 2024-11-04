@@ -126,3 +126,14 @@ macro_rules! default_enum_u8 {
         default_enum_u8_bit_ops!($type_name);
     }
 }
+
+#[macro_export]
+macro_rules! define_enum_u8 {
+    ($name:ident { $($variant:ident = $value:expr),* $(,)? }) => {
+        #[derive(Debug, Copy, Clone)]
+        #[repr(u8)]
+        enum $name {
+            $( $variant = $value ),*
+        }
+    };
+}
