@@ -45,6 +45,7 @@ pub enum GBInputDPadBits {
 }
 mask_flag_enum_default_impl!(GBInputDPadBits);
 
+#[derive(Copy, Clone, Debug)]
 struct GBInputMapping {
     pub a: u32,
     pub b: u32,
@@ -100,6 +101,19 @@ impl GBInput {
             | ((!self.left as u8) << (GBInputDPadBits::Left as u8).trailing_zeros() | (GBInputDPadBits::Left as u8))
             | ((!self.up as u8) << (GBInputDPadBits::Up as u8).trailing_zeros() | (GBInputDPadBits::Up as u8))
             | ((!self.down as u8) << (GBInputDPadBits::Down as u8).trailing_zeros() | (GBInputDPadBits::Down as u8))
+    }
+
+    pub fn symbolic_display(&self) -> String {
+        let mut string = String::new();
+        string.push(if self.up { '↑' } else { '_' });
+        string.push(if self.down { '↓' } else { '_' });
+        string.push(if self.left { '←' } else { '_' });
+        string.push(if self.right { '→' } else { '_' });
+        string.push(if self.a { 'A' } else { '_' });
+        string.push(if self.b { 'B' } else { '_' });
+        string.push(if self.start { '○' } else { '_' });
+        string.push(if self.select { '◙' } else { '_' });
+        string
     }
 }
 
