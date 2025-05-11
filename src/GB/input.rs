@@ -1,5 +1,6 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::fmt::{Display, Formatter};
 use std::rc::Rc;
 use winit::{keyboard::{KeyCode, PhysicalKey}};
 use crate::GB::memory::{addresses, RAM, UseMemory};
@@ -139,5 +140,20 @@ impl InputMapping {
 
     pub fn get_key_code(&self, input_code: u32) -> Option<&u32> {
         self.mapping.get(&input_code)
+    }
+}
+
+impl Display for GBInput {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Inputs: [UP: {}, DOWN: {}, LEFT: {}, RIGHT: {}] [A: {}, B: {}, SELECT: {}, START: {}]",
+            if self.up { "ON" } else { "OFF" },
+            if self.down { "ON" } else { "OFF" },
+            if self.left { "ON" } else { "OFF" },
+            if self.right { "ON" } else { "OFF" },
+            if self.a { "ON" } else { "OFF" },
+            if self.b { "ON" } else { "OFF" },
+            if self.select { "ON" } else { "OFF" },
+            if self.start { "ON" } else { "OFF" },
+        )
     }
 }
