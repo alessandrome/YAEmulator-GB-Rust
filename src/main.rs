@@ -25,7 +25,7 @@ use crate::GB::PPU::tile::Tile;
 use GB::memory;
 use GB::CPU::{CPU, CPU_CLOCK_SPEED};
 use crate::GB::CPU::CPU_INTERRUPT_CYCLES;
-use crate::GB::input::GBInputButtonsBits;
+use crate::GB::input::{GBInputButtonsBits, GBInputDPadBits};
 use crate::GB::memory::interrupts::InterruptFlagsMask;
 // use winit::{event, event_loop, window};
 
@@ -93,6 +93,8 @@ fn main() {
             // println!("{}", gb.get_frame_string(true));
             println!("S/f: {:?}", (Instant::now() - time).as_secs_f64());
             println!("C/s: {:?}", cycles as f64/(Instant::now() - time).as_secs_f64());
+            println!("{}", gb.input.as_ref().borrow());
+            println!("{}", gb.input.as_ref().borrow().symbolic_display());
             stdout().flush().unwrap();
             time = Instant::now();
             cycles = 0;
@@ -287,8 +289,23 @@ fn manage_gb_input_event(gb: &mut GB::GB, key_event: KeyEvent) {
                 KeyCode::Char('x') => {
                     gb.press_button(GBInputButtonsBits::B, true);
                 }
+                KeyCode::Char('a') => {
+                    gb.press_dpad(GBInputDPadBits::Left, true);
+                }
+                KeyCode::Char('d') => {
+                    gb.press_dpad(GBInputDPadBits::Right, true);
+                }
+                KeyCode::Char('s') => {
+                    gb.press_dpad(GBInputDPadBits::Down, true);
+                }
+                KeyCode::Char('w') => {
+                    gb.press_dpad(GBInputDPadBits::Up, true);
+                }
                 KeyCode::Char('o') => {
                     gb.press_button(GBInputButtonsBits::Start, true);
+                }
+                KeyCode::Char('p') => {
+                    gb.press_button(GBInputButtonsBits::Select, true);
                 }
                 KeyCode::Enter => {
                     gb.press_button(GBInputButtonsBits::Start, true);
@@ -307,8 +324,23 @@ fn manage_gb_input_event(gb: &mut GB::GB, key_event: KeyEvent) {
                 KeyCode::Char('x') => {
                     gb.press_button(GBInputButtonsBits::B, false);
                 }
+                KeyCode::Char('a') => {
+                    gb.press_dpad(GBInputDPadBits::Left, false);
+                }
+                KeyCode::Char('d') => {
+                    gb.press_dpad(GBInputDPadBits::Right, false);
+                }
+                KeyCode::Char('s') => {
+                    gb.press_dpad(GBInputDPadBits::Down, false);
+                }
+                KeyCode::Char('w') => {
+                    gb.press_dpad(GBInputDPadBits::Up, false);
+                }
                 KeyCode::Char('o') => {
                     gb.press_button(GBInputButtonsBits::Start, false);
+                }
+                KeyCode::Char('p') => {
+                    gb.press_button(GBInputButtonsBits::Select, false);
                 }
                 KeyCode::Enter => {
                     gb.press_button(GBInputButtonsBits::Start, false);
