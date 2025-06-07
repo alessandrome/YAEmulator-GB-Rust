@@ -19,7 +19,6 @@ pub mod cartridge;
 pub mod input;
 pub mod instructions;
 pub mod memory;
-pub mod registers;
 
 #[cfg(feature = "debug")]
 fn debug_print(args: std::fmt::Arguments) {
@@ -35,6 +34,7 @@ pub const SYSTEM_FREQUENCY_CLOCK: u64 = 1_048_576;
 pub const CYCLES_PER_FRAME: u64 = CPU_CLOCK_SPEED / 60;
 pub const FRAME_TIME: f64 = 1_f64 / 60_f64;
 
+// #[derive()]
 pub struct GB {
     is_booting: bool,
     pub memory: Rc<RefCell<RAM>>,
@@ -110,7 +110,8 @@ impl GB {
         // Execute next only if it hasn't to wait more executing instruction cycles
         // if !(self.cpu_cycles > 0) {
         //     self.cpu_cycles = self.cpu.execute_next();
-        //     if self.cpu.dma_transfer {
+        //     if self.cpu.
+        // {
         //         self.dma_transfer();
         //     }
         // }

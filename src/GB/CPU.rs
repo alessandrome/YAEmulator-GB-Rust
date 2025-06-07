@@ -1,10 +1,10 @@
+pub mod registers;
 pub mod timer;
 
 use std::cell::RefCell;
 use std::rc::Rc;
 use crate::GB::{instructions, SYSTEM_FREQUENCY_CLOCK};
 use crate::GB::cartridge::{Cartridge, UseCartridge};
-use crate::GB::registers;
 use crate::GB::memory::{self, addresses, interrupts, RAM, UseMemory, USER_PROGRAM_ADDRESS};
 use crate::GB::memory::interrupts::InterruptFlagsMask;
 
@@ -85,7 +85,7 @@ mod test {
 }
 
 pub struct CPU {
-    pub registers: registers::Registers,
+    pub registers: registers::core::Registers,
     pub ime: bool,  // Interrupt Master Enable - True if you want to enable and intercept interrupts
     pub opcode: u8,  // Running Instruction Opcode
     pub cycles: u64,  // Total Cycles Count
@@ -104,7 +104,7 @@ pub struct CPU {
 impl CPU {
     pub fn new(memory: Rc<RefCell<RAM>>) -> Self {
         Self {
-            registers: registers::Registers::new(),
+            registers: registers::core::Registers::new(),
             ime: false,
             opcode: 0,
             cycles: 0,

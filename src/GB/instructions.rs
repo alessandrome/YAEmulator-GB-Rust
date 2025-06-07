@@ -5,7 +5,7 @@ mod test_subset;
 
 use crate::GB::CPU::CPU;
 use crate::GB::debug_print;
-use crate::GB::registers::{FlagBits, Flags};
+use crate::GB::CPU::registers::core::{FlagBits, Flags};
 use crate::GB::memory::{UseMemory};
 use crate::GB::memory;
 
