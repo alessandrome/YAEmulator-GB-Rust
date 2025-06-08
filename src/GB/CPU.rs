@@ -19,11 +19,14 @@ mod test {
     use std::cell::RefCell;
     use std::rc::Rc;
     use crate::GB::CPU::CPU;
+    use crate::GB::input::GBInput as GBInput;
     use crate::GB::memory::{RAM, UseMemory, WRAM_ADDRESS, WRAM_SIZE};
 
     #[test]
     fn cpu_new_8bit_registers() {
-        let memory_ref = Rc::new(RefCell::new(RAM::new()));
+        let inputs = GBInput::default();
+        let inputs_ref = Rc::new(RefCell::new(inputs));
+        let memory_ref = Rc::new(RefCell::new(RAM::new(Rc::clone(&inputs_ref))));
         let cpu = CPU::new(memory_ref);
         assert_eq!(cpu.registers.get_a(), 0);
         assert_eq!(cpu.registers.get_f(), 0);
@@ -37,7 +40,9 @@ mod test {
 
     #[test]
     fn cpu_new_16bit_registers() {
-        let memory_ref = Rc::new(RefCell::new(RAM::new()));
+        let inputs = GBInput::default();
+        let inputs_ref = Rc::new(RefCell::new(inputs));
+        let memory_ref = Rc::new(RefCell::new(RAM::new(Rc::clone(&inputs_ref))));
         let cpu = CPU::new(memory_ref);
         assert_eq!(cpu.registers.get_af(), 0);
         assert_eq!(cpu.registers.get_bc(), 0);
@@ -50,7 +55,9 @@ mod test {
     #[test]
     fn cpu_new_16_8bit_registers() {
         // 16 Bit register should be 0 as the compound of low register is 0 (and should not be altered by access of 8bit register)
-        let memory_ref = Rc::new(RefCell::new(RAM::new()));
+        let inputs = GBInput::default();
+        let inputs_ref = Rc::new(RefCell::new(inputs));
+        let memory_ref = Rc::new(RefCell::new(RAM::new(Rc::clone(&inputs_ref))));
         let cpu = CPU::new(memory_ref);
         assert_eq!(cpu.registers.get_a(), 0);
         assert_eq!(cpu.registers.get_f(), 0);
@@ -70,7 +77,9 @@ mod test {
 
     #[test]
     fn cpu_push_n_pop() {
-        let memory_ref = Rc::new(RefCell::new(RAM::new()));
+        let inputs = GBInput::default();
+        let inputs_ref = Rc::new(RefCell::new(inputs));
+        let memory_ref = Rc::new(RefCell::new(RAM::new(Rc::clone(&inputs_ref))));
         let mut cpu = CPU::new(memory_ref);
         let start_sp = cpu.registers.get_sp();
         let test_value: u8 = 0x81;
