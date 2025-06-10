@@ -93,11 +93,35 @@ impl TimerRegisters {
         self.div_counter = 0;
     }
 
-    pub fn set_tac(&mut self, enabled: bool, clock_mode: TACClock) {
-        self.tac = clock_mode as u8 | (if enabled {0x01} else {0x00} << 2);
-    }
-    
     pub fn is_tma_active(&self) -> bool {
         self.tac & TACMask::Enabled != 0
+    }
+
+    pub fn tima(&self) -> u8 {
+        self.tima
+    }
+
+    pub fn tma(&self) -> u8 {
+        self.tma
+    }
+
+    pub fn tac(&self) -> u8 {
+        self.tac
+    }
+
+    pub fn set_tma(&mut self, val: u8) {
+        self.tma = val;
+    }
+
+    pub fn set_tima(&mut self, val: u8) {
+        self.tima = val;
+    }
+
+    pub fn set_tac_info(&mut self, enabled: bool, clock_mode: TACClock) {
+        self.tac = clock_mode as u8 | (if enabled {0x01} else {0x00} << 2);
+    }
+
+    pub fn set_tac(&mut self, val: u8) {
+        self.tac = val;
     }
 }
