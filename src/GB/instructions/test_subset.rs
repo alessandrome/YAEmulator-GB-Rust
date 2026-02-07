@@ -3,6 +3,13 @@ use std::cell::RefCell;
 use crate::GB::CPU::CPU;
 use crate::GB::memory;
 use crate::GB::memory::{UseMemory, RAM, USER_PROGRAM_ADDRESS, WRAM_ADDRESS};
+use crate::GB::input::GBInput as GBInput;
+
+macro_rules! create_memory {
+    () => {
+        Rc::new(RefCell::new(RAM::new(Rc::new(RefCell::new(GBInput::default())))))
+    };
+}
 
 macro_rules! test_flags {
     ($cpu:ident, $zero:expr, $negative:expr, $half:expr, $carry:expr) => {
@@ -19,7 +26,7 @@ macro_rules! test_rlc {
         fn $func() {
             let test_value_1: u8 = 0b1000_1000;
             let test_addr: u16 = WRAM_ADDRESS as u16 + 0xC6;
-            let mut memory_ref = Rc::new(RefCell::new(RAM::new()));
+            let mut memory_ref = create_memory!();
             let mut cpu = CPU::new(Rc::clone(&memory_ref));
             let program_1: Vec<u8> = vec![0xCB, $opcode, 0xCB, $opcode];
             cpu.load(&program_1);
@@ -39,7 +46,7 @@ macro_rules! test_rlc {
         fn $func() {
             let test_value_1: u8 = 0b1000_1000;
             let test_addr: u16 = WRAM_ADDRESS as u16 + 0xC6;
-            let mut memory_ref = Rc::new(RefCell::new(RAM::new()));
+            let mut memory_ref = create_memory!();
             let mut cpu = CPU::new(Rc::clone(&memory_ref));
             let program_1: Vec<u8> = vec![0xCB, $opcode, 0xCB, $opcode];
             cpu.load(&program_1);
@@ -62,7 +69,7 @@ macro_rules! test_rl {
         fn $func() {
             let test_value_1: u8 = 0b1000_1000;
             let test_addr: u16 = WRAM_ADDRESS as u16 + 0xC6;
-            let mut memory_ref = Rc::new(RefCell::new(RAM::new()));
+            let mut memory_ref = create_memory!();
     let mut cpu = CPU::new(Rc::clone(&memory_ref));
             let program_1: Vec<u8> = vec![0xCB, $opcode, 0xCB, $opcode];
             cpu.load(&program_1);
@@ -83,7 +90,7 @@ macro_rules! test_rl {
         fn $func() {
             let test_value_1: u8 = 0b1000_1000;
             let test_addr: u16 = WRAM_ADDRESS as u16 + 0xC6;
-            let mut memory_ref = Rc::new(RefCell::new(RAM::new()));
+            let mut memory_ref = create_memory!();
     let mut cpu = CPU::new(Rc::clone(&memory_ref));
             let program_1: Vec<u8> = vec![0xCB, $opcode, 0xCB, $opcode];
             cpu.load(&program_1);
@@ -107,7 +114,7 @@ macro_rules! test_sla {
         fn $func() {
             let test_value_1: u8 = 0b1000_1000;
             let test_addr: u16 = WRAM_ADDRESS as u16 + 0xC6;
-            let mut memory_ref = Rc::new(RefCell::new(RAM::new()));
+            let mut memory_ref = create_memory!();
     let mut cpu = CPU::new(Rc::clone(&memory_ref));
             let program_1: Vec<u8> = vec![0xCB, $opcode, 0xCB, $opcode];
             cpu.load(&program_1);
@@ -128,7 +135,7 @@ macro_rules! test_sla {
         fn $func() {
             let test_value_1: u8 = 0b1000_1000;
             let test_addr: u16 = WRAM_ADDRESS as u16 + 0xC6;
-            let mut memory_ref = Rc::new(RefCell::new(RAM::new()));
+            let mut memory_ref = create_memory!();
     let mut cpu = CPU::new(Rc::clone(&memory_ref));
             let program_1: Vec<u8> = vec![0xCB, $opcode, 0xCB, $opcode];
             cpu.load(&program_1);
@@ -153,7 +160,7 @@ macro_rules! test_rrc {
         fn $func() {
             let test_value_1: u8 = 0b0001_0001;
             let test_addr: u16 = WRAM_ADDRESS as u16 + 0xC6;
-            let mut memory_ref = Rc::new(RefCell::new(RAM::new()));
+            let mut memory_ref = create_memory!();
     let mut cpu = CPU::new(Rc::clone(&memory_ref));
             let program_1: Vec<u8> = vec![0xCB, $opcode, 0xCB, $opcode];
             cpu.load(&program_1);
@@ -173,7 +180,7 @@ macro_rules! test_rrc {
         fn $func() {
             let test_value_1: u8 = 0b0001_0001;
             let test_addr: u16 = WRAM_ADDRESS as u16 + 0xC6;
-            let mut memory_ref = Rc::new(RefCell::new(RAM::new()));
+            let mut memory_ref = create_memory!();
     let mut cpu = CPU::new(Rc::clone(&memory_ref));
             let program_1: Vec<u8> = vec![0xCB, $opcode, 0xCB, $opcode];
             cpu.load(&program_1);
@@ -196,7 +203,7 @@ macro_rules! test_rr {
         fn $func() {
             let test_value_1: u8 = 0b0001_0001;
             let test_addr: u16 = WRAM_ADDRESS as u16 + 0xC6;
-            let mut memory_ref = Rc::new(RefCell::new(RAM::new()));
+            let mut memory_ref = create_memory!();
     let mut cpu = CPU::new(Rc::clone(&memory_ref));
             let program_1: Vec<u8> = vec![0xCB, $opcode, 0xCB, $opcode];
             cpu.load(&program_1);
@@ -217,7 +224,7 @@ macro_rules! test_rr {
         fn $func() {
             let test_value_1: u8 = 0b0001_0001;
             let test_addr: u16 = WRAM_ADDRESS as u16 + 0xC6;
-            let mut memory_ref = Rc::new(RefCell::new(RAM::new()));
+            let mut memory_ref = create_memory!();
     let mut cpu = CPU::new(Rc::clone(&memory_ref));
             let program_1: Vec<u8> = vec![0xCB, $opcode, 0xCB, $opcode];
             cpu.load(&program_1);
@@ -241,7 +248,7 @@ macro_rules! test_sra {
         fn $func() {
             let test_value_1: u8 = 0b1001_0001;
             let test_addr: u16 = WRAM_ADDRESS as u16 + 0xC6;
-            let mut memory_ref = Rc::new(RefCell::new(RAM::new()));
+            let mut memory_ref = create_memory!();
     let mut cpu = CPU::new(Rc::clone(&memory_ref));
             let program_1: Vec<u8> = vec![0xCB, $opcode, 0xCB, $opcode];
             cpu.load(&program_1);
@@ -262,7 +269,7 @@ macro_rules! test_sra {
         fn $func() {
             let test_value_1: u8 = 0b1001_0001;
             let test_addr: u16 = WRAM_ADDRESS as u16 + 0xC6;
-            let mut memory_ref = Rc::new(RefCell::new(RAM::new()));
+            let mut memory_ref = create_memory!();
     let mut cpu = CPU::new(Rc::clone(&memory_ref));
             let program_1: Vec<u8> = vec![0xCB, $opcode, 0xCB, $opcode];
             cpu.load(&program_1);
@@ -286,7 +293,7 @@ macro_rules! test_srl {
         fn $func() {
             let test_value_1: u8 = 0b0001_0001;
             let test_addr: u16 = WRAM_ADDRESS as u16 + 0xC6;
-            let mut memory_ref = Rc::new(RefCell::new(RAM::new()));
+            let mut memory_ref = create_memory!();
     let mut cpu = CPU::new(Rc::clone(&memory_ref));
             let program_1: Vec<u8> = vec![0xCB, $opcode, 0xCB, $opcode];
             cpu.load(&program_1);
@@ -307,7 +314,7 @@ macro_rules! test_srl {
         fn $func() {
             let test_value_1: u8 = 0b0001_0001;
             let test_addr: u16 = WRAM_ADDRESS as u16 + 0xC6;
-            let mut memory_ref = Rc::new(RefCell::new(RAM::new()));
+            let mut memory_ref = create_memory!();
     let mut cpu = CPU::new(Rc::clone(&memory_ref));
             let program_1: Vec<u8> = vec![0xCB, $opcode, 0xCB, $opcode];
             cpu.load(&program_1);
@@ -332,7 +339,7 @@ macro_rules! test_swap {
         fn $func() {
             let test_value_1: u8 = 0b0001_1000;
             let test_addr: u16 = WRAM_ADDRESS as u16 + 0xC6;
-            let mut memory_ref = Rc::new(RefCell::new(RAM::new()));
+            let mut memory_ref = create_memory!();
     let mut cpu = CPU::new(Rc::clone(&memory_ref));
             let program_1: Vec<u8> = vec![0xCB, $opcode, 0xCB, $opcode];
             cpu.load(&program_1);
@@ -353,7 +360,7 @@ macro_rules! test_swap {
         fn $func() {
             let test_value_1: u8 = 0b0001_1000;
             let test_addr: u16 = WRAM_ADDRESS as u16 + 0xC6;
-            let mut memory_ref = Rc::new(RefCell::new(RAM::new()));
+            let mut memory_ref = create_memory!();
     let mut cpu = CPU::new(Rc::clone(&memory_ref));
             let program_1: Vec<u8> = vec![0xCB, $opcode, 0xCB, $opcode];
             cpu.load(&program_1);
@@ -377,7 +384,7 @@ macro_rules! test_bit {
         #[test]
         fn $func() {
             let test_value_1: u8 = !(1 << $bit);
-            let mut memory_ref = Rc::new(RefCell::new(RAM::new()));
+            let mut memory_ref = create_memory!();
     let mut cpu = CPU::new(Rc::clone(&memory_ref));
             let program_1: Vec<u8> = vec![0xCB, $opcode, 0xCB, $opcode];
             cpu.load(&program_1);
@@ -403,7 +410,7 @@ macro_rules! test_bit {
         fn $func() {
             let test_value_1: u8 = !(1 << $bit);
             let test_addr: u16 = WRAM_ADDRESS as u16 + 0xC6;
-            let mut memory_ref = Rc::new(RefCell::new(RAM::new()));
+            let mut memory_ref = create_memory!();
     let mut cpu = CPU::new(Rc::clone(&memory_ref));
             let program_1: Vec<u8> = vec![0xCB, $opcode, 0xCB, $opcode];
             cpu.load(&program_1);
@@ -435,7 +442,7 @@ macro_rules! test_res {
         fn $func() {
             let test_value_1: u8 = 0xFF;
             let test_mask: u8 = !(1 << $bit);
-            let mut memory_ref = Rc::new(RefCell::new(RAM::new()));
+            let mut memory_ref = create_memory!();
     let mut cpu = CPU::new(Rc::clone(&memory_ref));
             let program_1: Vec<u8> = vec![0xCB, $opcode];
             cpu.load(&program_1);
@@ -462,7 +469,7 @@ macro_rules! test_res {
             let test_value_1: u8 = 0xFF;
             let test_mask: u8 = !(1 << $bit);
             let test_addr: u16 = WRAM_ADDRESS as u16 + 0xC6;
-            let mut memory_ref = Rc::new(RefCell::new(RAM::new()));
+            let mut memory_ref = create_memory!();
     let mut cpu = CPU::new(Rc::clone(&memory_ref));
             let program_1: Vec<u8> = vec![0xCB, $opcode];
             cpu.load(&program_1);
@@ -493,7 +500,7 @@ macro_rules! test_set {
         fn $func() {
             let test_value_1: u8 = 0x0;
             let test_mask: u8 = (1 << $bit);
-            let mut memory_ref = Rc::new(RefCell::new(RAM::new()));
+            let mut memory_ref = create_memory!();
     let mut cpu = CPU::new(Rc::clone(&memory_ref));
             let program_1: Vec<u8> = vec![0xCB, $opcode];
             cpu.load(&program_1);
@@ -520,7 +527,7 @@ macro_rules! test_set {
             let test_value_1: u8 = 0x0;
             let test_mask: u8 = (1 << $bit);
             let test_addr: u16 = WRAM_ADDRESS as u16 + 0xC6;
-            let mut memory_ref = Rc::new(RefCell::new(RAM::new()));
+            let mut memory_ref = create_memory!();
     let mut cpu = CPU::new(Rc::clone(&memory_ref));
             let program_1: Vec<u8> = vec![0xCB, $opcode];
             cpu.load(&program_1);

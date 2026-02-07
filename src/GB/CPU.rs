@@ -1,10 +1,10 @@
+pub mod registers;
 pub mod timer;
 
 use std::cell::RefCell;
 use std::rc::Rc;
 use crate::GB::{instructions, SYSTEM_FREQUENCY_CLOCK};
 use crate::GB::cartridge::{Cartridge, UseCartridge};
-use crate::GB::registers;
 use crate::GB::memory::{self, addresses, interrupts, RAM, UseMemory, USER_PROGRAM_ADDRESS};
 use crate::GB::memory::interrupts::InterruptFlagsMask;
 
@@ -19,11 +19,14 @@ mod test {
     use std::cell::RefCell;
     use std::rc::Rc;
     use crate::GB::CPU::CPU;
+    use crate::GB::input::GBInput as GBInput;
     use crate::GB::memory::{RAM, UseMemory, WRAM_ADDRESS, WRAM_SIZE};
 
     #[test]
     fn cpu_new_8bit_registers() {
-        let memory_ref = Rc::new(RefCell::new(RAM::new()));
+        let inputs = GBInput::default();
+        let inputs_ref = Rc::new(RefCell::new(inputs));
+        let memory_ref = Rc::new(RefCell::new(RAM::new(Rc::clone(&inputs_ref))));
         let cpu = CPU::new(memory_ref);
         assert_eq!(cpu.registers.get_a(), 0);
         assert_eq!(cpu.registers.get_f(), 0);
@@ -37,7 +40,9 @@ mod test {
 
     #[test]
     fn cpu_new_16bit_registers() {
-        let memory_ref = Rc::new(RefCell::new(RAM::new()));
+        let inputs = GBInput::default();
+        let inputs_ref = Rc::new(RefCell::new(inputs));
+        let memory_ref = Rc::new(RefCell::new(RAM::new(Rc::clone(&inputs_ref))));
         let cpu = CPU::new(memory_ref);
         assert_eq!(cpu.registers.get_af(), 0);
         assert_eq!(cpu.registers.get_bc(), 0);
@@ -50,7 +55,9 @@ mod test {
     #[test]
     fn cpu_new_16_8bit_registers() {
         // 16 Bit register should be 0 as the compound of low register is 0 (and should not be altered by access of 8bit register)
-        let memory_ref = Rc::new(RefCell::new(RAM::new()));
+        let inputs = GBInput::default();
+        let inputs_ref = Rc::new(RefCell::new(inputs));
+        let memory_ref = Rc::new(RefCell::new(RAM::new(Rc::clone(&inputs_ref))));
         let cpu = CPU::new(memory_ref);
         assert_eq!(cpu.registers.get_a(), 0);
         assert_eq!(cpu.registers.get_f(), 0);
@@ -70,7 +77,9 @@ mod test {
 
     #[test]
     fn cpu_push_n_pop() {
-        let memory_ref = Rc::new(RefCell::new(RAM::new()));
+        let inputs = GBInput::default();
+        let inputs_ref = Rc::new(RefCell::new(inputs));
+        let memory_ref = Rc::new(RefCell::new(RAM::new(Rc::clone(&inputs_ref))));
         let mut cpu = CPU::new(memory_ref);
         let start_sp = cpu.registers.get_sp();
         let test_value: u8 = 0x81;
@@ -85,7 +94,7 @@ mod test {
 }
 
 pub struct CPU {
-    pub registers: registers::Registers,
+    pub registers: registers::core::Registers,
     pub ime: bool,  // Interrupt Master Enable - True if you want to enable and intercept interrupts
     pub opcode: u8,  // Running Instruction Opcode
     pub cycles: u64,  // Total Cycles Count
@@ -104,7 +113,7 @@ pub struct CPU {
 impl CPU {
     pub fn new(memory: Rc<RefCell<RAM>>) -> Self {
         Self {
-            registers: registers::Registers::new(),
+            registers: registers::core::Registers::new(),
             ime: false,
             opcode: 0,
             cycles: 0,
