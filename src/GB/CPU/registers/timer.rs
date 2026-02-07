@@ -124,4 +124,8 @@ impl TimerRegisters {
     pub fn set_tac(&mut self, val: u8) {
         self.tac = val;
     }
+
+    pub fn set_tac_mode(&mut self, mode: TACClock) {
+        self.tac |= mode as u8;
+    }
 }
