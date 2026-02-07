@@ -1,4 +1,4 @@
-use std::ops::{Add, Sub, BitAnd, BitOr, BitXor, Shl, Shr, RangeInclusive, Range};
+use std::ops::{Add, BitAnd, BitOr, BitXor, Range, RangeInclusive, Shl, Shr, Sub};
 
 #[repr(transparent)]
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
@@ -8,18 +8,33 @@ impl Address {
     pub const ZERO: Address = Address(0);
 
     #[inline]
-    pub fn hi(self) -> u8 {
+    pub const fn hi(self) -> u8 {
         (self.0 >> 8) as u8
     }
 
     #[inline]
-    pub fn lo(self) -> u8 {
+    pub const fn lo(self) -> u8 {
         self.0 as u8
     }
 
     #[inline]
-    pub fn to_index(self) -> usize {
+    pub const fn as_index(self) -> usize {
         self.0 as usize
+    }
+
+    #[inline]
+    pub const fn as_u16(self) -> u16 {
+        self.0
+    }
+
+    #[inline]
+    pub const fn as_u32(self) -> u32 {
+        self.0 as u32
+    }
+
+    #[inline]
+    pub fn set(&mut self, value: u16) {
+        self.0 = value;
     }
 
     #[inline]
