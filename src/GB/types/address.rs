@@ -1,4 +1,4 @@
-use std::ops::{Add, Sub, BitAnd, BitOr, BitXor, Shl, Shr};
+use std::ops::{Add, Sub, BitAnd, BitOr, BitXor, Shl, Shr, RangeInclusive, Range};
 
 #[repr(transparent)]
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
@@ -146,3 +146,11 @@ impl Shr<Address> for u16 {
         Address(self >> rhs.0)
     }
 }
+
+// --------------------------
+// Other Addres-related types
+// --------------------------
+
+pub type AddressSize = u16;
+pub type AddressRange = Range<AddressSize>;
+pub type AddressRangeInclusive = RangeInclusive<AddressSize>;
