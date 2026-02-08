@@ -18,6 +18,7 @@ mod gui;
 mod utils;
 #[cfg(test)]
 mod tests;
+mod types;
 
 use crate::GB::instructions::Instruction;
 use crate::GB::memory::Length;
