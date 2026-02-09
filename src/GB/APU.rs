@@ -1,9 +1,16 @@
+use crate::GB::APU::mmio::WAVE_RAM_END;
 use crate::GB::traits::{BusDevice, MmioDevice};
 use crate::GB::types::address::Address;
 use crate::GB::types::Byte;
 
 pub mod constants;
 pub mod mmio;
+mod channels;
+
+trait ApuBusDevice: BusDevice {
+    fn tick(cycles: u32);
+    fn sample() -> u8;
+}
 
 pub struct APU {
     nr10: u8,
@@ -75,7 +82,7 @@ impl BusDevice for APU {
     fn write(&self, address: Address, data: Byte) {
         match address {
             mmio::NR10 => {}
-            mmio::WAVE_RAM_RANGE
+            a if mmio::WAVE_RAM_RANGE.contains(&a) => {}
             _ => unimplemented!(),
         }
     }

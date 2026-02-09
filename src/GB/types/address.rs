@@ -103,9 +103,49 @@ impl Shr<u32> for Address {
     }
 }
 
-// ---------------------------------------
+// -------------------------------------
+// Type conversion - Extra bits are lost
+// -------------------------------------
+
+impl From<usize> for Address {
+    fn from(value: usize) -> Self {
+        Self(value as u16)
+    }
+}
+
+impl From<Address> for usize {
+    fn from(value: Address) -> usize {
+        value.as_index()
+    }
+}
+
+impl From<u32> for Address {
+    fn from(value: u32) -> Self {
+        Self(value as u16)
+    }
+}
+
+impl From<Address> for u32 {
+    fn from(value: Address) -> u32 {
+        value.as_u32()
+    }
+}
+
+impl From<u16> for Address {
+    fn from(value: u16) -> Self {
+        Self(value)
+    }
+}
+
+impl From<Address> for u16 {
+    fn from(value: Address) -> u16 {
+        value.as_u16()
+    }
+}
+
+// ----------------------------------------
 // Operator overloading (as Right operator)
-// ---------------------------------------
+// ----------------------------------------
 impl Add<Address> for u16 {
     type Output = Address;
     #[inline]
@@ -167,5 +207,5 @@ impl Shr<Address> for u16 {
 // --------------------------
 
 pub type AddressSize = u16;
-pub type AddressRange = Range<AddressSize>;
-pub type AddressRangeInclusive = RangeInclusive<AddressSize>;
+pub type AddressRange = Range<Address>;
+pub type AddressRangeInclusive = RangeInclusive<Address>;

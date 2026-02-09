@@ -19,10 +19,10 @@ pub mod cartridge;
 pub mod input;
 pub mod instructions;
 pub mod memory;
-pub mod registers;
 pub mod bus;
 pub mod types;
 pub mod traits;
+pub mod utils;
 
 #[cfg(feature = "debug")]
 fn debug_print(args: std::fmt::Arguments) {
