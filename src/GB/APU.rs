@@ -7,9 +7,14 @@ pub mod constants;
 pub mod mmio;
 mod channels;
 
-trait ApuBusDevice: BusDevice {
-    fn tick(cycles: u32);
-    fn sample() -> u8;
+type AudioVolume = u8;
+type AudioPeriod = u16;
+
+trait ApuBusChannel: BusDevice {
+    fn tick(&mut self, cycles: u32);
+    fn sample(&self) -> u8;
+    fn output_volume(&self) -> AudioVolume;
+    fn output_period(&self) -> AudioPeriod;
 }
 
 pub struct APU {
