@@ -14,11 +14,15 @@ use crate::GB::memory::interrupts::InterruptFlagsMask;
 
 pub mod CPU;
 pub mod PPU;
-pub mod audio;
+pub mod APU;
 pub mod cartridge;
 pub mod input;
 pub mod instructions;
 pub mod memory;
+pub mod bus;
+pub mod types;
+pub mod traits;
+pub mod utils;
 
 #[cfg(feature = "debug")]
 fn debug_print(args: std::fmt::Arguments) {

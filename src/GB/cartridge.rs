@@ -29,6 +29,9 @@ pub struct Cartridge {
     bank_switch_mode: bool, // False = ROM mode - True = RAM mode
 }
 
+/// Alias name for cartridge type, as it is commonly known as ROM
+pub type ROM = Cartridge;
+
 #[derive(Copy, Clone, Debug, Ord, PartialOrd, Eq, PartialEq)]
 #[repr(u8)]
 enum CartridgeType {
