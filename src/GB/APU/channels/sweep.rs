@@ -1,3 +1,10 @@
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
+#[repr(u8)]
+pub enum SweepDirection {
+    Down = 0,
+    Up = 1,
+}
+
 pub struct Sweep {
     period: u8,
     negate: bool,
