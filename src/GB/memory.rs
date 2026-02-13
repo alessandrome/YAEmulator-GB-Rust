@@ -3,18 +3,15 @@ pub mod addresses;
 pub mod BIOS;
 pub mod interrupts;
 
-use std::cell::RefCell;
-use std::fs::File;
 use std::io::Read;
 use std::ops::{Deref, DerefMut};
-use std::rc::Rc;
-use crate::GB::cartridge::{Cartridge, UseCartridge};
-use crate::GB::input;
 use crate::GB::memory::addresses::{*};
 use crate::GB::memory::registers::MemoryRegisters;
 use crate::GB::PPU::tile::TILE_SIZE;
 
-use crate::GB::input::{GBInputSelectionBits, GBInputButtonsBits, GBInputDPadBits};
+use crate::GB::traits::BusDevice;
+use crate::GB::types::address::Address;
+use crate::GB::types::Byte;
 
 pub const RST_INSTRUCTIONS: usize = 0x0000; // Location in memory for RST instructions (not used on emulation)
 pub const CARTRIDGE_HEADER_ADDRESS: usize = 0x0100; // Location for ROM metadata (as name) (not used on emulation)
@@ -110,72 +107,13 @@ pub struct RAM {
     pub memory: Memory<u8>,
     #[cfg(not(test))]
     memory: Memory<u8>,
-    inputs: Rc<RefCell<input::GBInput>>,
-    cartridge: Rc<RefCell<Option<Cartridge>>>,
 }
 
 impl RAM {
-    pub fn new(inputs: Rc<RefCell<input::GBInput>>) -> Self {
+    pub fn new() -> Self {
         RAM {
             memory: Memory::<u8>::new(0, 65536),
-            inputs,
-            cartridge: Rc::new(RefCell::new(None))
         }
-    }
-
-    pub fn read(&self, address: u16) -> u8 {
-        let address_usize = address as usize;
-        let mut return_val: u8 = 0;
-        match address_usize {
-            ROM_BANK_0_ADDRESS..=ROM_BANK_1_LAST_ADDRESS | EXTERNAL_RAM_ADDRESS..=EXTERNAL_RAM_LAST_ADDRESS => {
-                let c_opt = self.cartridge.borrow();
-                match c_opt.as_ref() {
-                    None => {
-                        return_val = self.memory[address_usize];
-                    }
-                    Some(cartridge) => {
-                        return_val = cartridge.read(address);
-                    }
-                }
-            }
-            io::JOYP => {
-                //todo!("Test read from input");
-                return_val = self.memory[address_usize] & 0xF0;
-                if (return_val & GBInputSelectionBits::Buttons == 0 && return_val & GBInputSelectionBits::DPad == 0) {
-                    return_val |= 0x0F;
-                } else if return_val & GBInputSelectionBits::Buttons == 0 {
-                    return_val |= self.inputs.borrow().get_buttons_byte();
-                } else if return_val & GBInputSelectionBits::DPad == 0 {
-                    return_val |= self.inputs.borrow().get_dpad_byte();
-                } else {
-                    return_val |= 0x0F;
-                }
-                // println!("{}", return_val);
-            }
-            _ => {
-                return_val = self.memory[address_usize]
-            }
-        };
-        return_val
-    }
-
-    pub fn write(&mut self, address: u16, byte: u8) {
-        let address_usize = address as usize;match address_usize {
-            ROM_BANK_0_ADDRESS..=ROM_BANK_1_LAST_ADDRESS | EXTERNAL_RAM_ADDRESS..=EXTERNAL_RAM_LAST_ADDRESS => {
-                let mut c_opt = self.cartridge.borrow_mut();
-                match c_opt.deref_mut() {
-                    None => {
-                        self.memory[address_usize] = byte;
-                    }
-                    Some(cartridge) => {
-                        cartridge.write(address, byte);
-                    }
-                }
-            }
-            _ => {
-                self.memory[address_usize] = byte;
-            }
-        };
     }
 
     pub fn read_vec(&self, start_address: u16, length: u16) -> &[u8] {
@@ -184,7 +122,7 @@ impl RAM {
 
     pub fn boot_load(&mut self, bios: &BIOS::BIOS) {
         for i in 0..bios.len() {
-            self.memory[i] = self.read(i as u16);
+            self.memory[i] = self.read(Address(i as u16));
         }
     }
 
@@ -193,6 +131,7 @@ impl RAM {
     }
 
     pub fn get_enabled_interrupts(&self) {
+        // todo!("This must be removed as interrupts will become a module");
         let ie = self.read(registers::IE);
     }
 
@@ -213,55 +152,50 @@ impl Length for RAM {
     }
 }
 
-impl UseCartridge for RAM {
-    fn set_cartridge(&mut self, rom: Rc<RefCell<Option<Cartridge>>>) {
-        self.cartridge = rom;
+impl BusDevice for RAM {
+    fn read(&self, address: Address) -> Byte {
+        self.memory[address.as_index()]
+    }
+
+    fn write(&mut self, address: Address, byte: Byte) {
+        self.memory[address.as_index()] = byte;
     }
 }
 
 #[cfg(test)]
 mod test {
-    use std::cell::RefCell;
-    use std::rc::Rc;
-    use crate::GB::input;
-    use crate::GB::memory::RAM;
+    use crate::GB::traits::BusDevice;
+    use super::RAM;
+    use crate::GB::types::{Byte, address::Address};
 
     #[test]
     fn test_memory_read() {
-        let inputs_ref = Rc::new(RefCell::new(input::GBInput::default()));
-        let mut ram = RAM::new(inputs_ref);
-        let address: usize = 0xC0D0;
-        let data: u8 = 0x44;
-        ram.memory[address] = data;
-        assert_eq!(ram.read(address as u16), data);
+        let mut ram = RAM::new();
+        let address = Address(0xC0D0);
+        let data: Byte = 0x44;
+        ram.memory[address.as_index()] = data;
+        assert_eq!(ram.read(address), data);
     }
 
     #[test]
     fn test_memory_write() {
-        let inputs_ref = Rc::new(RefCell::new(input::GBInput::default()));
-        let mut ram = RAM::new(inputs_ref);
-        let address: usize = 0xC0D0;
-        let data: u8 = 0x45;
-        ram.memory[address] = 0xFF;
-        ram.write(address as u16, data);
-        assert_eq!(ram.memory[address], data);
+        let mut ram = RAM::new();
+        let address = Address(0xC0D0);
+        let data: Byte = 0x45;
+        ram.memory[address.as_index()] = 0xFF;
+        ram.write(address, data);
+        assert_eq!(ram.memory[address.as_index()], data);
     }
 
 
     #[test]
     fn test_memory_read_vec() {
-        let inputs_ref = Rc::new(RefCell::new(input::GBInput::default()));
-        let mut ram = RAM::new(inputs_ref);
-        let start_address: usize = 0xC000;
-        let data: Vec<u8> = vec![0x44, 0x55, 0xF0, 0x0F, 0x75, 0x1A, 0xA1, 0x92];
+        let mut ram = RAM::new();
+        let start_address = Address(0xC0D0);
+        let data: Vec<Byte> = vec![0x44, 0x55, 0xF0, 0x0F, 0x75, 0x1A, 0xA1, 0x92];
         for i in 0..data.len() {
-            ram.memory[start_address + i] = data[i];
+            ram.memory[start_address.as_index() + i] = data[i];
         }
-        assert_eq!(ram.read_vec(start_address as u16, data.len() as u16), data);
+        assert_eq!(ram.read_vec(start_address.as_u16(), data.len() as u16), data);
     }
-}
-
-pub trait UseMemory {
-    fn read_memory(&self, address: u16) -> u8;
-    fn write_memory(&self, address: u16, data: u8);
 }

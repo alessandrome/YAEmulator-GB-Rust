@@ -1,7 +1,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 use crate::GB::CPU::{CPU};
-use crate::GB::memory::{self, RAM, UseMemory, USER_PROGRAM_ADDRESS, WRAM_ADDRESS};
+use crate::GB::memory::{self, RAM, USER_PROGRAM_ADDRESS, WRAM_ADDRESS};
 use crate::GB::input::GBInput as GBInput;
 
 macro_rules! create_memory {

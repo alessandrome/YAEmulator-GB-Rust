@@ -1,15 +1,14 @@
 use crate::GB::cartridge::addresses as cartridge_addresses;
-use crate::GB::cartridge::{Cartridge, UseCartridge};
 use crate::GB::input::{GBInputButtonsBits, GBInputDPadBits};
 use crate::GB::memory::addresses::{self, OAM_AREA_ADDRESS};
 use crate::GB::memory::BIOS::BIOS;
 use crate::GB::memory::{interrupts, RAM};
-use crate::GB::CPU::CPU_CLOCK_SPEED;
 use crate::GB::PPU::constants::OAM_NUMBERS;
 use crate::GB::PPU::oam::OAM_BYTE_SIZE;
 use std::cell::{Ref, RefCell};
 use std::rc::Rc;
 use std::time::Instant;
+use crate::GB::bus::BusContext;
 use crate::GB::memory::interrupts::InterruptFlagsMask;
 
 pub mod CPU;
@@ -23,6 +22,8 @@ pub mod bus;
 pub mod types;
 pub mod traits;
 pub mod utils;
+mod timer;
+mod interrupt;
 
 #[cfg(feature = "debug")]
 fn debug_print(args: std::fmt::Arguments) {
@@ -35,22 +36,27 @@ fn debug_print(_args: std::fmt::Arguments) {
 }
 
 pub const SYSTEM_FREQUENCY_CLOCK: u64 = 1_048_576;
-pub const CYCLES_PER_FRAME: u64 = CPU_CLOCK_SPEED / 60;
+pub const CYCLES_PER_FRAME: u64 = SYSTEM_FREQUENCY_CLOCK / 60;
 pub const FRAME_TIME: f64 = 1_f64 / 60_f64;
 
 // #[derive()]
 pub struct GB {
     is_booting: bool,
+    bus: bus::Bus,
     pub memory: Rc<RefCell<RAM>>,
     pub bios: BIOS,
     pub cpu: CPU::CPU,
     pub ppu: PPU::PPU,
-    pub input: Rc<RefCell<input::GBInput>>,
-    cartridge: Rc<RefCell<Option<Cartridge>>>,
-    // pub cpu_cycles: u64, // Number to cycle needed to complete current CPU instruction. cpu.cycle() is skipped if different from 0
+    apu: APU::APU,
+    pub input: input::GBInput,
+    cartridge: Option<cartridge::Cartridge>,
+    cycles: u64, // Number to cycle needed to complete current CPU instruction. cpu.cycle() is skipped if different from 0
+    cycles_overflows: u64, // Number of time cycles has overflowed
 }
 
 impl GB {
+    pub const SYSTEM_FREQUENCY_CLOCK: u32 = 4_194_304;
+
     pub fn new(bios: Option<String>) -> Self {
         let inputs = input::GBInput {
             a: false,
@@ -62,12 +68,8 @@ impl GB {
             left: false,
             right: false,
         };
-        let inputs_ref = Rc::new(RefCell::new(inputs));
 
-        let mut ram = RAM::new(Rc::clone(&inputs_ref));
         let ram_ref = Rc::new(RefCell::new(ram));
-        let cartridge_ref = Rc::new(RefCell::new(None));
-        let cpu = CPU::CPU::new(Rc::clone(&ram_ref));
         let mut rom = BIOS::new();
         let mut is_booting = false;
 
@@ -81,14 +83,24 @@ impl GB {
 
         Self {
             is_booting,
-            cpu,
+            bus: bus::Bus::new(),
+            cpu: CPU::CPU::new(),
             ppu: PPU::PPU::new(Rc::clone(&ram_ref)),
             memory: ram_ref,
             bios: rom,
-            cartridge: cartridge_ref,
-            // cpu_cycles: 0,
-            input: inputs_ref,
+            cartridge: None,
+            input: input::GBInput::default(),
+            apu: APU::APU::new(),
+            cycles: 0,
+            cycles_overflows: 0,
         }
+    }
+
+    fn with_bus<T>(&mut self, f: impl FnOnce(&mut BusContext) -> T) -> T {
+        let mut ctx = BusContext {
+            apu: &mut self.apu,
+        };
+        f(&mut ctx)
     }
 
     pub fn boot(&mut self) {
@@ -98,7 +110,7 @@ impl GB {
     }
 
     pub fn insert_cartridge(&mut self, path: &String) {
-        let cartridge = Cartridge::new((*path).clone());
+        let cartridge = cartridge::Cartridge::new((*path).clone());
         match cartridge {
             Ok(c) => {
                 self.set_cartridge(Rc::new(RefCell::new(Option::from(c))));
@@ -109,28 +121,26 @@ impl GB {
         }
     }
 
-    pub fn cycle(&mut self) {
+    /**
+    A single T-Cycle ticking
+    */
+    pub fn tick(&mut self) {
         // let time = Instant::now();
-        // Execute next only if it hasn't to wait more executing instruction cycles
-        // if !(self.cpu_cycles > 0) {
-        //     self.cpu_cycles = self.cpu.execute_next();
-        //     if self.cpu.
-        // {
-        //         self.dma_transfer();
-        //     }
+        let mut ctx = BusContext {
+            apu: &mut self.apu,
+        };
+        self.cpu.tick(&mut self.bus, ctx);
+        self.ppu.tick();
+        
+        // if self.cpu.dma_transfer {
+        //     self.dma_transfer();
         // }
-        // if self.cpu_cycles > 0 {
-        //     self.cpu_cycles -= 1;
-        // }
-        // if self.cpu_cycles == 0 {
-        //     self.cpu.interrupt();
-        // }
-        self.cpu.execute_next();
-        if self.cpu.dma_transfer {
-            self.dma_transfer();
-        }
-        self.ppu.cycle();
         // println!("{:?}", time.elapsed());
+        // Update cycles
+        self.cycles = self.cycles.wrapping_add(1);
+        if self.cycles == 0 {
+            self.cycles_overflows = self.cycles_overflows.wrapping_add(1);
+        }
     }
 
     // fn check_interrupt(&mut self) {
@@ -178,19 +188,18 @@ impl GB {
     }
 
     pub fn press_button(&mut self, dpad: GBInputButtonsBits, pressed: bool) {
-        let mut input = self.input.borrow_mut();
         match dpad {
             GBInputButtonsBits::A => {
-                input.a = pressed;
+                self.input.a = pressed;
             }
             GBInputButtonsBits::B => {
-                input.b = pressed;
+                self.input.b = pressed;
             }
             GBInputButtonsBits::Select => {
-                input.select = pressed;
+                self.input.select = pressed;
             }
             GBInputButtonsBits::Start => {
-                input.start = pressed;
+                self.input.start = pressed;
             }
         }
 
@@ -209,8 +218,8 @@ impl GB {
         self.cpu.registers.set_pc(cartridge_addresses::ENTRY_POINT as u16);
     }
 
-    pub fn get_cartridge(&self) -> Ref<'_, Option<Cartridge>> {
-        self.cartridge.borrow()
+    pub fn get_cartridge(&self) -> &Option<cartridge::Cartridge> {
+        &self.cartridge
     }
 
     pub fn get_bios(&self) -> &BIOS {
@@ -285,13 +294,5 @@ impl Default for GB {
             input: inputs_ref,
             cartridge: cartridge_ref,
         }
-    }
-}
-
-impl UseCartridge for GB {
-    fn set_cartridge(&mut self, rom: Rc<RefCell<Option<Cartridge>>>) {
-        self.cpu.set_cartridge(Rc::clone(&rom));
-        self.memory.borrow_mut().set_cartridge(Rc::clone(&rom));
-        self.cartridge = rom;
     }
 }

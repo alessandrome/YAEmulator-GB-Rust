@@ -295,7 +295,3 @@ impl fmt::Display for Cartridge {
         )
     }
 }
-
-pub trait UseCartridge {
-    fn set_cartridge(&mut self, rom: Rc<RefCell<Option<Cartridge>>>);
-}

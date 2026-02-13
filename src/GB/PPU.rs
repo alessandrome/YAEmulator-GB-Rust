@@ -74,7 +74,7 @@ impl PPU {
     /// Execute a cycle of PPU. Each cycle is the equivalent of 1 Dot.
     ///
     /// Drawing penalties are emulated doing nothing during them. Theme are then added to HBlank mode to reduce its available dots.
-    pub fn cycle(&mut self) {
+    pub fn tick(&mut self) {
         const SCAN_OAM_DOTS_END: usize = constants::SCAN_OAM_DOTS - 1;
         const DRAW_DOTS_END: usize = constants::DRAW_LINE_MAX_DOTS - 1 + constants::SCAN_OAM_DOTS;
         const HBLANK_DOTS_START: usize = DRAW_DOTS_END + 1;
@@ -403,16 +403,6 @@ impl PPU {
     ppu_get_set_flag_bit!(get_win_enabled_flag, set_win_enabled_flag, LCDC, LCDCMasks::WinEnabled);
     ppu_get_set_flag_bit!(get_win_tile_map_area_flag, set_win_tile_map_area_flag, LCDC, LCDCMasks::WinTileMapArea);
     ppu_get_set_flag_bit!(get_lcd_enabled_flag, set_lcd_enabled_flag, LCDC, LCDCMasks::LcdEnabled);
-}
-
-impl UseMemory for PPU {
-    fn read_memory(&self, address: u16) -> u8 {
-        self.memory.borrow().read(address)
-    }
-
-    fn write_memory(&self, address: u16, data: u8) {
-        self.memory.borrow_mut().write(address, data)
-    }
 }
 
 impl fmt::Display for PPU {

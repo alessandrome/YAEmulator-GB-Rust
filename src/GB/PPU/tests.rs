@@ -5,7 +5,6 @@ use crate::GB::memory;
 use crate::GB::memory::{RAM, VRAM_BLOCK_0_ADDRESS, VRAM_BLOCK_1_ADDRESS, VRAM_BLOCK_2_ADDRESS};
 use crate::GB::memory::registers::LCDC;
 use crate::GB::PPU::PPU;
-use crate::GB::memory::UseMemory;
 use crate::GB::PPU::tile::TILE_SIZE;
 
 macro_rules! create_memory {

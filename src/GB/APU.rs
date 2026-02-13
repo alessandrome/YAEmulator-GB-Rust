@@ -1,7 +1,6 @@
 use crate::GB::traits::{BusDevice, MmioDevice};
 use crate::GB::types::address::Address;
 use crate::GB::types::Byte;
-use crate::GB::APU::mmio::WAVE_RAM_END;
 
 mod channels;
 pub mod constants;

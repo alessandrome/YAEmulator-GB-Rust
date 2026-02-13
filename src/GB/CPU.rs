@@ -1,16 +1,10 @@
 pub mod registers;
-pub mod timer;
 
-use std::cell::RefCell;
-use std::rc::Rc;
-use crate::GB::{instructions, SYSTEM_FREQUENCY_CLOCK};
-use crate::GB::cartridge::{Cartridge, UseCartridge};
-use crate::GB::memory::{self, addresses, interrupts, RAM, UseMemory, USER_PROGRAM_ADDRESS};
+use crate::GB::{bus, instructions, GB};
+use crate::GB::memory::{self, addresses, interrupts, USER_PROGRAM_ADDRESS};
 use crate::GB::memory::interrupts::InterruptFlagsMask;
 
 
-pub const CPU_CLOCK_MULTIPLIER: u64 = 4;
-pub const CPU_CLOCK_SPEED: u64 = SYSTEM_FREQUENCY_CLOCK * CPU_CLOCK_MULTIPLIER; // In Hz - 4 Time System Clock
 pub const DIVIDER_FREQUENCY: u64 = 16384; // Divider Update Frequency in Hz
 pub const CPU_INTERRUPT_CYCLES: u64 = 5; // Number of cycle to manage a requested Interrupt
 
@@ -20,14 +14,11 @@ mod test {
     use std::rc::Rc;
     use crate::GB::CPU::CPU;
     use crate::GB::input::GBInput as GBInput;
-    use crate::GB::memory::{RAM, UseMemory, WRAM_ADDRESS, WRAM_SIZE};
+    use crate::GB::memory::{RAM, WRAM_ADDRESS, WRAM_SIZE};
 
     #[test]
     fn cpu_new_8bit_registers() {
-        let inputs = GBInput::default();
-        let inputs_ref = Rc::new(RefCell::new(inputs));
-        let memory_ref = Rc::new(RefCell::new(RAM::new(Rc::clone(&inputs_ref))));
-        let cpu = CPU::new(memory_ref);
+        let cpu = CPU::new();
         assert_eq!(cpu.registers.get_a(), 0);
         assert_eq!(cpu.registers.get_f(), 0);
         assert_eq!(cpu.registers.get_b(), 0);
@@ -40,10 +31,7 @@ mod test {
 
     #[test]
     fn cpu_new_16bit_registers() {
-        let inputs = GBInput::default();
-        let inputs_ref = Rc::new(RefCell::new(inputs));
-        let memory_ref = Rc::new(RefCell::new(RAM::new(Rc::clone(&inputs_ref))));
-        let cpu = CPU::new(memory_ref);
+        let cpu = CPU::new();
         assert_eq!(cpu.registers.get_af(), 0);
         assert_eq!(cpu.registers.get_bc(), 0);
         assert_eq!(cpu.registers.get_de(), 0);
@@ -55,10 +43,7 @@ mod test {
     #[test]
     fn cpu_new_16_8bit_registers() {
         // 16 Bit register should be 0 as the compound of low register is 0 (and should not be altered by access of 8bit register)
-        let inputs = GBInput::default();
-        let inputs_ref = Rc::new(RefCell::new(inputs));
-        let memory_ref = Rc::new(RefCell::new(RAM::new(Rc::clone(&inputs_ref))));
-        let cpu = CPU::new(memory_ref);
+        let cpu = CPU::new();
         assert_eq!(cpu.registers.get_a(), 0);
         assert_eq!(cpu.registers.get_f(), 0);
         assert_eq!(cpu.registers.get_b(), 0);
@@ -77,10 +62,7 @@ mod test {
 
     #[test]
     fn cpu_push_n_pop() {
-        let inputs = GBInput::default();
-        let inputs_ref = Rc::new(RefCell::new(inputs));
-        let memory_ref = Rc::new(RefCell::new(RAM::new(Rc::clone(&inputs_ref))));
-        let mut cpu = CPU::new(memory_ref);
+        let mut cpu = CPU::new();
         let start_sp = cpu.registers.get_sp();
         let test_value: u8 = 0x81;
         cpu.push(test_value);
@@ -96,34 +78,24 @@ mod test {
 pub struct CPU {
     pub registers: registers::core::Registers,
     pub ime: bool,  // Interrupt Master Enable - True if you want to enable and intercept interrupts
-    pub opcode: u8,  // Running Instruction Opcode
-    pub cycles: u64,  // Total Cycles Count
+    pub opcode: u8,  // Running Instruction Opcode,
     pub left_cycles: u64,  // Left Cycles to complete currently executing instruction
-    pub div_timer_cycles: u64,  // Total Cycles Count
-    pub timer_cycles: u64,  // Total Cycles Count
-    pub timer_enabled: bool,
     pub dma_transfer: bool,  // True When DMA RAM to VRAM is enabled
-    pub memory: Rc<RefCell<RAM>>,
-    cartridge: Rc<RefCell<Option<Cartridge>>>,
     pub interrupt_routine_cycle: Option<u8>,
     interrupt_routine_addr: u16,
     pub interrupt_type: InterruptFlagsMask
 }
 
 impl CPU {
-    pub fn new(memory: Rc<RefCell<RAM>>) -> Self {
+    pub const CPU_FREQUENCY_CLOCK: u32 = GB::SYSTEM_FREQUENCY_CLOCK / 4;
+    
+    pub fn new() -> Self {
         Self {
             registers: registers::core::Registers::new(),
             ime: false,
             opcode: 0,
-            cycles: 0,
             left_cycles: 0,
-            div_timer_cycles: 0,
-            timer_cycles: 0,
-            timer_enabled: false,
             dma_transfer: false,
-            memory,
-            cartridge: Rc::new(RefCell::new(None)),
             interrupt_routine_cycle: None,
             interrupt_routine_addr: 0xFFFF,
             interrupt_type: InterruptFlagsMask::VBlank
@@ -141,6 +113,13 @@ impl CPU {
             return instructions::OPCODES_CB[opcode_usize]
         }
         instructions::OPCODES[opcode_usize]
+    }
+
+    /**
+    Step 1 T-Cycle (4 T-Cycle = 1 M-Cycle)
+    */
+    pub fn tick(bus: &bus::Bus, ctx: &mut bus::BusContext) {
+        todo!()
     }
 
     pub fn execute_next(&mut self) -> u64 {
@@ -166,7 +145,6 @@ impl CPU {
                 }
             }
         }
-        self.cycles += 1;
         self.left_cycles -= 1;
         if self.left_cycles == 0 {
             if self.interrupt().0 {
@@ -273,25 +251,25 @@ impl CPU {
     pub fn update_timers(&mut self, cycles: u8) {
         let mut memory_mut = self.memory.borrow_mut();
         self.div_timer_cycles += 1;
-        if (self.div_timer_cycles % timer::M64_CLOCK_CYCLES) == 0 {
+        if (self.div_timer_cycles % constants::M64_CLOCK_CYCLES) == 0 {
             let (new_div, div_overflow) = memory_mut.read(memory::registers::DIV).overflowing_add(cycles);
             memory_mut.write(memory::registers::DIV, new_div);
             self.div_timer_cycles = 0;
         }
 
         let tac = memory_mut.read(memory::registers::TAC);
-        if (tac & timer::TACMask::Enabled) != 0 {
+        if (tac & constants::TACMask::Enabled) != 0 {
             if !self.timer_enabled {
                 // Timer has just been re-enabled, resetting timer cycles count
                 self.timer_cycles = 0;
                 self.timer_enabled = true;
             }
             let mut mode_cycles: u64 = 0;
-            match (tac & timer::TACMask::TimerClock) {
-                timer::M256_CLOCK_MODE => { mode_cycles = timer::M256_CLOCK_CYCLES; }
-                timer::M4_CLOCK_MODE => { mode_cycles = timer::M4_CLOCK_CYCLES; }
-                timer::M16_CLOCK_MODE => { mode_cycles = timer::M16_CLOCK_CYCLES; }
-                _ => { mode_cycles = timer::M64_CLOCK_CYCLES; }
+            match (tac & constants::TACMask::TimerClock) {
+                constants::M256_CLOCK_MODE => { mode_cycles = constants::M256_CLOCK_CYCLES; }
+                constants::M4_CLOCK_MODE => { mode_cycles = constants::M4_CLOCK_CYCLES; }
+                constants::M16_CLOCK_MODE => { mode_cycles = constants::M16_CLOCK_CYCLES; }
+                _ => { mode_cycles = constants::M64_CLOCK_CYCLES; }
             }
             self.timer_cycles += 1;
 
@@ -310,21 +288,5 @@ impl CPU {
         } else {
             self.timer_enabled = false;
         }
-    }
-}
-
-impl UseMemory for CPU {
-    fn read_memory(&self, address: u16) -> u8 {
-        self.memory.borrow().read(address)
-    }
-
-    fn write_memory(&self, address: u16, data: u8) {
-        self.memory.borrow_mut().write(address, data);
-    }
-}
-
-impl UseCartridge for CPU {
-    fn set_cartridge(&mut self, rom: Rc<RefCell<Option<Cartridge>>>) {
-        self.cartridge = rom;
     }
 }

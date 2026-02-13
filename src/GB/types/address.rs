@@ -23,6 +23,11 @@ impl Address {
     }
 
     #[inline]
+    pub const fn as_usize(self) -> usize {
+        self.0 as usize
+    }
+
+    #[inline]
     pub const fn as_u16(self) -> u16 {
         self.0
     }
