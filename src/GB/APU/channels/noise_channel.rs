@@ -104,7 +104,7 @@ impl NoiseChannel {
     }
 
     fn trigger(&mut self) {
-        self.lfsr = 0xFFFF;
+        self.lfsr = 0x7FFF;
         self.envelope
             .trigger(self.volume(), self.envelope_direction());
     }
@@ -164,11 +164,10 @@ impl ApuBusChannel for NoiseChannel {
         todo!()
     }
 
-    fn output_volume(&self) -> AudioVolume {
-        self.envelope.volume()
-    }
-
-    fn output_period(&self) -> AudioPeriod {
-        todo!()
+    fn output(&self) -> AudioVolume {
+        if (self.lfsr & Self::LFSR_BIT_SET_MASK) != 0 {
+            return self.envelope.volume();
+        }
+        0
     }
 }

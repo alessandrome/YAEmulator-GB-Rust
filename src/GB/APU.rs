@@ -13,8 +13,7 @@ type AudioPeriod = u16;
 trait ApuBusChannel: BusDevice {
     fn tick(&mut self, cycles: u32);
     fn sample(&self) -> u8;
-    fn output_volume(&self) -> AudioVolume;
-    fn output_period(&self) -> AudioPeriod;
+    fn output(&self) -> AudioVolume; // Signal intensity from 0 to 15 (4-bit)
 }
 
 pub struct APU {
