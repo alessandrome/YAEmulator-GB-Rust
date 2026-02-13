@@ -7,6 +7,14 @@ use crate::{default_enum_u8_bit_ops, mask_flag_enum_default_impl};
 
 #[derive(Debug, Clone, Copy)]
 #[repr(u8)]
+pub enum NoiseNR41Masks {
+    LengthTimer = 0b0011_1111,
+}
+
+mask_flag_enum_default_impl!(NoiseNR41Masks);
+
+#[derive(Debug, Clone, Copy)]
+#[repr(u8)]
 pub enum NoiseNR42Masks {
     Volume = 0b1111_0000,
     EnvDir = 0b0000_1000,
