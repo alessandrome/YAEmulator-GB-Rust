@@ -1,6 +1,6 @@
 use crate::GB::APU::constants::{FRAME_SEQUENCER_FREQUENCY, FRAME_SEQUENCER_TICKS};
-use clap::Parser;
 use std::cmp::{max, min};
+use super::super::AudioVolume;
 
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
 #[repr(u8)]
@@ -32,12 +32,12 @@ impl Envelope {
     pub fn tick(&mut self) {
         match self.direction {
             EnvelopeDirection::Down => self.volume = self.volume.saturating_sub(1),
-            EnvelopeDirection::Up => self.volume = min(self.volume + 1, 15),
+            EnvelopeDirection::Up => self.volume = min(self.volume.saturating_add(1), 15),
         }
     }
 
     #[inline]
-    pub fn volume(&self) -> u8 {
+    pub fn volume(&self) -> AudioVolume {
         self.volume
     }
 }

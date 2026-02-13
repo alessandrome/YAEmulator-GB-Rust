@@ -165,7 +165,7 @@ impl ApuBusChannel for NoiseChannel {
     }
 
     fn output_volume(&self) -> AudioVolume {
-        self.volume() * self.lfsr_output_bit()
+        self.envelope.volume()
     }
 
     fn output_period(&self) -> AudioPeriod {
