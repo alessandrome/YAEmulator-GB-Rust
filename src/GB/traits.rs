@@ -3,7 +3,7 @@ use crate::GB::types::Byte;
 
 pub trait BusDevice {
     fn read(&self, address: Address) -> Byte;
-    fn write(&self, address: Address, data: Byte);
+    fn write(&mut self, address: Address, data: Byte);
 }
 
 pub trait MmioDevice: BusDevice {}
