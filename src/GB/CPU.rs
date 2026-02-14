@@ -1,9 +1,12 @@
 pub mod registers;
+mod instructions;
 
-use crate::GB::{bus, instructions, GB};
+use crate::GB::{bus, GB};
 use crate::GB::memory::{self, addresses, interrupts, USER_PROGRAM_ADDRESS};
 use crate::GB::memory::interrupts::InterruptFlagsMask;
-
+use crate::GB::traits::BusDevice;
+use crate::GB::types::{Byte, address::Address};
+use registers::{core_registers::Registers, interrupt_registers::InterruptRegisters};
 
 pub const DIVIDER_FREQUENCY: u64 = 16384; // Divider Update Frequency in Hz
 pub const CPU_INTERRUPT_CYCLES: u64 = 5; // Number of cycle to manage a requested Interrupt
@@ -76,41 +79,43 @@ mod test {
 }
 
 pub struct CPU {
-    pub registers: registers::core::Registers,
+    pub registers: Registers,
+    pub interrupt_registers: InterruptRegisters,
     pub ime: bool,  // Interrupt Master Enable - True if you want to enable and intercept interrupts
-    pub opcode: u8,  // Running Instruction Opcode,
-    pub left_cycles: u64,  // Left Cycles to complete currently executing instruction
+    pub opcode: u8,  // Running Instruction Opcode - Known as IR (Instruction Register),
+    pub instruction_cycles: u8,  // T-Cycles counting during instruction execution
     pub dma_transfer: bool,  // True When DMA RAM to VRAM is enabled
     pub interrupt_routine_cycle: Option<u8>,
     interrupt_routine_addr: u16,
-    pub interrupt_type: InterruptFlagsMask
+    pub interrupt_type: InterruptFlagsMask,
 }
 
 impl CPU {
     pub const CPU_FREQUENCY_CLOCK: u32 = GB::SYSTEM_FREQUENCY_CLOCK / 4;
-    
+
     pub fn new() -> Self {
         Self {
-            registers: registers::core::Registers::new(),
+            registers: registers::core_registers::Registers::new(),
+            interrupt_registers: Default::default(),
             ime: false,
             opcode: 0,
-            left_cycles: 0,
+            instruction_cycles: 0,
             dma_transfer: false,
             interrupt_routine_cycle: None,
             interrupt_routine_addr: 0xFFFF,
-            interrupt_type: InterruptFlagsMask::VBlank
+            interrupt_type: InterruptFlagsMask::VBlank,
         }
     }
-    
-    pub fn fetch_next(&mut self) -> u8 {
+
+    pub fn fetch_next(&mut self, bus: &bus::Bus, cxt: &mut bus::BusContext) -> Byte {
         let addr = self.registers.get_and_inc_pc();
-        self.read_memory(addr)
+        bus.read(Address(addr))
     }
 
     pub fn decode(opcode: u8, cb_opcode: bool) -> Option<&'static instructions::Instruction> {
         let opcode_usize = opcode as usize;
         if cb_opcode {
-            return instructions::OPCODES_CB[opcode_usize]
+            return instructions::OPCODES_CB[opcode_usize];
         }
         instructions::OPCODES[opcode_usize]
     }
@@ -136,7 +141,7 @@ impl CPU {
                     match (instruction) {
                         Some(ins) => {
                             cycles = (ins.execute)(&ins, self);
-                        },
+                        }
                         None => {
                             println!("UNKNOWN Opcode '{:#04x}'", self.opcode);
                         }
@@ -165,7 +170,7 @@ impl CPU {
     }
 
     /// Check and jump to requested interrupt address after take a snapshot of status on stack.
-    /// 
+    ///
     /// Interrupt bit has priority from lower bit to higher (bit 0 has the higher priority).
     pub fn interrupt(&mut self) -> (bool, InterruptFlagsMask, Option<u8>) {
         let mut interrupt_found = false;
@@ -226,7 +231,7 @@ impl CPU {
         }
         match self.interrupt_routine_cycle {
             None => {}
-            _ => {self.interrupt_routine_cycle = Some(routine_cycle + 1);}
+            _ => { self.interrupt_routine_cycle = Some(routine_cycle + 1); }
         }
         cycles
     }
@@ -289,4 +294,21 @@ impl CPU {
             self.timer_enabled = false;
         }
     }
+}
+
+impl BusDevice for CPU {
+    fn read(&self, address: Address) -> Byte {
+        match address {
+            InterruptRegisters::IE_ADDRESS | InterruptRegisters::IF_ADDRESS => self.interrupt_registers.read(address),
+            _ => unreachable!(),
+        }
+    }
+
+    fn write(&mut self, address: Address, data: Byte) {
+        match address {
+            InterruptRegisters::IE_ADDRESS | InterruptRegisters::IF_ADDRESS => self.interrupt_registers.write(address, data),
+            _ => unreachable!(),
+        }
+    }
+}
 }

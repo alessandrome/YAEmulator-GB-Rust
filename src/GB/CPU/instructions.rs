@@ -1,5 +1,6 @@
 #[cfg(test)]
 mod test;
+mod microcode;
 
 use crate::GB::CPU::CPU;
 use crate::GB::debug_print;
@@ -13,7 +14,7 @@ pub struct Instruction {
     pub cycles: u8,
     pub size: u8,
     pub flags: &'static [FlagBits],
-    pub execute: fn(&Instruction, &mut CPU) -> u64, // Return number on M-Cycles needed to execute
+    pub execute: [fn(&Instruction, &mut CPU) -> u64], // Return number on M-Cycles needed to execute
 }
 
 impl Instruction {
