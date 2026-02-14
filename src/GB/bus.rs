@@ -23,12 +23,12 @@ impl Bus {
     }
 }
 
-impl BusDevice for Bus {
-    fn read(&self, address: Address) -> Byte {
+impl Bus {
+    fn read(&self, ctx: &BusContext, address: Address) -> Byte {
         todo!()
     }
 
-    fn write(&mut self, address: Address, data: Byte) {
+    fn write(&mut self, ctx: &mut BusContext, address: Address, data: Byte) {
         todo!()
     }
 }
