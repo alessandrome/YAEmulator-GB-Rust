@@ -9,7 +9,7 @@ use crate::GB::memory::addresses::{*};
 use crate::GB::memory::registers::MemoryRegisters;
 use crate::GB::PPU::tile::TILE_SIZE;
 
-use crate::GB::traits::BusDevice;
+use crate::GB::bus::BusDevice;
 use crate::GB::types::address::Address;
 use crate::GB::types::Byte;
 
@@ -164,7 +164,7 @@ impl BusDevice for RAM {
 
 #[cfg(test)]
 mod test {
-    use crate::GB::traits::BusDevice;
+    use crate::GB::bus::BusDevice;
     use super::RAM;
     use crate::GB::types::{Byte, address::Address};
 

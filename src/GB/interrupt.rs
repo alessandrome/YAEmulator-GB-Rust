@@ -1,4 +1,4 @@
-use crate::GB::traits::BusDevice;
+use crate::GB::bus::BusDevice;
 use crate::GB::types::address::Address;
 use crate::GB::types::Byte;
 

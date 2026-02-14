@@ -1,11 +1,12 @@
-use std::ops::RangeInclusive;
+mod bus_device;
+
 use crate::GB::APU::APU;
 use crate::GB::cartridge::ROM;
 use crate::GB::memory::RAM;
 use crate::GB::CPU::CPU;
 use crate::GB::PPU::PPU;
 use super::timer::TimerRegisters;
-use crate::GB::traits::BusDevice;
+pub(crate) use bus_device::{BusDevice, MmioDevice, MemoryDevice};
 use crate::GB::types::address::Address;
 use crate::GB::types::Byte;
 

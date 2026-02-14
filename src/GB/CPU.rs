@@ -4,7 +4,7 @@ mod instructions;
 use crate::GB::{bus, GB};
 use crate::GB::memory::{self, addresses, interrupts, USER_PROGRAM_ADDRESS};
 use crate::GB::memory::interrupts::InterruptFlagsMask;
-use crate::GB::traits::BusDevice;
+use crate::GB::bus::BusDevice;
 use crate::GB::types::{Byte, address::Address};
 use registers::{core_registers::Registers, interrupt_registers::InterruptRegisters};
 

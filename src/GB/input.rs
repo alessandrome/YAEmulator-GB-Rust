@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 use crate::{mask_flag_enum_default_impl, default_enum_u8_bit_ops};
-use crate::GB::traits::BusDevice;
+use crate::GB::bus::BusDevice;
 use crate::GB::types::address::Address;
 use crate::GB::types::Byte;
 
