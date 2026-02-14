@@ -1,7 +1,5 @@
 #[cfg(test)]
-mod test_default;
-#[cfg(test)]
-mod test_subset;
+mod test;
 
 use crate::GB::CPU::CPU;
 use crate::GB::debug_print;
