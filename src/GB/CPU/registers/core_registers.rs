@@ -26,6 +26,36 @@ impl Flags {
     pub fn new(z: bool, n: bool, h: bool, c: bool) -> Self {
         Self { z, n, h, c }
     }
+
+    #[inline]
+    pub fn add_carry(lhs: u8, rhs: u8, carry: bool) -> bool {
+        (lhs as u16 + rhs as u16 + carry as u16) > 0xff
+    }
+
+    #[inline]
+    pub fn sub_carry(lhs: u8, rhs: u8, carry: bool) -> bool {
+        (lhs as u16) < (rhs as u16 + carry as u16)
+    }
+
+    #[inline]
+    pub fn add_half_carry(lhs: u8, rhs: u8, carry: bool) -> bool {
+        ((lhs & 0x0F) + (rhs & 0x0F) + carry as u8) > 0x0F
+    }
+
+    #[inline]
+    pub fn sub_half_carry(lhs: u8, rhs: u8, carry: bool) -> bool {
+        (lhs & 0x0F) < ((rhs & 0x0F) + carry as u8)
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum Registers8Bit {
+    A, B, C, D, E, F, H, L, W, Z
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum Registers16Bit {
+    AF, BC, DE, HL, WZ, SP, PC
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -91,7 +121,7 @@ impl Registers {
     macro_registers::get_set_dual!(b, c, get_bc, set_bc);
     macro_registers::get_set_dual!(d, e, get_de, set_de);
     macro_registers::get_set_dual!(h, l, get_hl, set_hl);
-    macro_registers::get_set_dual!(z, w, get_zw, set_zw);  // Internal use - Immediate 16-bit Address
+    macro_registers::get_set_dual!(w, z, get_wz, set_wz);  // Internal use - Immediate 16-bit Address
 
     pub fn get_f(&self) -> u8 {
         self.f
@@ -119,6 +149,60 @@ impl Registers {
             (self.f & 0b00100000) != 0,
             (self.f & 0b00010000) != 0,
         )
+    }
+
+    pub fn get_byte(&self, register: Registers8Bit) -> u8 {
+        match register {
+            Registers8Bit::A => self.get_a(),
+            Registers8Bit::B => self.get_b(),
+            Registers8Bit::C => self.get_c(),
+            Registers8Bit::D => self.get_d(),
+            Registers8Bit::E => self.get_e(),
+            Registers8Bit::F => self.get_f(),
+            Registers8Bit::H => self.get_h(),
+            Registers8Bit::L => self.get_l(),
+            Registers8Bit::W => self.get_w(),
+            Registers8Bit::Z => self.get_z(),
+        }
+    }
+
+    pub fn get_word(&self, register: Registers16Bit) -> u16 {
+        match register {
+            Registers16Bit::AF => self.get_af(),
+            Registers16Bit::BC => self.get_bc(),
+            Registers16Bit::DE => self.get_de(),
+            Registers16Bit::HL => self.get_hl(),
+            Registers16Bit::WZ => self.get_wz(),
+            Registers16Bit::SP => self.get_sp(),
+            Registers16Bit::PC => self.get_pc(),
+        }
+    }
+
+    pub fn set_byte(&mut self, register: Registers8Bit, byte: u8) {
+        match register {
+            Registers8Bit::A => self.set_a(byte),
+            Registers8Bit::B => self.set_b(byte),
+            Registers8Bit::C => self.set_c(byte),
+            Registers8Bit::D => self.set_d(byte),
+            Registers8Bit::E => self.set_e(byte),
+            Registers8Bit::F => self.set_f(byte),
+            Registers8Bit::H => self.set_h(byte),
+            Registers8Bit::L => self.set_l(byte),
+            Registers8Bit::W => self.set_w(byte),
+            Registers8Bit::Z => self.set_z(byte),
+        }
+    }
+
+    pub fn set_word(&mut self, register: Registers16Bit, data: u16) {
+        match register {
+            Registers16Bit::AF => self.set_af(data),
+            Registers16Bit::BC => self.set_bc(data),
+            Registers16Bit::DE => self.set_de(data),
+            Registers16Bit::HL => self.set_hl(data),
+            Registers16Bit::WZ => self.set_wz(data),
+            Registers16Bit::SP => self.set_sp(data),
+            Registers16Bit::PC => self.set_pc(data),
+        }
     }
 }
 

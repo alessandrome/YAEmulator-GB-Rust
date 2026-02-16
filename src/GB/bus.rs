@@ -24,11 +24,11 @@ impl Bus {
 }
 
 impl Bus {
-    fn read(&self, ctx: &BusContext, address: Address) -> Byte {
+    pub fn read(&self, ctx: &BusContext, address: Address) -> Byte {
         todo!()
     }
 
-    fn write(&mut self, ctx: &mut BusContext, address: Address, data: Byte) {
+    pub fn write(&mut self, ctx: &mut BusContext, address: Address, data: Byte) {
         todo!()
     }
 }
