@@ -1,3 +1,4 @@
+use crate::GB::types::address::Address;
 use std::fmt;
 use crate::{mask_flag_enum_default_impl, default_enum_u8_bit_ops};
 use super::macro_registers;
@@ -128,6 +129,57 @@ impl Registers {
     macro_registers::get_set!(w, get_w, set_w, u8);
     macro_registers::get_set!(sp, get_sp, set_sp, u16);
     macro_registers::get_set!(pc, get_pc, set_pc, u16);
+
+    #[inline]
+    pub fn get_sp_lsb(&self) -> u8 {
+        (self.sp & 0xF) as u8
+    }
+
+    #[inline]
+    pub fn set_sp_lsb(&mut self, value: u8) {
+        self.sp = (self.sp & 0xF0) | (value as u16);
+    }
+
+    #[inline]
+    pub fn get_sp_msb(&self) -> u8 {
+        (self.sp >> 8) as u8
+    }
+
+    #[inline]
+    pub fn set_sp_msb(&mut self, value: u8) {
+        self.sp = (self.sp & 0x0F) | ((value as u16) << 8);
+    }
+
+    #[inline]
+    pub fn get_pc_lsb(&self) -> u8 {
+        (self.pc & 0xF) as u8
+    }
+
+    #[inline]
+    pub fn set_pc_lsb(&mut self, value: u8) {
+        self.pc = (self.pc & 0xF0) | (value as u16);
+    }
+
+    #[inline]
+    pub fn get_pc_msb(&self) -> u8 {
+        (self.pc >> 0xF) as u8
+    }
+
+    #[inline]
+    pub fn set_pc_msb(&mut self, value: u8) {
+        self.pc = (self.pc & 0x0F) | ((value as u16) << 8);
+    }
+
+    #[inline]
+    pub fn get_sp_as_address(&self) -> Address {
+        Address(self.sp)
+    }
+
+    #[inline]
+    pub fn get_pc_as_address(&self) -> Address {
+        Address(self.pc)
+    }
+
     pub fn get_and_inc_pc(&mut self) -> u16 {
         let ret_pc = self.pc;
         self.pc += 1;
@@ -138,10 +190,10 @@ impl Registers {
         self.pc += 1;
         self.pc
     }
-    macro_registers::get_set_dual!(b, c, get_bc, set_bc);
-    macro_registers::get_set_dual!(d, e, get_de, set_de);
-    macro_registers::get_set_dual!(h, l, get_hl, set_hl);
-    macro_registers::get_set_dual!(w, z, get_wz, set_wz);  // Internal use - Immediate 16-bit Address
+    macro_registers::get_set_dual!(b, c, get_bc, get_bc_as_address, set_bc);
+    macro_registers::get_set_dual!(d, e, get_de, get_de_as_address, set_de);
+    macro_registers::get_set_dual!(h, l, get_hl, get_hl_as_address, set_hl);
+    macro_registers::get_set_dual!(w, z, get_wz, get_wz_as_address, set_wz);  // Internal use - Immediate 16-bit Address
 
     pub fn get_f(&self) -> u8 {
         self.f
@@ -153,6 +205,10 @@ impl Registers {
     pub fn get_af(&self) -> u16 {
         (self.a as u16) << 8 | self.f as u16
     }
+    pub fn get_af_as_address(&self) -> Address {
+        Address(self.get_af())
+    }
+
     pub fn set_af(&mut self, val: u16) {
         self.a = (val >> 8) as u8;
         self.f = (val & 0x00F0) as u8;
@@ -202,6 +258,54 @@ impl Registers {
             Registers16Bit::WZ => self.get_wz(),
             Registers16Bit::SP => self.get_sp(),
             Registers16Bit::PC => self.get_pc(),
+        }
+    }
+
+    pub fn get_word_lsb(&self, register: Registers16Bit) -> u8 {
+        match register {
+            Registers16Bit::AF => self.get_f(),
+            Registers16Bit::BC => self.get_c(),
+            Registers16Bit::DE => self.get_e(),
+            Registers16Bit::HL => self.get_l(),
+            Registers16Bit::WZ => self.get_z(),
+            Registers16Bit::SP => self.get_sp_lsb(),
+            Registers16Bit::PC => self.get_pc_lsb(),
+        }
+    }
+
+    pub fn get_word_msb(&self, register: Registers16Bit) -> u8 {
+        match register {
+            Registers16Bit::AF => self.get_a(),
+            Registers16Bit::BC => self.get_b(),
+            Registers16Bit::DE => self.get_d(),
+            Registers16Bit::HL => self.get_h(),
+            Registers16Bit::WZ => self.get_w(),
+            Registers16Bit::SP => self.get_sp_msb(),
+            Registers16Bit::PC => self.get_pc_msb(),
+        }
+    }
+
+    pub fn set_word_lsb(&mut self, register: Registers16Bit, value: u8) {
+        match register {
+            Registers16Bit::AF => self.set_f(value),
+            Registers16Bit::BC => self.set_c(value),
+            Registers16Bit::DE => self.set_e(value),
+            Registers16Bit::HL => self.set_l(value),
+            Registers16Bit::WZ => self.set_z(value),
+            Registers16Bit::SP => self.set_sp_lsb(value),
+            Registers16Bit::PC => self.set_pc_lsb(value),
+        }
+    }
+
+    pub fn set_word_msb(&mut self, register: Registers16Bit, value: u8) {
+        match register {
+            Registers16Bit::AF => self.set_a(value),
+            Registers16Bit::BC => self.set_b(value),
+            Registers16Bit::DE => self.set_d(value),
+            Registers16Bit::HL => self.set_h(value),
+            Registers16Bit::WZ => self.set_w(value),
+            Registers16Bit::SP => self.set_sp_msb(value),
+            Registers16Bit::PC => self.set_pc_msb(value),
         }
     }
 

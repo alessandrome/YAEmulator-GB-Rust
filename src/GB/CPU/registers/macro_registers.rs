@@ -14,10 +14,15 @@ macro_rules! get_set {
 
 #[macro_export]
 macro_rules! get_set_dual {
-    ($reg1:ident, $reg2:ident, $get_name:ident, $set_name:ident) => {
+    ($reg1:ident, $reg2:ident, $get_name:ident, $get_name_as_address:ident, $set_name:ident) => {
         #[inline]
         pub fn $get_name(&self) -> u16 {
             (self.$reg1 as u16) << 8 | self.$reg2 as u16
+        }
+
+        #[inline]
+        pub fn $get_name_as_address(&self) -> Address {
+            Address(self.$get_name())
         }
 
         #[inline]
