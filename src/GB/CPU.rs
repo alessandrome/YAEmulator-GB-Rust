@@ -1,7 +1,7 @@
 mod instructions;
 pub mod registers;
 
-use crate::GB::bus::BusDevice;
+use crate::GB::bus::{Bus, BusContext, BusDevice};
 use crate::GB::memory::interrupts::InterruptFlagsMask;
 use crate::GB::memory::{self, addresses, interrupts, USER_PROGRAM_ADDRESS};
 use crate::GB::types::{address::Address, Byte};
@@ -103,7 +103,7 @@ pub struct CPU<'a> {
     pub interrupt_type: InterruptFlagsMask,
 }
 
-impl CPU {
+impl CPU<'_> {
     pub const CPU_FREQUENCY_CLOCK: u32 = GB::SYSTEM_FREQUENCY_CLOCK / 4;
 
     pub fn new() -> Self {
@@ -126,7 +126,7 @@ impl CPU {
     /**
     Step 1 T-Cycle (4 T-Cycle = 1 M-Cycle)
     */
-    pub fn tick(&mut self, bus: &bus::Bus, ctx: &mut bus::BusContext) {
+    pub fn tick(&mut self, bus: &mut bus::Bus, ctx: &mut bus::BusContext) {
         self.micro_code_t_cycle = (self.micro_code_t_cycle + 1) & 0b0000_0011;  // Just a Bit version of (value = value % 4)
         if self.micro_code_t_cycle == 0 {
             self.m_cycle_tick(bus, ctx, self.micro_code);
@@ -153,12 +153,12 @@ impl CPU {
     }
 
     pub fn load(&mut self, data: &Vec<u8>) {
-        let mut addr: u16 = 0;
-        for byte in data {
-            self.write_memory(USER_PROGRAM_ADDRESS as u16 + addr, *byte);
-            addr += 1;
-        }
-        self.registers.set_pc(USER_PROGRAM_ADDRESS as u16);
+        // let mut addr: u16 = 0;
+        // for byte in data {
+        //     self.write_memory(USER_PROGRAM_ADDRESS as u16 + addr, *byte);
+        //     addr += 1;
+        // }
+        // self.registers.set_pc(USER_PROGRAM_ADDRESS as u16);
     }
 
     /// Check and jump to requested interrupt address after take a snapshot of status on stack.
@@ -240,57 +240,93 @@ impl CPU {
         cycles
     }
 
-    /*
+    /**
        CPU Push 1-byte using SP register (to not confuse with instruction PUSH r16, that PUSH in a 2-bytes value from a double-register)
     */
-    pub fn push(&mut self, byte: u8) {
-        self.write_memory(self.registers.get_sp(), byte);
+    pub fn push(&mut self, bus: &mut Bus, ctx: &mut BusContext, byte: u8) {
+        bus.write(ctx, self.registers.get_sp_as_address(), byte);
         self.registers.set_sp(self.registers.get_sp() - 1);
     }
 
-    /*
+    /**
        CPU Pop 1-byte using SP register (to not confuse with instruction POP r16, that pop out a 2-bytes value to put in a double-register)
     */
-    pub fn pop(&mut self) -> u8 {
+    pub fn pop(&mut self, bus: &mut Bus, ctx: &mut BusContext) -> Byte {
         self.registers.set_sp(self.registers.get_sp() + 1);
-        self.read_memory(self.registers.get_sp())
+        bus.read(ctx, self.registers.get_sp_as_address())
     }
 
-    fn m_cycle_tick(&mut self, bus: &bus::Bus, ctx: &mut bus::BusContext, m_cycle_op: MCycleOp) {
+    fn m_cycle_tick(&mut self, bus: &mut bus::Bus, ctx: &mut bus::BusContext, m_cycle_op: MCycleOp) {
+        let flow: MicroFlow;
         match m_cycle_op {
             MCycleOp::Main(micro_op) => {
-                self.micro_tick(bus, ctx, micro_op);
+                flow = self.micro_tick(bus, ctx, micro_op);
             }
             MCycleOp::End(end_micro_op) => {
                 self.micro_tick(bus, ctx, end_micro_op);
-                self.m_cycle_tick(bus, ctx, MCycleOp::None);
                 // TODO: interrupt checks
-                self.micro_code_index = 0;
+                flow = MicroFlow::Jump(0);
                 (self.instruction, self.opcode) = self.fetch_and_decode(bus, ctx, false);
-                self.micro_code = self.instruction.unwrap().micro_ops[self.micro_code_index];
             }
             MCycleOp::None => {
-                self.micro_code_index = 0;
+                flow = MicroFlow::Jump(0);
                 (self.instruction, self.opcode) = self.fetch_and_decode(bus, ctx, false);
+            }
+        }
+
+        match flow {
+            MicroFlow::Next => {
+                // Instruction is the same - go to next microOp
+                self.micro_code_index += 1;
+                self.micro_code = self.instruction.unwrap().micro_ops[self.micro_code_index];
+            }
+            MicroFlow::Jump(to) => {
+                // Same instruction - change flow of microOp (useful for conditional instructions like JP)
+                self.micro_code_index = to;
+                self.micro_code = self.instruction.unwrap().micro_ops[self.micro_code_index];
+            }
+            MicroFlow::PrefixCB => {
+                // CB Prefix Reset the microcode flow and fetch/decode next byte with CB optable
+                self.micro_code_index = 0;
+                (self.instruction, self.opcode) = self.fetch_and_decode(bus, ctx, true);
                 self.micro_code = self.instruction.unwrap().micro_ops[self.micro_code_index];
             }
         }
     }
 
-    fn micro_tick(&mut self, bus: &bus::Bus, ctx: &mut bus::BusContext, micro_op: MicroOp) -> MicroFlow {
+    fn micro_tick(&mut self, bus: &mut bus::Bus, ctx: &mut bus::BusContext, micro_op: MicroOp) -> MicroFlow {
         let mut micro_flow = MicroFlow::Next;
         match micro_op {
             MicroOp::Fetch8(lhs) => {
-                self.registers.set_byte(lhs, self.fetch_next(bus, ctx));
+                let fetched = self.fetch_next(bus, ctx);
+                self.registers.set_byte(lhs, fetched);
             }
-            MicroOp::Ld8(lhs, rhs) => {todo!()}
-            MicroOp::Ld16(lhs, rhs) => {todo!()}
-            MicroOp::Read8(lhs, rhs) => {todo!()}
-            MicroOp::Write8(lhs, rhs) => {todo!()}
-            MicroOp::Inc8(lhs) => {todo!()}
-            MicroOp::Dec8(lhs) => {todo!()}
-            MicroOp::Inc16(lhs) => {todo!()}
-            MicroOp::Dec16(lhs) => {todo!()}
+            MicroOp::Ld8(lhs, rhs) => {
+                let moved = self.registers.get_byte(rhs);
+                self.registers.set_byte(lhs, moved);
+            }
+            MicroOp::Ld16(lhs, rhs) => {
+                let moved = self.registers.get_word(rhs);
+                self.registers.set_word(lhs, moved);
+            }
+            MicroOp::Read8(lhs, rhs) => {
+                let addr = Address(self.registers.get_word(rhs));
+                let value = bus.read(ctx, addr);
+                self.registers.set_byte(lhs, value);
+            }
+            MicroOp::Write8(lhs, rhs) => {
+                let addr = Address(self.registers.get_word(lhs));
+                let value = self.registers.get_byte(rhs);
+                bus.write(ctx, addr, value);
+            }
+            MicroOp::Inc16(lhs) => {
+                let word = self.registers.get_word(lhs);
+                self.registers.set_word(lhs, word.wrapping_add(1));
+            }
+            MicroOp::Dec16(lhs) => {
+                let word = self.registers.get_word(lhs);
+                self.registers.set_word(lhs, word.wrapping_sub(1));
+            }
             MicroOp::Alu(alu_op) => {
                 self.alu_operation(alu_op);
             }

@@ -62,8 +62,6 @@ pub enum MicroOp {
     Ld16(Lhs16Bit, Rhs16Bit),
     Read8(Lhs8Bit, AddressRegister),
     Write8(AddressRegister, Rhs8Bit),
-    Inc8(Rhs8Bit),
-    Dec8(Rhs8Bit),
     Inc16(Rhs16Bit),
     Dec16(Rhs16Bit),
     Alu(AluOp),
@@ -82,6 +80,6 @@ pub enum MCycleOp {
 #[derive(Debug, Clone, Copy)]
 pub enum MicroFlow {
     Next,
-    Jump(Address),
+    Jump(usize),
     PrefixCB,
 }
