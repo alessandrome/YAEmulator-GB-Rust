@@ -28,6 +28,26 @@ impl Flags {
     }
 
     #[inline]
+    pub fn z(&self) -> bool {
+        self.z
+    }
+
+    #[inline]
+    pub fn n(&self) -> bool {
+        self.n
+    }
+
+    #[inline]
+    pub fn h(&self) -> bool {
+        self.h
+    }
+
+    #[inline]
+    pub fn c(&self) -> bool {
+        self.c
+    }
+
+    #[inline]
     pub fn add_carry(lhs: u8, rhs: u8, carry: bool) -> bool {
         (lhs as u16 + rhs as u16 + carry as u16) > 0xff
     }
@@ -149,6 +169,13 @@ impl Registers {
             (self.f & 0b00100000) != 0,
             (self.f & 0b00010000) != 0,
         )
+    }
+
+    pub fn set_flags(&mut self, flags: Flags) {
+        self.set_zero_flag(flags.z);
+        self.set_negative_flag(flags.n);
+        self.set_half_carry_flag(flags.h);
+        self.set_carry_flag(flags.c);
     }
 
     pub fn get_byte(&self, register: Registers8Bit) -> u8 {

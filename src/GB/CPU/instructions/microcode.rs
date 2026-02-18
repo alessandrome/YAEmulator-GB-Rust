@@ -1,3 +1,4 @@
+use crate::GB::types::address::Address;
 use super::super::registers::core_registers::{Registers8Bit, Registers16Bit};
 
 pub type Lhs8Bit = Registers8Bit;
@@ -7,6 +8,7 @@ pub type Lhs16Bit = Registers16Bit;
 pub type Rhs16Bit = Registers16Bit;
 pub type AddressRegister = Registers16Bit;
 
+#[derive(Debug, Clone, Copy)]
 #[repr(u8)]
 pub enum ByteBit {
     Zero = 0,
@@ -19,6 +21,7 @@ pub enum ByteBit {
     Seven = 7,
 }
 
+#[derive(Debug, Clone, Copy)]
 pub enum AluOp {
     Add(Lhs8Bit, Rhs8Bit),
     Adc(Lhs8Bit, Rhs8Bit),
@@ -30,8 +33,14 @@ pub enum AluOp {
     And(Lhs8Bit, Rhs8Bit),
     Or(Lhs8Bit, Rhs8Bit),
     Xor(Lhs8Bit, Rhs8Bit),
-    Ccf(Rhs8Bit),
-    Scf(Rhs8Bit),
+    Ccf(),
+    Scf(),
+    Daa(),
+    Cpl(Rhs8Bit),
+    Rlca(),  // RL and RR for Accumulator register - Zero flags is always reset
+    Rrca(),  // RL and RR for Accumulator register - Zero flags is always reset
+    Rla(),   // RL and RR for Accumulator register - Zero flags is always reset
+    Rra(),   // RL and RR for Accumulator register - Zero flags is always reset
     Rlc(Rhs8Bit),
     Rrc(Rhs8Bit),
     Rl(Rhs8Bit),
@@ -46,6 +55,7 @@ pub enum AluOp {
     Set(ByteBit, Rhs8Bit),
 }
 
+#[derive(Debug, Clone, Copy)]
 pub enum MicroOp {
     Fetch8(Registers8Bit),
     Ld8(Lhs8Bit, Rhs8Bit),
@@ -57,6 +67,21 @@ pub enum MicroOp {
     Inc16(Rhs16Bit),
     Dec16(Rhs16Bit),
     Alu(AluOp),
+    PrefixCB,
     Idle,
-    End,
+}
+
+
+#[derive(Debug, Clone, Copy)]
+pub enum MCycleOp {
+    Main(MicroOp),
+    End(MicroOp),
+    None,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum MicroFlow {
+    Next,
+    Jump(Address),
+    PrefixCB,
 }

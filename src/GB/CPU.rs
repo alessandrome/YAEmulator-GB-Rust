@@ -1,23 +1,27 @@
-pub mod registers;
 mod instructions;
+pub mod registers;
 
-use crate::GB::{bus, GB};
-use crate::GB::memory::{self, addresses, interrupts, USER_PROGRAM_ADDRESS};
-use crate::GB::memory::interrupts::InterruptFlagsMask;
 use crate::GB::bus::BusDevice;
-use crate::GB::types::{Byte, address::Address};
+use crate::GB::memory::interrupts::InterruptFlagsMask;
+use crate::GB::memory::{self, addresses, interrupts, USER_PROGRAM_ADDRESS};
+use crate::GB::types::{address::Address, Byte};
+use crate::GB::CPU::registers::core_registers::Flags;
+use crate::GB::{bus, GB};
+use instructions::microcode::{AluOp, MicroOp, MCycleOp};
 use registers::{core_registers::Registers, interrupt_registers::InterruptRegisters};
+use crate::GB::CPU::instructions::{Instruction, InstructionMicroOpIndex};
+use crate::GB::CPU::instructions::microcode::MicroFlow;
 
 pub const DIVIDER_FREQUENCY: u64 = 16384; // Divider Update Frequency in Hz
 pub const CPU_INTERRUPT_CYCLES: u64 = 5; // Number of cycle to manage a requested Interrupt
 
 #[cfg(test)]
 mod test {
+    use crate::GB::input::GBInput;
+    use crate::GB::memory::{RAM, WRAM_ADDRESS, WRAM_SIZE};
+    use crate::GB::CPU::CPU;
     use std::cell::RefCell;
     use std::rc::Rc;
-    use crate::GB::CPU::CPU;
-    use crate::GB::input::GBInput as GBInput;
-    use crate::GB::memory::{RAM, WRAM_ADDRESS, WRAM_SIZE};
 
     #[test]
     fn cpu_new_8bit_registers() {
@@ -39,7 +43,10 @@ mod test {
         assert_eq!(cpu.registers.get_bc(), 0);
         assert_eq!(cpu.registers.get_de(), 0);
         assert_eq!(cpu.registers.get_hl(), 0);
-        assert_eq!(cpu.registers.get_sp(), (WRAM_ADDRESS + WRAM_SIZE - 1) as u16);
+        assert_eq!(
+            cpu.registers.get_sp(),
+            (WRAM_ADDRESS + WRAM_SIZE - 1) as u16
+        );
         assert_eq!(cpu.registers.get_pc(), 0);
     }
 
@@ -59,7 +66,10 @@ mod test {
         assert_eq!(cpu.registers.get_bc(), 0);
         assert_eq!(cpu.registers.get_de(), 0);
         assert_eq!(cpu.registers.get_hl(), 0);
-        assert_eq!(cpu.registers.get_sp(), (WRAM_ADDRESS + WRAM_SIZE - 1) as u16);
+        assert_eq!(
+            cpu.registers.get_sp(),
+            (WRAM_ADDRESS + WRAM_SIZE - 1) as u16
+        );
         assert_eq!(cpu.registers.get_pc(), 0);
     }
 
@@ -78,13 +88,16 @@ mod test {
     }
 }
 
-pub struct CPU {
+pub struct CPU<'a> {
     pub registers: Registers,
     pub interrupt_registers: InterruptRegisters,
-    pub ime: bool,  // Interrupt Master Enable - True if you want to enable and intercept interrupts
-    pub opcode: u8,  // Running Instruction Opcode - Known as IR (Instruction Register),
-    pub instruction_cycles: u8,  // T-Cycles counting during instruction execution
-    pub dma_transfer: bool,  // True When DMA RAM to VRAM is enabled
+    pub ime: bool, // Interrupt Master Enable - True if you want to enable and intercept interrupts
+    pub opcode: u8, // Running Instruction Opcode - Known as IR (Instruction Register),
+    pub instruction: Option<&'a Instruction>, // Instruction microcode to execute
+    pub micro_code: MCycleOp, // Instruction microcode to execute
+    pub micro_code_index: usize, // T-Cycles counting of a M-Cycle during instruction execution
+    pub micro_code_t_cycle: u8, // T-Cycles counting of a M-Cycle during instruction execution
+    pub dma_transfer: bool, // True When DMA RAM to VRAM is enabled
     pub interrupt_routine_cycle: Option<u8>,
     interrupt_routine_addr: u16,
     pub interrupt_type: InterruptFlagsMask,
@@ -95,11 +108,14 @@ impl CPU {
 
     pub fn new() -> Self {
         Self {
-            registers: registers::core_registers::Registers::new(),
-            interrupt_registers: Default::default(),
+            registers: Registers::new(),
+            interrupt_registers: InterruptRegisters::new(),
             ime: false,
             opcode: 0,
-            instruction_cycles: 0,
+            instruction: None,
+            micro_code: MCycleOp::None,
+            micro_code_index: 0,
+            micro_code_t_cycle: 0,
             dma_transfer: false,
             interrupt_routine_cycle: None,
             interrupt_routine_addr: 0xFFFF,
@@ -107,57 +123,33 @@ impl CPU {
         }
     }
 
-    pub fn fetch_next(&mut self, bus: &bus::Bus, cxt: &mut bus::BusContext) -> Byte {
-        let addr = self.registers.get_and_inc_pc();
-        bus.read(Address(addr))
+    /**
+    Step 1 T-Cycle (4 T-Cycle = 1 M-Cycle)
+    */
+    pub fn tick(&mut self, bus: &bus::Bus, ctx: &mut bus::BusContext) {
+        self.micro_code_t_cycle = (self.micro_code_t_cycle + 1) & 0b0000_0011;  // Just a Bit version of (value = value % 4)
+        if self.micro_code_t_cycle == 0 {
+            self.m_cycle_tick(bus, ctx, self.micro_code);
+        }
+        todo!()
     }
 
-    pub fn decode(opcode: u8, cb_opcode: bool) -> Option<&'static instructions::Instruction> {
+    pub fn fetch_next(&mut self, bus: &bus::Bus, ctx: &mut bus::BusContext) -> Byte {
+        let addr = self.registers.get_and_inc_pc();
+        bus.read(ctx, Address(addr))
+    }
+
+    pub fn decode(opcode: u8, cb_optable: bool) -> Option<&'static Instruction> {
         let opcode_usize = opcode as usize;
-        if cb_opcode {
+        if cb_optable {
             return instructions::OPCODES_CB[opcode_usize];
         }
         instructions::OPCODES[opcode_usize]
     }
 
-    /**
-    Step 1 T-Cycle (4 T-Cycle = 1 M-Cycle)
-    */
-    pub fn tick(bus: &bus::Bus, ctx: &mut bus::BusContext) {
-        todo!()
-    }
-
-    pub fn execute_next(&mut self) -> u64 {
-        let mut cycles: u64 = 1;
-        match self.interrupt_routine_cycle {
-            Some(_) => {
-                cycles = self.interrupt_routine();
-            }
-            None => {
-                if self.left_cycles == 0 {
-                    let cb_subset = self.opcode == 0xCB;
-                    self.opcode = self.fetch_next();
-                    let instruction = Self::decode(self.opcode, cb_subset);
-                    match (instruction) {
-                        Some(ins) => {
-                            cycles = (ins.execute)(&ins, self);
-                        }
-                        None => {
-                            println!("UNKNOWN Opcode '{:#04x}'", self.opcode);
-                        }
-                    }
-                    self.left_cycles = cycles;
-                }
-            }
-        }
-        self.left_cycles -= 1;
-        if self.left_cycles == 0 {
-            if self.interrupt().0 {
-                self.left_cycles = CPU_INTERRUPT_CYCLES;
-            }
-        }
-        self.update_timers(1);
-        1
+    pub fn fetch_and_decode(&mut self, bus: &bus::Bus, ctx: &mut bus::BusContext, cb_optable: bool) -> (Option<&'static Instruction>, Byte) {
+        let opcode = self.fetch_next(bus, ctx);
+        (Self::decode(opcode, cb_optable), opcode)
     }
 
     pub fn load(&mut self, data: &Vec<u8>) {
@@ -176,7 +168,8 @@ impl CPU {
         let mut interrupt_found = false;
         if self.ime {
             let flags = interrupts::Interrupts::new(self.read_memory(memory::registers::IF));
-            let enabled_flags = interrupts::Interrupts::new(self.read_memory(memory::registers::IE));
+            let enabled_flags =
+                interrupts::Interrupts::new(self.read_memory(memory::registers::IE));
             if enabled_flags.v_blank && flags.v_blank {
                 // Bit 0
                 self.interrupt_routine_addr = memory::interrupts::INTERRUPT_VBLANK_ADDR;
@@ -198,13 +191,19 @@ impl CPU {
                 self.interrupt_routine_addr = memory::interrupts::INTERRUPT_JOYPAD_ADDR;
                 self.interrupt_type = InterruptFlagsMask::JoyPad;
             }
-            if self.interrupt_routine_addr < 0x70 /* Arbitrary greater than max int addr */ {
+            if self.interrupt_routine_addr < 0x70
+            /* Arbitrary greater than max int addr */
+            {
                 self.ime = false;
                 self.interrupt_routine_cycle = Some(0);
                 interrupt_found = true;
             }
         }
-        (interrupt_found, self.interrupt_type, self.interrupt_routine_cycle)
+        (
+            interrupt_found,
+            self.interrupt_type,
+            self.interrupt_routine_cycle,
+        )
     }
 
     /// CPU should run this only when "interrupt_routine_cycle" is not None. Every service routine last 5 cycles.
@@ -223,7 +222,10 @@ impl CPU {
             v if v >= 4 => {
                 self.registers.set_pc(self.interrupt_routine_addr);
                 let if_register = self.memory.borrow().read(addresses::interrupt::IF as u16);
-                self.memory.borrow_mut().write(addresses::interrupt::IF as u16, if_register & !self.interrupt_type);
+                self.memory.borrow_mut().write(
+                    addresses::interrupt::IF as u16,
+                    if_register & !self.interrupt_type,
+                );
                 self.interrupt_routine_cycle = None;
                 self.interrupt_routine_addr = 0xFFFF;
             }
@@ -231,84 +233,427 @@ impl CPU {
         }
         match self.interrupt_routine_cycle {
             None => {}
-            _ => { self.interrupt_routine_cycle = Some(routine_cycle + 1); }
+            _ => {
+                self.interrupt_routine_cycle = Some(routine_cycle + 1);
+            }
         }
         cycles
     }
 
     /*
-        CPU Push 1-byte using SP register (to not confuse with instruction PUSH r16, that PUSH in a 2-bytes value from a double-register)
-     */
+       CPU Push 1-byte using SP register (to not confuse with instruction PUSH r16, that PUSH in a 2-bytes value from a double-register)
+    */
     pub fn push(&mut self, byte: u8) {
         self.write_memory(self.registers.get_sp(), byte);
         self.registers.set_sp(self.registers.get_sp() - 1);
     }
 
     /*
-        CPU Pop 1-byte using SP register (to not confuse with instruction POP r16, that pop out a 2-bytes value to put in a double-register)
-     */
+       CPU Pop 1-byte using SP register (to not confuse with instruction POP r16, that pop out a 2-bytes value to put in a double-register)
+    */
     pub fn pop(&mut self) -> u8 {
         self.registers.set_sp(self.registers.get_sp() + 1);
         self.read_memory(self.registers.get_sp())
     }
 
-    /// Update the timer DIV and TIMA based on cycle count. Enabled IF Timer flag when TIMA overflows.
-    pub fn update_timers(&mut self, cycles: u8) {
-        let mut memory_mut = self.memory.borrow_mut();
-        self.div_timer_cycles += 1;
-        if (self.div_timer_cycles % constants::M64_CLOCK_CYCLES) == 0 {
-            let (new_div, div_overflow) = memory_mut.read(memory::registers::DIV).overflowing_add(cycles);
-            memory_mut.write(memory::registers::DIV, new_div);
-            self.div_timer_cycles = 0;
+    fn m_cycle_tick(&mut self, bus: &bus::Bus, ctx: &mut bus::BusContext, m_cycle_op: MCycleOp) {
+        match m_cycle_op {
+            MCycleOp::Main(micro_op) => {
+                self.micro_tick(bus, ctx, micro_op);
+            }
+            MCycleOp::End(end_micro_op) => {
+                self.micro_tick(bus, ctx, end_micro_op);
+                self.m_cycle_tick(bus, ctx, MCycleOp::None);
+                // TODO: interrupt checks
+                self.micro_code_index = 0;
+                (self.instruction, self.opcode) = self.fetch_and_decode(bus, ctx, false);
+                self.micro_code = self.instruction.unwrap().micro_ops[self.micro_code_index];
+            }
+            MCycleOp::None => {
+                self.micro_code_index = 0;
+                (self.instruction, self.opcode) = self.fetch_and_decode(bus, ctx, false);
+                self.micro_code = self.instruction.unwrap().micro_ops[self.micro_code_index];
+            }
         }
+    }
 
-        let tac = memory_mut.read(memory::registers::TAC);
-        if (tac & constants::TACMask::Enabled) != 0 {
-            if !self.timer_enabled {
-                // Timer has just been re-enabled, resetting timer cycles count
-                self.timer_cycles = 0;
-                self.timer_enabled = true;
+    fn micro_tick(&mut self, bus: &bus::Bus, ctx: &mut bus::BusContext, micro_op: MicroOp) -> MicroFlow {
+        let mut micro_flow = MicroFlow::Next;
+        match micro_op {
+            MicroOp::Fetch8(lhs) => {
+                self.registers.set_byte(lhs, self.fetch_next(bus, ctx));
             }
-            let mut mode_cycles: u64 = 0;
-            match (tac & constants::TACMask::TimerClock) {
-                constants::M256_CLOCK_MODE => { mode_cycles = constants::M256_CLOCK_CYCLES; }
-                constants::M4_CLOCK_MODE => { mode_cycles = constants::M4_CLOCK_CYCLES; }
-                constants::M16_CLOCK_MODE => { mode_cycles = constants::M16_CLOCK_CYCLES; }
-                _ => { mode_cycles = constants::M64_CLOCK_CYCLES; }
+            MicroOp::Ld8(lhs, rhs) => {todo!()}
+            MicroOp::Ld16(lhs, rhs) => {todo!()}
+            MicroOp::Read8(lhs, rhs) => {todo!()}
+            MicroOp::Write8(lhs, rhs) => {todo!()}
+            MicroOp::Inc8(lhs) => {todo!()}
+            MicroOp::Dec8(lhs) => {todo!()}
+            MicroOp::Inc16(lhs) => {todo!()}
+            MicroOp::Dec16(lhs) => {todo!()}
+            MicroOp::Alu(alu_op) => {
+                self.alu_operation(alu_op);
             }
-            self.timer_cycles += 1;
+            MicroOp::PrefixCB => {
+                micro_flow = MicroFlow::PrefixCB;
+                (self.instruction, self.opcode) = self.fetch_and_decode(bus, ctx, false);
+                self.micro_code = self.instruction.unwrap().micro_ops[self.micro_code_index];
 
-            // Increment and managed TIMA overflow
-            for _ in 0..(self.timer_cycles / mode_cycles) {
-                let (new_tima, overflowed) = memory_mut.read(memory::registers::TIMA).overflowing_add(1);
-                if overflowed {
-                    let tma = memory_mut.read(memory::registers::TMA);
-                    memory_mut.write(memory::registers::TIMA, tma);
-                    let interrupts = memory_mut.read(memory::registers::IF);
-                    memory_mut.write(memory::registers::IF, interrupts | InterruptFlagsMask::Timer);
-                } else {
-                    memory_mut.write(memory::registers::TIMA, new_tima);
-                }
             }
-        } else {
-            self.timer_enabled = false;
+            MicroOp::Idle => {}
+        }
+        micro_flow
+    }
+
+    fn alu_operation(&mut self, op: AluOp) {
+        let flags = self.registers.get_flags();
+        match op {
+            AluOp::Add(lhs, rhs) => {
+                let old_lhs = self.registers.get_byte(lhs);
+                let rhs = self.registers.get_byte(rhs);
+                let new_lhs = old_lhs.wrapping_add(rhs);
+                self.registers.set_byte(lhs, new_lhs);
+                self.registers.set_flags(Flags::new(
+                    new_lhs == 0,
+                    false,
+                    Flags::add_half_carry(old_lhs, rhs, false),
+                    Flags::add_carry(old_lhs, rhs, false),
+                ));
+            }
+            AluOp::Adc(lhs, rhs) => {
+                let old_lhs = self.registers.get_byte(lhs);
+                let rhs = self.registers.get_byte(rhs);
+                let carry = self.registers.get_carry_flag();
+                let new_lhs = old_lhs.wrapping_add(rhs).wrapping_add(carry.into());
+                self.registers.set_byte(lhs, new_lhs);
+                self.registers.set_flags(Flags::new(
+                    new_lhs == 0,
+                    false,
+                    Flags::add_half_carry(old_lhs, rhs, carry),
+                    Flags::add_carry(old_lhs, rhs, carry),
+                ));
+            }
+            AluOp::Sub(lhs, rhs) => {
+                let old_lhs = self.registers.get_byte(lhs);
+                let rhs = self.registers.get_byte(rhs);
+                let new_lhs = old_lhs.wrapping_sub(rhs);
+                self.registers.set_byte(lhs, new_lhs);
+                self.registers.set_flags(Flags::new(
+                    new_lhs == 0,
+                    true,
+                    Flags::add_half_carry(old_lhs, rhs, false),
+                    Flags::add_carry(old_lhs, rhs, false),
+                ));
+            }
+            AluOp::Sbc(lhs, rhs) => {
+                let old_lhs = self.registers.get_byte(lhs);
+                let rhs = self.registers.get_byte(rhs);
+                let carry = self.registers.get_carry_flag();
+                let new_lhs = old_lhs.wrapping_sub(rhs).wrapping_sub(carry.into());
+                self.registers.set_byte(lhs, new_lhs);
+                self.registers.set_flags(Flags::new(
+                    new_lhs == 0,
+                    true,
+                    Flags::add_half_carry(old_lhs, rhs, carry),
+                    Flags::add_carry(old_lhs, rhs, carry),
+                ));
+            }
+            AluOp::Cp(lhs, rhs) => {
+                let old_lhs = self.registers.get_byte(lhs);
+                let rhs = self.registers.get_byte(rhs);
+                let new_lhs = old_lhs.wrapping_sub(rhs);
+                // CP update only Flags
+                self.registers.set_flags(Flags::new(
+                    new_lhs == 0,
+                    true,
+                    Flags::add_half_carry(old_lhs, rhs, false),
+                    Flags::add_carry(old_lhs, rhs, false),
+                ));
+            }
+            AluOp::Inc(rhs) => {
+                let old_lhs = self.registers.get_byte(rhs);
+                let new_lhs = old_lhs.wrapping_add(1);
+                self.registers.set_byte(rhs, new_lhs);
+                self.registers.set_flags(Flags::new(
+                    new_lhs == 0,
+                    false,
+                    flags.c(),
+                    Flags::add_half_carry(old_lhs, 1, false),
+                ));
+            }
+            AluOp::Dec(rhs) => {
+                let old_lhs = self.registers.get_byte(rhs);
+                let new_lhs = old_lhs.wrapping_add(1);
+                self.registers.set_byte(rhs, new_lhs);
+                self.registers.set_flags(Flags::new(
+                    new_lhs == 0,
+                    true,
+                    flags.c(),
+                    Flags::add_half_carry(old_lhs, 1, false),
+                ));
+            }
+            AluOp::And(lhs, rhs) => {
+                let old_lhs = self.registers.get_byte(lhs);
+                let rhs = self.registers.get_byte(rhs);
+                let new_lhs = old_lhs & rhs;
+                // CP update only Flags
+                self.registers.set_flags(Flags::new(
+                    new_lhs == 0,
+                    false,
+                    true,
+                    false,
+                ));
+            }
+            AluOp::Or(lhs, rhs) => {
+                let old_lhs = self.registers.get_byte(lhs);
+                let rhs = self.registers.get_byte(rhs);
+                let new_lhs = old_lhs | rhs;
+                // CP update only Flags
+                self.registers.set_flags(Flags::new(
+                    new_lhs == 0,
+                    false,
+                    false,
+                    false,
+                ));
+            }
+            AluOp::Xor(lhs, rhs) => {
+                let old_lhs = self.registers.get_byte(lhs);
+                let rhs = self.registers.get_byte(rhs);
+                let new_lhs = old_lhs ^ rhs;
+                // CP update only Flags
+                self.registers.set_flags(Flags::new(
+                    new_lhs == 0,
+                    false,
+                    false,
+                    false,
+                ));
+            }
+            AluOp::Ccf() => {
+                self.registers.set_flags(Flags::new(
+                    flags.z(),
+                    false,
+                    false,
+                    !flags.c(),
+                ));
+            }
+            AluOp::Scf() => {
+                self.registers.set_flags(Flags::new(
+                    flags.z(),
+                    false,
+                    false,
+                    true,
+                ));
+            }
+            AluOp::Daa() => {
+                todo!();
+                self.registers.set_flags(Flags::new(
+                    todo!(),
+                    flags.n(),
+                    true,
+                    todo!(),
+                ));
+            }
+            AluOp::Cpl(rhs) => {
+                let old_lhs = self.registers.get_byte(rhs);
+                let new_lhs = !old_lhs;
+                self.registers.set_byte(rhs, new_lhs);
+                self.registers.set_flags(Flags::new(
+                    flags.z(),
+                    true,
+                    true,
+                    flags.c(),
+                ));
+            }
+            AluOp::Rlca() => {
+                let old_lhs = self.registers.get_a();
+                let new_lhs = old_lhs.rotate_left(1);
+                self.registers.set_a(new_lhs);
+                self.registers.set_flags(Flags::new(
+                    false,
+                    false,
+                    false,
+                    (new_lhs & 1) != 0,
+                ));
+            }
+            AluOp::Rrca() => {
+                let old_lhs = self.registers.get_a();
+                let new_lhs = old_lhs.rotate_right(1);
+                self.registers.set_a(new_lhs);
+                self.registers.set_flags(Flags::new(
+                    false,
+                    false,
+                    false,
+                    (new_lhs & (1 << 7)) != 0,
+                ));
+            }
+            AluOp::Rla() => {
+                let old_lhs = self.registers.get_a();
+                let carry = (old_lhs & (1 << 7)) != 0;
+                let new_lhs = (old_lhs << 1) | flags.c() as u8;
+                self.registers.set_a(new_lhs);
+                self.registers.set_flags(Flags::new(
+                    false,
+                    false,
+                    false,
+                    carry,
+                ));
+            }
+            AluOp::Rra() => {
+                let old_lhs = self.registers.get_a();
+                let carry = (old_lhs & 1) != 0;
+                let new_lhs = (old_lhs >> 1) | ((flags.c() as u8) << 7);
+                self.registers.set_a(new_lhs);
+                self.registers.set_flags(Flags::new(
+                    false,
+                    false,
+                    false,
+                    carry,
+                ));}
+            AluOp::Rlc(rhs) => {
+                let old_lhs = self.registers.get_byte(rhs);
+                let new_lhs = old_lhs.rotate_left(1);
+                self.registers.set_byte(rhs, new_lhs);
+                self.registers.set_flags(Flags::new(
+                    new_lhs == 0,
+                    false,
+                    false,
+                    (new_lhs & 1) != 0,
+                ));
+            }
+            AluOp::Rrc(rhs) => {
+                let old_lhs = self.registers.get_byte(rhs);
+                let new_lhs = old_lhs.rotate_right(1);
+                self.registers.set_byte(rhs, new_lhs);
+                self.registers.set_flags(Flags::new(
+                    new_lhs == 0,
+                    false,
+                    false,
+                    (new_lhs & (1 << 7)) != 0,
+                ));
+            }
+            AluOp::Rl(rhs) => {
+                let old_lhs = self.registers.get_byte(rhs);
+                let carry = (old_lhs & (1 << 7)) != 0;
+                let new_lhs = (old_lhs << 1) | flags.c() as u8;
+                self.registers.set_byte(rhs, new_lhs);
+                self.registers.set_flags(Flags::new(
+                    new_lhs == 0,
+                    false,
+                    false,
+                    carry,
+                ));
+            }
+            AluOp::Rr(rhs) => {
+                let old_lhs = self.registers.get_byte(rhs);
+                let carry = (old_lhs & 1) != 0;
+                let new_lhs = (old_lhs >> 1) | ((flags.c() as u8) << 7);
+                self.registers.set_byte(rhs, new_lhs);
+                self.registers.set_flags(Flags::new(
+                    new_lhs == 0,
+                    false,
+                    false,
+                    carry,
+                ));}
+            AluOp::Sla(rhs) => {
+                let old_lhs = self.registers.get_byte(rhs);
+                let carry = (old_lhs & (1 << 7)) != 0;
+                let new_lhs = old_lhs << 1;
+                self.registers.set_byte(rhs, new_lhs);
+                self.registers.set_flags(Flags::new(
+                    new_lhs == 0,
+                    false,
+                    false,
+                    carry,
+                ));
+            }
+            AluOp::Sra(rhs) => {
+                let old_lhs = self.registers.get_byte(rhs);
+                let carry = (old_lhs & 1) != 0;
+                let new_lhs = (old_lhs >> 1) | (old_lhs & (1 << 7));
+                self.registers.set_byte(rhs, new_lhs);
+                self.registers.set_flags(Flags::new(
+                    new_lhs == 0,
+                    false,
+                    false,
+                    carry,
+                ));
+            }
+            AluOp::Sll(rhs) => {
+                let old_lhs = self.registers.get_byte(rhs);
+                let carry = (old_lhs & (1 << 7)) != 0;
+                let new_lhs = (old_lhs << 1) | (old_lhs & 1);
+                self.registers.set_byte(rhs, new_lhs);
+                self.registers.set_flags(Flags::new(
+                    new_lhs == 0,
+                    false,
+                    false,
+                    carry,
+                ));
+            }
+            AluOp::Srl(rhs) => {
+                let old_lhs = self.registers.get_byte(rhs);
+                let carry = (old_lhs & 1) != 0;
+                let new_lhs = old_lhs >> 1;
+                self.registers.set_byte(rhs, new_lhs);
+                self.registers.set_flags(Flags::new(
+                    new_lhs == 0,
+                    false,
+                    false,
+                    carry,
+                ));
+            }
+            AluOp::Swap(rhs) => {
+                let old_lhs = self.registers.get_byte(rhs);
+                let new_lhs = ((old_lhs & 0x0F) << 4) | ((old_lhs & 0xF0) >> 4);
+                self.registers.set_byte(rhs, new_lhs);
+                self.registers.set_flags(Flags::new(
+                    new_lhs == 0,
+                    false,
+                    false,
+                    false,
+                ));
+            }
+            AluOp::Bit(bit, rhs) => {
+                let bit_on = (self.registers.get_byte(rhs) & (1 << bit as u8)) != 0;
+                self.registers.set_flags(Flags::new(
+                    !bit_on,
+                    false,
+                    true,
+                    flags.c(),
+                ));
+            }
+            AluOp::Res(bit, rhs) => {
+                self.registers.set_byte(
+                    rhs,
+                    self.registers.get_byte(rhs) & !(1 << bit as u8),
+                );
+            }
+            AluOp::Set(bit, rhs) => {
+                self.registers.set_byte(
+                    rhs,
+                    self.registers.get_byte(rhs) | (1 << bit as u8),
+                );
+            }
         }
     }
 }
 
-impl BusDevice for CPU {
+impl BusDevice for CPU<'_> {
     fn read(&self, address: Address) -> Byte {
         match address {
-            InterruptRegisters::IE_ADDRESS | InterruptRegisters::IF_ADDRESS => self.interrupt_registers.read(address),
+            InterruptRegisters::IE_ADDRESS | InterruptRegisters::IF_ADDRESS => {
+                self.interrupt_registers.read(address)
+            }
             _ => unreachable!(),
         }
     }
 
     fn write(&mut self, address: Address, data: Byte) {
         match address {
-            InterruptRegisters::IE_ADDRESS | InterruptRegisters::IF_ADDRESS => self.interrupt_registers.write(address, data),
+            InterruptRegisters::IE_ADDRESS | InterruptRegisters::IF_ADDRESS => {
+                self.interrupt_registers.write(address, data)
+            }
             _ => unreachable!(),
         }
     }
-}
 }

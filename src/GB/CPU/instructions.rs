@@ -1,11 +1,14 @@
 #[cfg(test)]
 mod test;
-mod microcode;
+pub mod microcode;
 
 use crate::GB::CPU::CPU;
 use crate::GB::debug_print;
-use crate::GB::CPU::registers::core::{FlagBits, Flags};
+use super::registers::core_registers::{FlagBits, Flags};
+use microcode::{*};
 use crate::GB::memory;
+
+pub type InstructionMicroOpIndex = usize;
 
 #[derive(Debug, Clone)]
 pub struct Instruction {
@@ -14,7 +17,7 @@ pub struct Instruction {
     pub cycles: u8,
     pub size: u8,
     pub flags: &'static [FlagBits],
-    pub execute: [fn(&Instruction, &mut CPU) -> u64], // Return number on M-Cycles needed to execute
+    pub micro_ops: &'static [MCycleOp], // List of micro-ops to execute in 1 M-Cycle each
 }
 
 impl Instruction {
@@ -83,10 +86,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            // NOP Do nothing
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Idle),
+        ],
     });
     opcodes[0x01] = Some(&Instruction {
         opcode: 0x01,
@@ -94,14 +96,11 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 3,
         size: 3,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let byte_1 = cpu.fetch_next();
-            let byte_2 = cpu.fetch_next();
-            let mut dual_byte = byte_1 as u16 & 0xFF;
-            dual_byte = dual_byte | (byte_2 as u16) << 8;
-            cpu.registers.set_bc(dual_byte);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::Main(MicroOp::Fetch8(Lhs8Bit::Z)), // lsb
+            MCycleOp::Main(MicroOp::Fetch8(Lhs8Bit::W)), // MSB
+            MCycleOp::End(MicroOp::Ld16(Lhs16Bit::BC, Rhs16Bit::WZ)),
+        ],
     });
     opcodes[0x02] = Some(&Instruction {
         opcode: 0x02,
@@ -109,13 +108,10 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 2,
         size: 1,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.write_memory(cpu.registers.get_bc(), cpu.registers.get_a());
-            if cpu.registers.get_bc() == memory::registers::DMA {
-                cpu.dma_transfer = true;
-            }
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::Main(MicroOp::Write8(AddressRegister::BC,Rhs8Bit::A)),
+            MCycleOp::End(MicroOp::Idle), // Simulating M-Cycle to reset Address Buffer to PC
+        ],
     });
     opcodes[0x03] = Some(&Instruction {
         opcode: 0x03,
