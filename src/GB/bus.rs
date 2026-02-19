@@ -7,12 +7,14 @@ use crate::GB::CPU::CPU;
 use crate::GB::PPU::PPU;
 use super::timer::TimerRegisters;
 pub(crate) use bus_device::{BusDevice, MmioDevice, MemoryDevice};
+use crate::GB::DMA::DMA;
 use crate::GB::types::address::Address;
 use crate::GB::types::Byte;
 
 pub struct BusContext<'a> {
     // timer: &'a mut TimerRegisters,
     pub apu: &'a mut APU,
+    pub dma: &'a mut DMA,
 }
 
 pub struct Bus {}

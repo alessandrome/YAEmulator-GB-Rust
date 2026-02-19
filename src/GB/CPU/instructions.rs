@@ -78,22 +78,80 @@ const fn daa(mut a: u8, mut flags: u8) -> (u8, u8) {
     (a, flags)
 }
 
-const fn create_interrupt_instruction(int_name: &'static str, jp_address: u8) -> Instruction {
-    Instruction {
-        opcode: 0x00, // Not important, interrupt routine hasn't an opcode
-        name: int_name,
-        cycles: 5,
-        size: 0,
-        flags: &[],
-        micro_ops: &[
-            MCycleOp::Main(MicroOp::Idle),
-            MCycleOp::Main(MicroOp::Idle),
-            MCycleOp::Main(MicroOp::Push16msb(Rhs16Bit::PC)),
-            MCycleOp::Main(MicroOp::Push16lsb(Rhs16Bit::PC)),
-            MCycleOp::End(Micro)
-        ],
-    }
-}
+const INTERRUPT_VBLANK: Instruction = Instruction {
+    opcode: 0x00, // Not important, interrupt routine hasn't an opcode
+    name: "Interrupt - VBlank",
+    cycles: 5,
+    size: 0,
+    flags: &[],
+    micro_ops: &[
+        MCycleOp::Main(MicroOp::Idle),
+        MCycleOp::Main(MicroOp::Idle),
+        MCycleOp::Main(MicroOp::Push16msb(Rhs16Bit::PC)),
+        MCycleOp::Main(MicroOp::Push16lsb(Rhs16Bit::PC)),
+        MCycleOp::End(MicroOp::JumpVector(VectorAddress::VBlank)),
+    ],
+};
+
+const INTERRUPT_STAT: Instruction = Instruction {
+    opcode: 0x00, // Not important, interrupt routine hasn't an opcode
+    name: "Interrupt - STAT",
+    cycles: 5,
+    size: 0,
+    flags: &[],
+    micro_ops: &[
+        MCycleOp::Main(MicroOp::Idle),
+        MCycleOp::Main(MicroOp::Idle),
+        MCycleOp::Main(MicroOp::Push16msb(Rhs16Bit::PC)),
+        MCycleOp::Main(MicroOp::Push16lsb(Rhs16Bit::PC)),
+        MCycleOp::End(MicroOp::JumpVector(VectorAddress::STAT)),
+    ],
+};
+
+const INTERRUPT_TIMER: Instruction = Instruction {
+    opcode: 0x00, // Not important, interrupt routine hasn't an opcode
+    name: "Interrupt - Timer",
+    cycles: 5,
+    size: 0,
+    flags: &[],
+    micro_ops: &[
+        MCycleOp::Main(MicroOp::Idle),
+        MCycleOp::Main(MicroOp::Idle),
+        MCycleOp::Main(MicroOp::Push16msb(Rhs16Bit::PC)),
+        MCycleOp::Main(MicroOp::Push16lsb(Rhs16Bit::PC)),
+        MCycleOp::End(MicroOp::JumpVector(VectorAddress::Timer)),
+    ],
+};
+
+const INTERRUPT_SERIAL: Instruction = Instruction {
+    opcode: 0x00, // Not important, interrupt routine hasn't an opcode
+    name: "Interrupt - Serial",
+    cycles: 5,
+    size: 0,
+    flags: &[],
+    micro_ops: &[
+        MCycleOp::Main(MicroOp::Idle),
+        MCycleOp::Main(MicroOp::Idle),
+        MCycleOp::Main(MicroOp::Push16msb(Rhs16Bit::PC)),
+        MCycleOp::Main(MicroOp::Push16lsb(Rhs16Bit::PC)),
+        MCycleOp::End(MicroOp::JumpVector(VectorAddress::Serial)),
+    ],
+};
+
+const INTERRUPT_JOYPAD: Instruction = Instruction {
+    opcode: 0x00, // Not important, interrupt routine hasn't an opcode
+    name: "Interrupt - Joypad",
+    cycles: 5,
+    size: 0,
+    flags: &[],
+    micro_ops: &[
+        MCycleOp::Main(MicroOp::Idle),
+        MCycleOp::Main(MicroOp::Idle),
+        MCycleOp::Main(MicroOp::Push16msb(Rhs16Bit::PC)),
+        MCycleOp::Main(MicroOp::Push16lsb(Rhs16Bit::PC)),
+        MCycleOp::End(MicroOp::JumpVector(VectorAddress::Joypad)),
+    ],
+};
 
 const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
     let mut opcodes = [None; 256];

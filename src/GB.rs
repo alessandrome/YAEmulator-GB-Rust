@@ -16,7 +16,6 @@ pub mod PPU;
 pub mod APU;
 pub mod cartridge;
 pub mod input;
-pub mod instructions;
 pub mod memory;
 pub mod bus;
 pub mod types;
@@ -24,6 +23,7 @@ pub mod traits;
 pub mod utils;
 mod timer;
 mod interrupt;
+pub mod DMA;
 
 #[cfg(feature = "debug")]
 fn debug_print(args: std::fmt::Arguments) {
@@ -40,13 +40,14 @@ pub const CYCLES_PER_FRAME: u64 = SYSTEM_FREQUENCY_CLOCK / 60;
 pub const FRAME_TIME: f64 = 1_f64 / 60_f64;
 
 // #[derive()]
-pub struct GB {
+pub struct GB<'a> {
     is_booting: bool,
     bus: bus::Bus,
     pub memory: Rc<RefCell<RAM>>,
     pub bios: BIOS,
-    pub cpu: CPU::CPU,
+    pub cpu: CPU::CPU<'a>,
     pub ppu: PPU::PPU,
+    dma: DMA::DMA,
     apu: APU::APU,
     pub input: input::GBInput,
     cartridge: Option<cartridge::Cartridge>,
@@ -54,7 +55,7 @@ pub struct GB {
     cycles_overflows: u64, // Number of time cycles has overflowed
 }
 
-impl GB {
+impl<'a> GB<'a> {
     pub const SYSTEM_FREQUENCY_CLOCK: u32 = 4_194_304;
 
     pub fn new(bios: Option<String>) -> Self {
@@ -69,7 +70,6 @@ impl GB {
             right: false,
         };
 
-        let ram_ref = Rc::new(RefCell::new(ram));
         let mut rom = BIOS::new();
         let mut is_booting = false;
 
@@ -86,6 +86,7 @@ impl GB {
             bus: bus::Bus::new(),
             cpu: CPU::CPU::new(),
             ppu: PPU::PPU::new(Rc::clone(&ram_ref)),
+            dma: DMA::DMA::new(),
             memory: ram_ref,
             bios: rom,
             cartridge: None,
@@ -99,6 +100,7 @@ impl GB {
     fn with_bus<T>(&mut self, f: impl FnOnce(&mut BusContext) -> T) -> T {
         let mut ctx = BusContext {
             apu: &mut self.apu,
+            dma: &mut self.dma,
         };
         f(&mut ctx)
     }
@@ -128,9 +130,13 @@ impl GB {
         // let time = Instant::now();
         let mut ctx = BusContext {
             apu: &mut self.apu,
+            dma: &mut self.dma,
         };
-        self.cpu.tick(&mut self.bus, ctx);
+        self.cpu.tick(&mut self.bus, &mut ctx);
         self.ppu.tick();
+        self.apu.tick();
+        self.ppu.tick();
+        self.dma.tick(&mut self.bus, &mut ctx);
         
         // if self.cpu.dma_transfer {
         //     self.dma_transfer();

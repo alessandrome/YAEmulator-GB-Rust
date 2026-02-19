@@ -97,7 +97,6 @@ pub struct CPU<'a> {
     pub micro_code: MCycleOp, // Instruction microcode to execute
     pub micro_code_index: usize, // T-Cycles counting of a M-Cycle during instruction execution
     pub micro_code_t_cycle: u8, // T-Cycles counting of a M-Cycle during instruction execution
-    pub dma_transfer: bool, // True When DMA RAM to VRAM is enabled
     pub interrupt_routine_cycle: Option<u8>,
     interrupt_routine_addr: u16,
     pub interrupt_type: InterruptFlagsMask,
@@ -116,7 +115,6 @@ impl CPU<'_> {
             micro_code: MCycleOp::None,
             micro_code_index: 0,
             micro_code_t_cycle: 0,
-            dma_transfer: false,
             interrupt_routine_cycle: None,
             interrupt_routine_addr: 0xFFFF,
             interrupt_type: InterruptFlagsMask::VBlank,
@@ -164,12 +162,12 @@ impl CPU<'_> {
     /// Check and jump to requested interrupt address after take a snapshot of status on stack.
     ///
     /// Interrupt bit has priority from lower bit to higher (bit 0 has the higher priority).
-    pub fn interrupt(&mut self) -> (bool, InterruptFlagsMask, Option<u8>) {
+    pub fn interrupt(&mut self, bus: &Bus, ctx: &BusContext) -> (bool, InterruptFlagsMask, Option<u8>) {
         let mut interrupt_found = false;
         if self.ime {
-            let flags = interrupts::Interrupts::new(self.read_memory(memory::registers::IF));
+            let flags = interrupts::Interrupts::new(bus.read(ctx, Address(memory::registers::IF)));
             let enabled_flags =
-                interrupts::Interrupts::new(self.read_memory(memory::registers::IE));
+                interrupts::Interrupts::new(bus.read(ctx, Address(memory::registers::IE)));
             if enabled_flags.v_blank && flags.v_blank {
                 // Bit 0
                 self.interrupt_routine_addr = memory::interrupts::INTERRUPT_VBLANK_ADDR;
@@ -206,43 +204,10 @@ impl CPU<'_> {
         )
     }
 
-    /// CPU should run this only when "interrupt_routine_cycle" is not None. Every service routine last 5 cycles.
-    fn interrupt_routine(&mut self) -> u64 {
-        let routine_cycle = self.interrupt_routine_cycle.unwrap();
-        let mut cycles: u64 = 1;
-        match routine_cycle {
-            0 | 1 => {
-                // NOP, just increment routine cycle count
-            }
-            2 => {
-                self.push((self.registers.get_pc() >> 8) as u8);
-                self.push((self.registers.get_pc() & 0xFF) as u8);
-                cycles = 2;
-            }
-            v if v >= 4 => {
-                self.registers.set_pc(self.interrupt_routine_addr);
-                let if_register = self.memory.borrow().read(addresses::interrupt::IF as u16);
-                self.memory.borrow_mut().write(
-                    addresses::interrupt::IF as u16,
-                    if_register & !self.interrupt_type,
-                );
-                self.interrupt_routine_cycle = None;
-                self.interrupt_routine_addr = 0xFFFF;
-            }
-            _ => {}
-        }
-        match self.interrupt_routine_cycle {
-            None => {}
-            _ => {
-                self.interrupt_routine_cycle = Some(routine_cycle + 1);
-            }
-        }
-        cycles
-    }
-
     /**
        CPU Push 1-byte using SP register (to not confuse with instruction PUSH r16, that PUSH in a 2-bytes value from a double-register)
     */
+    #[inline]
     pub fn push(&mut self, bus: &mut Bus, ctx: &mut BusContext, byte: u8) {
         bus.write(ctx, self.registers.get_sp_as_address(), byte);
         self.registers.set_sp(self.registers.get_sp() - 1);
@@ -251,6 +216,7 @@ impl CPU<'_> {
     /**
        CPU Pop 1-byte using SP register (to not confuse with instruction POP r16, that pop out a 2-bytes value to put in a double-register)
     */
+    #[inline]
     pub fn pop(&mut self, bus: &mut Bus, ctx: &mut BusContext) -> Byte {
         self.registers.set_sp(self.registers.get_sp() + 1);
         bus.read(ctx, self.registers.get_sp_as_address())
