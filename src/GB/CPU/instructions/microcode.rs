@@ -1,5 +1,5 @@
+use super::super::registers::core_registers::{Registers16Bit, Registers8Bit};
 use crate::GB::types::address::Address;
-use super::super::registers::core_registers::{Registers8Bit, Registers16Bit};
 
 pub type Lhs8Bit = Registers8Bit;
 pub type Rhs8Bit = Registers8Bit;
@@ -40,6 +40,19 @@ pub enum VectorAddress {
 }
 
 #[derive(Debug, Clone, Copy)]
+#[repr(u8)]
+pub enum CheckCondition {
+    Z = 0,
+    N = 1,
+    H = 2,
+    C = 3,
+    NZ= 4,
+    NN = 5,
+    NH = 6,
+    NC = 7,
+}
+
+#[derive(Debug, Clone, Copy)]
 pub enum AluOp {
     Add(Lhs8Bit, Rhs8Bit),
     Adc(Lhs8Bit, Rhs8Bit),
@@ -55,10 +68,10 @@ pub enum AluOp {
     Scf(),
     Daa(),
     Cpl(Rhs8Bit),
-    Rlca(),  // RL and RR for Accumulator register - Zero flags is always reset
-    Rrca(),  // RL and RR for Accumulator register - Zero flags is always reset
-    Rla(),   // RL and RR for Accumulator register - Zero flags is always reset
-    Rra(),   // RL and RR for Accumulator register - Zero flags is always reset
+    Rlca(), // RL and RR for Accumulator register - Zero flags is always reset
+    Rrca(), // RL and RR for Accumulator register - Zero flags is always reset
+    Rla(),  // RL and RR for Accumulator register - Zero flags is always reset
+    Rra(),  // RL and RR for Accumulator register - Zero flags is always reset
     Rlc(Rhs8Bit),
     Rrc(Rhs8Bit),
     Rl(Rhs8Bit),
@@ -93,10 +106,10 @@ pub enum MicroOp {
     Idle,
 }
 
-
 #[derive(Debug, Clone, Copy)]
 pub enum MCycleOp {
     Main(MicroOp),
+    Cc(MicroOp, CheckCondition, usize), // Check Condition - If true micro-code index to execute must be changed with the given one
     End(MicroOp),
     None,
 }

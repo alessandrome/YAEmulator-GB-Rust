@@ -10,7 +10,7 @@ use crate::GB::{bus, GB};
 use instructions::microcode::{AluOp, MicroOp, MCycleOp};
 use registers::{core_registers::Registers, interrupt_registers::InterruptRegisters};
 use crate::GB::CPU::instructions::{Instruction, InstructionMicroOpIndex};
-use crate::GB::CPU::instructions::microcode::MicroFlow;
+use crate::GB::CPU::instructions::microcode::{CheckCondition, MicroFlow};
 
 pub const DIVIDER_FREQUENCY: u64 = 16384; // Divider Update Frequency in Hz
 pub const CPU_INTERRUPT_CYCLES: u64 = 5; // Number of cycle to manage a requested Interrupt
@@ -257,10 +257,55 @@ impl CPU<'_> {
     }
 
     fn m_cycle_tick(&mut self, bus: &mut bus::Bus, ctx: &mut bus::BusContext, m_cycle_op: MCycleOp) {
-        let flow: MicroFlow;
+        let mut flow: MicroFlow;
         match m_cycle_op {
             MCycleOp::Main(micro_op) => {
                 flow = self.micro_tick(bus, ctx, micro_op);
+            }
+            MCycleOp::Cc(micro_op, cc,idx) => {
+                flow = self.micro_tick(bus, ctx, micro_op);
+                match cc {
+                    CheckCondition::Z => {
+                        if self.registers.get_zero_flag() {
+                            flow = MicroFlow::Jump(idx)
+                        }
+                    }
+                    CheckCondition::N => {
+                        if self.registers.get_negative_flag() {
+                            flow = MicroFlow::Jump(idx)
+                        }
+                    }
+                    CheckCondition::H => {
+                        if self.registers.get_half_carry_flag() {
+                            flow = MicroFlow::Jump(idx)
+                        }
+                    }
+                    CheckCondition::C => {
+                        if self.registers.get_carry_flag() {
+                            flow = MicroFlow::Jump(idx)
+                        }
+                    }
+                    CheckCondition::NZ => {
+                        if !self.registers.get_zero_flag() {
+                            flow = MicroFlow::Jump(idx)
+                        }
+                    }
+                    CheckCondition::NN => {
+                        if !self.registers.get_negative_flag() {
+                            flow = MicroFlow::Jump(idx)
+                        }
+                    }
+                    CheckCondition::NH => {
+                        if !self.registers.get_half_carry_flag() {
+                            flow = MicroFlow::Jump(idx)
+                        }
+                    }
+                    CheckCondition::NC => {
+                        if !self.registers.get_carry_flag() {
+                            flow = MicroFlow::Jump(idx)
+                        }
+                    }
+                }
             }
             MCycleOp::End(end_micro_op) => {
                 self.micro_tick(bus, ctx, end_micro_op);
