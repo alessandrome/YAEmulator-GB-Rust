@@ -319,6 +319,22 @@ impl CPU<'_> {
                 let value = self.registers.get_byte(rhs);
                 bus.write(ctx, addr, value);
             }
+            MicroOp::Push16msb(rhs) => {
+                let msb = self.registers.get_word_msb(rhs);
+                self.push(bus, ctx, msb);
+            }
+            MicroOp::Push16lsb(rhs) => {
+                let lsb = self.registers.get_word_lsb(rhs);
+                self.push(bus, ctx, lsb);
+            }
+            MicroOp::Pop16msb(rhs) => {
+                let msb = self.pop(bus, ctx);
+                self.registers.set_word_msb(rhs, msb);
+            }
+            MicroOp::Pop16lsb(rhs) => {
+                let lsb = self.pop(bus, ctx);
+                self.registers.set_word_lsb(rhs, lsb);
+            }
             MicroOp::Inc16(lhs) => {
                 let word = self.registers.get_word(lhs);
                 self.registers.set_word(lhs, word.wrapping_add(1));
@@ -326,6 +342,9 @@ impl CPU<'_> {
             MicroOp::Dec16(lhs) => {
                 let word = self.registers.get_word(lhs);
                 self.registers.set_word(lhs, word.wrapping_sub(1));
+            }
+            MicroOp::JumpVector(jump_addr) => {
+                self.registers.set_pc(jump_addr as u16);
             }
             MicroOp::Alu(alu_op) => {
                 self.alu_operation(alu_op);

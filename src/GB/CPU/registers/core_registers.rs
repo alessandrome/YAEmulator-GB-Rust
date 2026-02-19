@@ -180,12 +180,14 @@ impl Registers {
         Address(self.pc)
     }
 
+    #[inline]
     pub fn get_and_inc_pc(&mut self) -> u16 {
         let ret_pc = self.pc;
         self.pc += 1;
         ret_pc
     }
 
+    #[inline]
     pub fn inc_pc(&mut self) -> u16 {
         self.pc += 1;
         self.pc
@@ -195,20 +197,27 @@ impl Registers {
     macro_registers::get_set_dual!(h, l, get_hl, get_hl_as_address, set_hl);
     macro_registers::get_set_dual!(w, z, get_wz, get_wz_as_address, set_wz);  // Internal use - Immediate 16-bit Address
 
+    #[inline]
     pub fn get_f(&self) -> u8 {
         self.f
     }
+
+    #[inline]
     pub fn set_f(&mut self, val: u8) {
         self.f = val & 0xF0
     }
 
+    #[inline]
     pub fn get_af(&self) -> u16 {
         (self.a as u16) << 8 | self.f as u16
     }
+
+    #[inline]
     pub fn get_af_as_address(&self) -> Address {
         Address(self.get_af())
     }
 
+    #[inline]
     pub fn set_af(&mut self, val: u16) {
         self.a = (val >> 8) as u8;
         self.f = (val & 0x00F0) as u8;
@@ -218,6 +227,8 @@ impl Registers {
     macro_registers::get_set_flag!(get_negative_flag, set_negative_flag, N);
     macro_registers::get_set_flag!(get_half_carry_flag, set_half_carry_flag, H);
     macro_registers::get_set_flag!(get_carry_flag, set_carry_flag, C);
+
+    #[inline]
     pub fn get_flags(&self) -> Flags {
         Flags::new(
             (self.f & 0b10000000) != 0,
@@ -227,6 +238,7 @@ impl Registers {
         )
     }
 
+    #[inline]
     pub fn set_flags(&mut self, flags: Flags) {
         self.set_zero_flag(flags.z);
         self.set_negative_flag(flags.n);
@@ -234,6 +246,7 @@ impl Registers {
         self.set_carry_flag(flags.c);
     }
 
+    #[inline]
     pub fn get_byte(&self, register: Registers8Bit) -> u8 {
         match register {
             Registers8Bit::A => self.get_a(),
@@ -249,6 +262,7 @@ impl Registers {
         }
     }
 
+    #[inline]
     pub fn get_word(&self, register: Registers16Bit) -> u16 {
         match register {
             Registers16Bit::AF => self.get_af(),
@@ -261,6 +275,7 @@ impl Registers {
         }
     }
 
+    #[inline]
     pub fn get_word_lsb(&self, register: Registers16Bit) -> u8 {
         match register {
             Registers16Bit::AF => self.get_f(),
@@ -273,6 +288,7 @@ impl Registers {
         }
     }
 
+    #[inline]
     pub fn get_word_msb(&self, register: Registers16Bit) -> u8 {
         match register {
             Registers16Bit::AF => self.get_a(),
@@ -285,6 +301,7 @@ impl Registers {
         }
     }
 
+    #[inline]
     pub fn set_word_lsb(&mut self, register: Registers16Bit, value: u8) {
         match register {
             Registers16Bit::AF => self.set_f(value),
@@ -297,6 +314,7 @@ impl Registers {
         }
     }
 
+    #[inline]
     pub fn set_word_msb(&mut self, register: Registers16Bit, value: u8) {
         match register {
             Registers16Bit::AF => self.set_a(value),
@@ -309,6 +327,7 @@ impl Registers {
         }
     }
 
+    #[inline]
     pub fn set_byte(&mut self, register: Registers8Bit, byte: u8) {
         match register {
             Registers8Bit::A => self.set_a(byte),
@@ -324,6 +343,7 @@ impl Registers {
         }
     }
 
+    #[inline]
     pub fn set_word(&mut self, register: Registers16Bit, data: u16) {
         match register {
             Registers16Bit::AF => self.set_af(data),

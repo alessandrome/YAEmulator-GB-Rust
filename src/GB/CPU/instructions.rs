@@ -78,6 +78,23 @@ const fn daa(mut a: u8, mut flags: u8) -> (u8, u8) {
     (a, flags)
 }
 
+const fn create_interrupt_instruction(int_name: &'static str, jp_address: u8) -> Instruction {
+    Instruction {
+        opcode: 0x00, // Not important, interrupt routine hasn't an opcode
+        name: int_name,
+        cycles: 5,
+        size: 0,
+        flags: &[],
+        micro_ops: &[
+            MCycleOp::Main(MicroOp::Idle),
+            MCycleOp::Main(MicroOp::Idle),
+            MCycleOp::Main(MicroOp::Push16msb(Rhs16Bit::PC)),
+            MCycleOp::Main(MicroOp::Push16lsb(Rhs16Bit::PC)),
+            MCycleOp::End(Micro)
+        ],
+    }
+}
+
 const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
     let mut opcodes = [None; 256];
     opcodes[0x00] = Some(&Instruction {

@@ -22,6 +22,24 @@ pub enum ByteBit {
 }
 
 #[derive(Debug, Clone, Copy)]
+#[repr(u8)]
+pub enum VectorAddress {
+    V0 = 0x00,
+    V1 = 0x08,
+    V2 = 0x10,
+    V3 = 0x18,
+    V4 = 0x20,
+    V5 = 0x28,
+    V6 = 0x30,
+    V7 = 0x38,
+    VBlank = 0x40,
+    STAT = 0x48,
+    Timer = 0x50,
+    Serial = 0x58,
+    Joypad = 0x60,
+}
+
+#[derive(Debug, Clone, Copy)]
 pub enum AluOp {
     Add(Lhs8Bit, Rhs8Bit),
     Adc(Lhs8Bit, Rhs8Bit),
@@ -62,8 +80,13 @@ pub enum MicroOp {
     Ld16(Lhs16Bit, Rhs16Bit),
     Read8(Lhs8Bit, AddressRegister),
     Write8(AddressRegister, Rhs8Bit),
+    Push16msb(Rhs16Bit),
+    Push16lsb(Rhs16Bit),
+    Pop16msb(Rhs16Bit),
+    Pop16lsb(Rhs16Bit),
     Inc16(Rhs16Bit),
     Dec16(Rhs16Bit),
+    JumpVector(VectorAddress), // To immediate set PC during interrupts and RST
     Alu(AluOp),
     PrefixCB,
     Idle,
