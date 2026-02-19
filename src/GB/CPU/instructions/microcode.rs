@@ -88,6 +88,7 @@ pub enum MicroOp {
     Dec16(Rhs16Bit),
     JumpVector(VectorAddress), // To immediate set PC during interrupts and RST
     Alu(AluOp),
+    ImeEnabled(bool),
     PrefixCB,
     Idle,
 }

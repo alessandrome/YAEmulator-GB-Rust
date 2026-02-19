@@ -349,6 +349,9 @@ impl CPU<'_> {
             MicroOp::Alu(alu_op) => {
                 self.alu_operation(alu_op);
             }
+            MicroOp::ImeEnabled(enabled) => {
+                self.ime = enabled;
+            }
             MicroOp::PrefixCB => {
                 micro_flow = MicroFlow::PrefixCB;
                 (self.instruction, self.opcode) = self.fetch_and_decode(bus, ctx, false);
