@@ -234,7 +234,7 @@ impl CPU<'_> {
         m_cycle_op: MCycleOp,
     ) -> CpuStatus {
         let mut flow: MicroFlow;
-        let cpu_status;
+        let cpu_status: CpuStatus;
 
         match m_cycle_op {
             MCycleOp::Main(micro_op) => {
@@ -301,17 +301,20 @@ impl CPU<'_> {
                 // Instruction is the same - go to next microOp
                 self.micro_code_index += 1;
                 self.micro_code = self.instruction.unwrap().micro_ops[self.micro_code_index];
+                cpu_status = CpuStatus::Execute;
             }
             MicroFlow::Jump(to) => {
                 // Same instruction - change flow of microOp (useful for conditional instructions like JP)
                 self.micro_code_index = to;
                 self.micro_code = self.instruction.unwrap().micro_ops[self.micro_code_index];
+                cpu_status = CpuStatus::Execute;
             }
             MicroFlow::PrefixCB => {
                 // CB Prefix Reset the microcode flow and fetch/decode next byte with CB optable
                 self.micro_code_index = 0;
                 (self.instruction, self.opcode) = self.fetch_and_decode(bus, ctx, true);
                 self.micro_code = self.instruction.unwrap().micro_ops[self.micro_code_index];
+                cpu_status = CpuStatus::Execute;
             }
             MicroFlow::End => {
                 cpu_status = CpuStatus::Ready;
