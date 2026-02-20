@@ -1,6 +1,6 @@
 use std::fs::File;
 use std::io::Read;
-use crate::GB::memory::{Length, Memory, RAM};
+use crate::GB::memory::{Length, Memory};
 
 pub struct BIOS {
     #[cfg(test)]

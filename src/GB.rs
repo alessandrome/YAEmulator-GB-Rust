@@ -10,6 +10,7 @@ use std::rc::Rc;
 use std::time::Instant;
 use crate::GB::bus::BusContext;
 use crate::GB::memory::interrupts::InterruptFlagsMask;
+use crate::GB::memory::wram::WRAM;
 
 pub mod CPU;
 pub mod PPU;
@@ -43,8 +44,8 @@ pub const FRAME_TIME: f64 = 1_f64 / 60_f64;
 pub struct GB<'a> {
     is_booting: bool,
     bus: bus::Bus,
-    pub memory: Rc<RefCell<RAM>>,
-    pub bios: BIOS,
+    pub wram: WRAM,
+    // pub bios: BIOS, // todo!("Add Bios")
     pub cpu: CPU::CPU<'a>,
     pub ppu: PPU::PPU,
     dma: DMA::DMA,
@@ -70,7 +71,8 @@ impl<'a> GB<'a> {
             right: false,
         };
 
-        let mut rom = BIOS::new();
+        // Todo!("Add Bios")
+        // let mut rom = BIOS::new();
         let mut is_booting = false;
 
         match bios {
@@ -87,8 +89,7 @@ impl<'a> GB<'a> {
             cpu: CPU::CPU::new(),
             ppu: PPU::PPU::new(Rc::clone(&ram_ref)),
             dma: DMA::DMA::new(),
-            memory: ram_ref,
-            bios: rom,
+            wram: WRAM::new(),
             cartridge: None,
             input: input::GBInput::default(),
             apu: APU::APU::new(),
@@ -99,8 +100,10 @@ impl<'a> GB<'a> {
 
     fn with_bus<T>(&mut self, f: impl FnOnce(&mut BusContext) -> T) -> T {
         let mut ctx = BusContext {
+            cpu: &mut self.cpu,
             apu: &mut self.apu,
             dma: &mut self.dma,
+            wram: &mut self.wram,
         };
         f(&mut ctx)
     }
@@ -129,14 +132,18 @@ impl<'a> GB<'a> {
     pub fn tick(&mut self) {
         // let time = Instant::now();
         let mut ctx = BusContext {
+            cpu: &mut self.cpu,
             apu: &mut self.apu,
             dma: &mut self.dma,
+            wram: &mut self.wram,
         };
-        self.cpu.tick(&mut self.bus, &mut ctx);
+
+        // Tick every component
         self.ppu.tick();
         self.apu.tick();
         self.ppu.tick();
         self.dma.tick(&mut self.bus, &mut ctx);
+        self.cpu.tick(&mut self.bus, &mut ctx);
         
         // if self.cpu.dma_transfer {
         //     self.dma_transfer();
@@ -148,23 +155,6 @@ impl<'a> GB<'a> {
             self.cycles_overflows = self.cycles_overflows.wrapping_add(1);
         }
     }
-
-    // fn check_interrupt(&mut self) {
-    //     if self.cpu.ime {
-    //         let memory_borrow = self.memory.borrow();
-    //         let interrupt_flags = memory_borrow.read(addresses::interrupt::IF as u16);
-    //         let ie = memory_borrow.read(addresses::interrupt::IE as u16);
-    //         match ie | interrupt_flags {
-    //             x if x & memory::interrupts::InterruptFlagsMask::VBlank != 0 => {
-    //
-    //             }
-    //             x if x & memory::interrupts::InterruptFlagsMask::LCD != 0 => {
-    //
-    //             }
-    //             _ => {}
-    //         }
-    //     }
-    // }
 
     pub fn press_dpad(&mut self, dpad: GBInputDPadBits, pressed: bool) {
         let mut input = self.input.borrow_mut();

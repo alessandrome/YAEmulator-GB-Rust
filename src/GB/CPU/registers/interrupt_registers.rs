@@ -3,6 +3,60 @@ use crate::GB::types::address::Address;
 use crate::GB::types::Byte;
 use super::macro_registers;
 
+use crate::{mask_flag_enum_default_impl, default_enum_u8_bit_ops};
+
+
+pub const INTERRUPT_VBLANK_ADDR: u16 = 0x40;
+pub const INTERRUPT_STAT_ADDR: u16 = 0x48;
+pub const INTERRUPT_TIMER_ADDR: u16 = 0x50;
+pub const INTERRUPT_SERIAL_ADDR: u16 = 0x58;
+pub const INTERRUPT_JOYPAD_ADDR: u16 = 0x60;
+
+#[derive(Debug, Copy, Clone)]
+#[repr(u8)]
+pub enum InterruptEnableMask {
+    JoyPad = 0b0001_0000,
+    Serial = 0b0000_1000,
+    Timer = 0b0000_0100,
+    LCD = 0b0000_0010,
+    VBlank = 0b0000_0001,
+}
+
+#[derive(Debug, Copy, Clone)]
+#[repr(u8)]
+pub enum InterruptFlagsMask {
+    JoyPad = 0b0001_0000,
+    Serial = 0b0000_1000,
+    Timer = 0b0000_0100,
+    LCD = 0b0000_0010,
+    VBlank = 0b0000_0001,
+}
+
+mask_flag_enum_default_impl!(InterruptEnableMask);
+mask_flag_enum_default_impl!(InterruptFlagsMask);
+
+/// Structure for a quick view of Interrupt Flags status in IF and IE registers
+pub struct InterruptFlags {
+    pub joy_pad: bool,
+    pub serial: bool,
+    pub timer: bool,
+    pub lcd: bool,
+    pub v_blank: bool,
+}
+
+impl InterruptFlags {
+    pub fn new(byte: u8) -> Self {
+        Self {
+            joy_pad: (byte & InterruptFlagsMask::JoyPad) != 0,
+            serial: (byte & InterruptFlagsMask::Serial) != 0,
+            timer: (byte & InterruptFlagsMask::Timer) != 0,
+            lcd: (byte & InterruptFlagsMask::LCD) != 0,
+            v_blank: (byte & InterruptFlagsMask::VBlank) != 0,
+        }
+    }
+}
+
+
 pub struct InterruptRegisters {
     ie: u8,
     iflag: u8,  // IF but if is a reserved keyword
@@ -12,6 +66,7 @@ impl InterruptRegisters {
     pub const IE_ADDRESS: Address = Address(0xFFFF);
     pub const IF_ADDRESS: Address = Address(0xFF0F);
 
+    #[inline]
     pub fn new() -> Self {
         Self {
             ie: 0,

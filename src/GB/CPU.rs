@@ -12,6 +12,7 @@ use crate::GB::{bus, GB};
 use instructions::microcode::{AluOp, MCycleOp, MicroOp};
 use registers::{core_registers::Registers, interrupt_registers::InterruptRegisters};
 use crate::GB::interrupt::Interrupt;
+use crate::GB::memory::hram::HRAM;
 
 pub const DIVIDER_FREQUENCY: u64 = 16384; // Divider Update Frequency in Hz
 pub const CPU_INTERRUPT_CYCLES: u64 = 5; // Number of cycle to manage a requested Interrupt
@@ -98,15 +99,13 @@ enum CpuStatus {
 pub struct CPU<'a> {
     pub registers: Registers,
     pub interrupt_registers: InterruptRegisters,
-    pub ime: bool, // Interrupt Master Enable - True if you want to enable and intercept interrupts
+    pub hram: HRAM, // HRAM is a high-speed ram in the CPU Socket for quick and direct access
+    pub ime: bool,  // Interrupt Master Enable - True if you want to enable and intercept interrupts
     pub opcode: u8, // Running Instruction Opcode - Known as IR (Instruction Register),
     pub instruction: Option<&'a Instruction>, // Instruction microcode to execute
     pub micro_code: MCycleOp, // Instruction microcode to execute
-    pub micro_code_index: usize, // T-Cycles counting of a M-Cycle during instruction execution
+    pub micro_code_index: usize, // Index of Instruction's MicroOp
     pub micro_code_t_cycle: u8, // T-Cycles counting of a M-Cycle during instruction execution
-    pub interrupt_routine_cycle: Option<u8>,
-    interrupt_routine_addr: u16,
-    pub interrupt_type: InterruptFlagsMask,
 }
 
 impl CPU<'_> {
@@ -122,9 +121,6 @@ impl CPU<'_> {
             micro_code: MCycleOp::None,
             micro_code_index: 0,
             micro_code_t_cycle: 0,
-            interrupt_routine_cycle: None,
-            interrupt_routine_addr: 0xFFFF,
-            interrupt_type: InterruptFlagsMask::VBlank,
         }
     }
 
@@ -661,6 +657,9 @@ impl BusDevice for CPU<'_> {
             InterruptRegisters::IE_ADDRESS | InterruptRegisters::IF_ADDRESS => {
                 self.interrupt_registers.read(address)
             }
+            address if HRAM::HRAM_ADDRESS_RANGE.contains(&address) => {
+                self.hram.read(address)
+            }
             _ => unreachable!(),
         }
     }
@@ -669,6 +668,9 @@ impl BusDevice for CPU<'_> {
         match address {
             InterruptRegisters::IE_ADDRESS | InterruptRegisters::IF_ADDRESS => {
                 self.interrupt_registers.write(address, data)
+            }
+            address if HRAM::HRAM_ADDRESS_RANGE.contains(&address) => {
+                self.hram.write(address, data)
             }
             _ => unreachable!(),
         }
