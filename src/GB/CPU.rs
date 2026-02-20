@@ -96,25 +96,26 @@ enum CpuStatus {
     Ready,
 }
 
-pub struct CPU<'a> {
+pub struct CPU {
     pub registers: Registers,
     pub interrupt_registers: InterruptRegisters,
     pub hram: HRAM, // HRAM is a high-speed ram in the CPU Socket for quick and direct access
     pub ime: bool,  // Interrupt Master Enable - True if you want to enable and intercept interrupts
     pub opcode: u8, // Running Instruction Opcode - Known as IR (Instruction Register),
-    pub instruction: Option<&'a Instruction>, // Instruction microcode to execute
+    pub instruction: Option<&'static Instruction>, // Instruction microcode to execute
     pub micro_code: MCycleOp, // Instruction microcode to execute
     pub micro_code_index: usize, // Index of Instruction's MicroOp
     pub micro_code_t_cycle: u8, // T-Cycles counting of a M-Cycle during instruction execution
 }
 
-impl CPU<'_> {
+impl CPU {
     pub const CPU_FREQUENCY_CLOCK: u32 = GB::SYSTEM_FREQUENCY_CLOCK / 4;
 
     pub fn new() -> Self {
         Self {
             registers: Registers::new(),
             interrupt_registers: InterruptRegisters::new(),
+            hram: HRAM::new(),
             ime: false,
             opcode: 0,
             instruction: None,
@@ -651,7 +652,7 @@ impl CPU<'_> {
     }
 }
 
-impl BusDevice for CPU<'_> {
+impl BusDevice for CPU {
     fn read(&self, address: Address) -> Byte {
         match address {
             InterruptRegisters::IE_ADDRESS | InterruptRegisters::IF_ADDRESS => {
