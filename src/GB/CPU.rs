@@ -5,12 +5,13 @@ use crate::GB::bus::{Bus, BusContext, BusDevice};
 use crate::GB::memory::interrupts::InterruptFlagsMask;
 use crate::GB::memory::{self, addresses, interrupts, USER_PROGRAM_ADDRESS};
 use crate::GB::types::{address::Address, Byte};
+use crate::GB::CPU::instructions::microcode::{CheckCondition, MicroFlow};
+use crate::GB::CPU::instructions::{Instruction, InstructionMicroOpIndex};
 use crate::GB::CPU::registers::core_registers::Flags;
 use crate::GB::{bus, GB};
-use instructions::microcode::{AluOp, MicroOp, MCycleOp};
+use instructions::microcode::{AluOp, MCycleOp, MicroOp};
 use registers::{core_registers::Registers, interrupt_registers::InterruptRegisters};
-use crate::GB::CPU::instructions::{Instruction, InstructionMicroOpIndex};
-use crate::GB::CPU::instructions::microcode::{CheckCondition, MicroFlow};
+use crate::GB::interrupt::Interrupt;
 
 pub const DIVIDER_FREQUENCY: u64 = 16384; // Divider Update Frequency in Hz
 pub const CPU_INTERRUPT_CYCLES: u64 = 5; // Number of cycle to manage a requested Interrupt
@@ -88,6 +89,12 @@ mod test {
     }
 }
 
+#[derive(Debug, Copy, Clone)]
+enum CpuStatus {
+    Execute,
+    Ready,
+}
+
 pub struct CPU<'a> {
     pub registers: Registers,
     pub interrupt_registers: InterruptRegisters,
@@ -125,9 +132,26 @@ impl CPU<'_> {
     Step 1 T-Cycle (4 T-Cycle = 1 M-Cycle)
     */
     pub fn tick(&mut self, bus: &mut bus::Bus, ctx: &mut bus::BusContext) {
-        self.micro_code_t_cycle = (self.micro_code_t_cycle + 1) & 0b0000_0011;  // Just a Bit version of (value = value % 4)
+        self.micro_code_t_cycle = (self.micro_code_t_cycle + 1) & 0b0000_0011; // Just a Bit version of (value = value % 4)
+        let cpu_status;
         if self.micro_code_t_cycle == 0 {
-            self.m_cycle_tick(bus, ctx, self.micro_code);
+            cpu_status = self.m_cycle_tick(bus, ctx, self.micro_code);
+        } else {
+            cpu_status = CpuStatus::Execute;
+        }
+
+        match cpu_status {
+            CpuStatus::Execute => { /* Wait 'till execution complete */ }
+            CpuStatus::Ready => {
+                let interrupt = self.interrupt();
+                if interrupt.is_none() {
+                    self.fetch_and_decode(bus, ctx, false);
+                } else {
+                    self.instruction = interrupt;
+                    self.micro_code_index = 0;
+                    self.micro_code = self.instruction.unwrap().micro_ops[0];
+                }
+            }
         }
         todo!()
     }
@@ -162,46 +186,27 @@ impl CPU<'_> {
     /// Check and jump to requested interrupt address after take a snapshot of status on stack.
     ///
     /// Interrupt bit has priority from lower bit to higher (bit 0 has the higher priority).
-    pub fn interrupt(&mut self, bus: &Bus, ctx: &BusContext) -> (bool, InterruptFlagsMask, Option<u8>) {
-        let mut interrupt_found = false;
+    pub fn interrupt(&mut self) -> Option<&'static Instruction> {
+        let mut interrupt = None;
         if self.ime {
-            let flags = interrupts::Interrupts::new(bus.read(ctx, Address(memory::registers::IF)));
-            let enabled_flags =
-                interrupts::Interrupts::new(bus.read(ctx, Address(memory::registers::IE)));
-            if enabled_flags.v_blank && flags.v_blank {
+            if self.interrupt_registers.get_vblank_enabled() && self.interrupt_registers.get_vblank_interrupt() {
                 // Bit 0
-                self.interrupt_routine_addr = memory::interrupts::INTERRUPT_VBLANK_ADDR;
-                self.interrupt_type = InterruptFlagsMask::VBlank;
-            } else if enabled_flags.lcd && flags.lcd {
+                interrupt = Some(&instructions::INTERRUPT_VBLANK);
+            } else if self.interrupt_registers.get_lcd_enabled() && self.interrupt_registers.get_lcd_interrupt() {
                 // Bit 1
-                self.interrupt_routine_addr = memory::interrupts::INTERRUPT_STAT_ADDR;
-                self.interrupt_type = InterruptFlagsMask::LCD;
-            } else if enabled_flags.timer && flags.timer {
-                // Bit 2
-                self.interrupt_routine_addr = memory::interrupts::INTERRUPT_TIMER_ADDR;
-                self.interrupt_type = InterruptFlagsMask::Timer;
-            } else if enabled_flags.serial && flags.serial {
-                // Bit 3
-                self.interrupt_routine_addr = memory::interrupts::INTERRUPT_SERIAL_ADDR;
-                self.interrupt_type = InterruptFlagsMask::Serial;
-            } else if enabled_flags.joy_pad && flags.joy_pad {
-                // Bit 4
-                self.interrupt_routine_addr = memory::interrupts::INTERRUPT_JOYPAD_ADDR;
-                self.interrupt_type = InterruptFlagsMask::JoyPad;
-            }
-            if self.interrupt_routine_addr < 0x70
-            /* Arbitrary greater than max int addr */
-            {
-                self.ime = false;
-                self.interrupt_routine_cycle = Some(0);
-                interrupt_found = true;
+                interrupt = Some(&instructions::INTERRUPT_LCD);
+            } else if self.interrupt_registers.get_timer_enabled() && self.interrupt_registers.get_timer_interrupt() {
+                // Bit 1
+                interrupt = Some(&instructions::INTERRUPT_TIMER);
+            } else if self.interrupt_registers.get_serial_enabled() && self.interrupt_registers.get_serial_interrupt() {
+                // Bit 1
+                interrupt = Some(&instructions::INTERRUPT_SERIAL);
+            } else if self.interrupt_registers.get_joypad_enabled() && self.interrupt_registers.get_joypad_interrupt() {
+                // Bit 1
+                interrupt = Some(&instructions::INTERRUPT_JOYPAD);
             }
         }
-        (
-            interrupt_found,
-            self.interrupt_type,
-            self.interrupt_routine_cycle,
-        )
+        interrupt
     }
 
     /**
@@ -222,13 +227,20 @@ impl CPU<'_> {
         bus.read(ctx, self.registers.get_sp_as_address())
     }
 
-    fn m_cycle_tick(&mut self, bus: &mut bus::Bus, ctx: &mut bus::BusContext, m_cycle_op: MCycleOp) {
+    fn m_cycle_tick(
+        &mut self,
+        bus: &mut bus::Bus,
+        ctx: &mut bus::BusContext,
+        m_cycle_op: MCycleOp,
+    ) -> CpuStatus {
         let mut flow: MicroFlow;
+        let cpu_status;
+
         match m_cycle_op {
             MCycleOp::Main(micro_op) => {
                 flow = self.micro_tick(bus, ctx, micro_op);
             }
-            MCycleOp::Cc(micro_op, cc,idx) => {
+            MCycleOp::Cc(micro_op, cc, idx) => {
                 flow = self.micro_tick(bus, ctx, micro_op);
                 match cc {
                     CheckCondition::Z => {
@@ -276,15 +288,14 @@ impl CPU<'_> {
             MCycleOp::End(end_micro_op) => {
                 self.micro_tick(bus, ctx, end_micro_op);
                 // TODO: interrupt checks
-                flow = MicroFlow::Jump(0);
-                (self.instruction, self.opcode) = self.fetch_and_decode(bus, ctx, false);
+                flow = MicroFlow::End;
             }
             MCycleOp::None => {
-                flow = MicroFlow::Jump(0);
-                (self.instruction, self.opcode) = self.fetch_and_decode(bus, ctx, false);
+                flow = MicroFlow::End;
             }
         }
 
+        // Check Micro-flow of micro-codes execution sequence
         match flow {
             MicroFlow::Next => {
                 // Instruction is the same - go to next microOp
@@ -302,10 +313,19 @@ impl CPU<'_> {
                 (self.instruction, self.opcode) = self.fetch_and_decode(bus, ctx, true);
                 self.micro_code = self.instruction.unwrap().micro_ops[self.micro_code_index];
             }
+            MicroFlow::End => {
+                cpu_status = CpuStatus::Ready;
+            }
         }
+        cpu_status
     }
 
-    fn micro_tick(&mut self, bus: &mut bus::Bus, ctx: &mut bus::BusContext, micro_op: MicroOp) -> MicroFlow {
+    fn micro_tick(
+        &mut self,
+        bus: &mut bus::Bus,
+        ctx: &mut bus::BusContext,
+        micro_op: MicroOp,
+    ) -> MicroFlow {
         let mut micro_flow = MicroFlow::Next;
         match micro_op {
             MicroOp::Fetch8(lhs) => {
@@ -367,7 +387,6 @@ impl CPU<'_> {
                 micro_flow = MicroFlow::PrefixCB;
                 (self.instruction, self.opcode) = self.fetch_and_decode(bus, ctx, false);
                 self.micro_code = self.instruction.unwrap().micro_ops[self.micro_code_index];
-
             }
             MicroOp::Idle => {}
         }
@@ -466,83 +485,51 @@ impl CPU<'_> {
                 let rhs = self.registers.get_byte(rhs);
                 let new_lhs = old_lhs & rhs;
                 // CP update only Flags
-                self.registers.set_flags(Flags::new(
-                    new_lhs == 0,
-                    false,
-                    true,
-                    false,
-                ));
+                self.registers
+                    .set_flags(Flags::new(new_lhs == 0, false, true, false));
             }
             AluOp::Or(lhs, rhs) => {
                 let old_lhs = self.registers.get_byte(lhs);
                 let rhs = self.registers.get_byte(rhs);
                 let new_lhs = old_lhs | rhs;
                 // CP update only Flags
-                self.registers.set_flags(Flags::new(
-                    new_lhs == 0,
-                    false,
-                    false,
-                    false,
-                ));
+                self.registers
+                    .set_flags(Flags::new(new_lhs == 0, false, false, false));
             }
             AluOp::Xor(lhs, rhs) => {
                 let old_lhs = self.registers.get_byte(lhs);
                 let rhs = self.registers.get_byte(rhs);
                 let new_lhs = old_lhs ^ rhs;
                 // CP update only Flags
-                self.registers.set_flags(Flags::new(
-                    new_lhs == 0,
-                    false,
-                    false,
-                    false,
-                ));
+                self.registers
+                    .set_flags(Flags::new(new_lhs == 0, false, false, false));
             }
             AluOp::Ccf() => {
-                self.registers.set_flags(Flags::new(
-                    flags.z(),
-                    false,
-                    false,
-                    !flags.c(),
-                ));
+                self.registers
+                    .set_flags(Flags::new(flags.z(), false, false, !flags.c()));
             }
             AluOp::Scf() => {
-                self.registers.set_flags(Flags::new(
-                    flags.z(),
-                    false,
-                    false,
-                    true,
-                ));
+                self.registers
+                    .set_flags(Flags::new(flags.z(), false, false, true));
             }
             AluOp::Daa() => {
                 todo!();
-                self.registers.set_flags(Flags::new(
-                    todo!(),
-                    flags.n(),
-                    true,
-                    todo!(),
-                ));
+                self.registers
+                    .set_flags(Flags::new(todo!(), flags.n(), true, todo!()));
             }
             AluOp::Cpl(rhs) => {
                 let old_lhs = self.registers.get_byte(rhs);
                 let new_lhs = !old_lhs;
                 self.registers.set_byte(rhs, new_lhs);
-                self.registers.set_flags(Flags::new(
-                    flags.z(),
-                    true,
-                    true,
-                    flags.c(),
-                ));
+                self.registers
+                    .set_flags(Flags::new(flags.z(), true, true, flags.c()));
             }
             AluOp::Rlca() => {
                 let old_lhs = self.registers.get_a();
                 let new_lhs = old_lhs.rotate_left(1);
                 self.registers.set_a(new_lhs);
-                self.registers.set_flags(Flags::new(
-                    false,
-                    false,
-                    false,
-                    (new_lhs & 1) != 0,
-                ));
+                self.registers
+                    .set_flags(Flags::new(false, false, false, (new_lhs & 1) != 0));
             }
             AluOp::Rrca() => {
                 let old_lhs = self.registers.get_a();
@@ -560,24 +547,17 @@ impl CPU<'_> {
                 let carry = (old_lhs & (1 << 7)) != 0;
                 let new_lhs = (old_lhs << 1) | flags.c() as u8;
                 self.registers.set_a(new_lhs);
-                self.registers.set_flags(Flags::new(
-                    false,
-                    false,
-                    false,
-                    carry,
-                ));
+                self.registers
+                    .set_flags(Flags::new(false, false, false, carry));
             }
             AluOp::Rra() => {
                 let old_lhs = self.registers.get_a();
                 let carry = (old_lhs & 1) != 0;
                 let new_lhs = (old_lhs >> 1) | ((flags.c() as u8) << 7);
                 self.registers.set_a(new_lhs);
-                self.registers.set_flags(Flags::new(
-                    false,
-                    false,
-                    false,
-                    carry,
-                ));}
+                self.registers
+                    .set_flags(Flags::new(false, false, false, carry));
+            }
             AluOp::Rlc(rhs) => {
                 let old_lhs = self.registers.get_byte(rhs);
                 let new_lhs = old_lhs.rotate_left(1);
@@ -605,103 +585,68 @@ impl CPU<'_> {
                 let carry = (old_lhs & (1 << 7)) != 0;
                 let new_lhs = (old_lhs << 1) | flags.c() as u8;
                 self.registers.set_byte(rhs, new_lhs);
-                self.registers.set_flags(Flags::new(
-                    new_lhs == 0,
-                    false,
-                    false,
-                    carry,
-                ));
+                self.registers
+                    .set_flags(Flags::new(new_lhs == 0, false, false, carry));
             }
             AluOp::Rr(rhs) => {
                 let old_lhs = self.registers.get_byte(rhs);
                 let carry = (old_lhs & 1) != 0;
                 let new_lhs = (old_lhs >> 1) | ((flags.c() as u8) << 7);
                 self.registers.set_byte(rhs, new_lhs);
-                self.registers.set_flags(Flags::new(
-                    new_lhs == 0,
-                    false,
-                    false,
-                    carry,
-                ));}
+                self.registers
+                    .set_flags(Flags::new(new_lhs == 0, false, false, carry));
+            }
             AluOp::Sla(rhs) => {
                 let old_lhs = self.registers.get_byte(rhs);
                 let carry = (old_lhs & (1 << 7)) != 0;
                 let new_lhs = old_lhs << 1;
                 self.registers.set_byte(rhs, new_lhs);
-                self.registers.set_flags(Flags::new(
-                    new_lhs == 0,
-                    false,
-                    false,
-                    carry,
-                ));
+                self.registers
+                    .set_flags(Flags::new(new_lhs == 0, false, false, carry));
             }
             AluOp::Sra(rhs) => {
                 let old_lhs = self.registers.get_byte(rhs);
                 let carry = (old_lhs & 1) != 0;
                 let new_lhs = (old_lhs >> 1) | (old_lhs & (1 << 7));
                 self.registers.set_byte(rhs, new_lhs);
-                self.registers.set_flags(Flags::new(
-                    new_lhs == 0,
-                    false,
-                    false,
-                    carry,
-                ));
+                self.registers
+                    .set_flags(Flags::new(new_lhs == 0, false, false, carry));
             }
             AluOp::Sll(rhs) => {
                 let old_lhs = self.registers.get_byte(rhs);
                 let carry = (old_lhs & (1 << 7)) != 0;
                 let new_lhs = (old_lhs << 1) | (old_lhs & 1);
                 self.registers.set_byte(rhs, new_lhs);
-                self.registers.set_flags(Flags::new(
-                    new_lhs == 0,
-                    false,
-                    false,
-                    carry,
-                ));
+                self.registers
+                    .set_flags(Flags::new(new_lhs == 0, false, false, carry));
             }
             AluOp::Srl(rhs) => {
                 let old_lhs = self.registers.get_byte(rhs);
                 let carry = (old_lhs & 1) != 0;
                 let new_lhs = old_lhs >> 1;
                 self.registers.set_byte(rhs, new_lhs);
-                self.registers.set_flags(Flags::new(
-                    new_lhs == 0,
-                    false,
-                    false,
-                    carry,
-                ));
+                self.registers
+                    .set_flags(Flags::new(new_lhs == 0, false, false, carry));
             }
             AluOp::Swap(rhs) => {
                 let old_lhs = self.registers.get_byte(rhs);
                 let new_lhs = ((old_lhs & 0x0F) << 4) | ((old_lhs & 0xF0) >> 4);
                 self.registers.set_byte(rhs, new_lhs);
-                self.registers.set_flags(Flags::new(
-                    new_lhs == 0,
-                    false,
-                    false,
-                    false,
-                ));
+                self.registers
+                    .set_flags(Flags::new(new_lhs == 0, false, false, false));
             }
             AluOp::Bit(bit, rhs) => {
                 let bit_on = (self.registers.get_byte(rhs) & (1 << bit as u8)) != 0;
-                self.registers.set_flags(Flags::new(
-                    !bit_on,
-                    false,
-                    true,
-                    flags.c(),
-                ));
+                self.registers
+                    .set_flags(Flags::new(!bit_on, false, true, flags.c()));
             }
             AluOp::Res(bit, rhs) => {
-                self.registers.set_byte(
-                    rhs,
-                    self.registers.get_byte(rhs) & !(1 << bit as u8),
-                );
+                self.registers
+                    .set_byte(rhs, self.registers.get_byte(rhs) & !(1 << bit as u8));
             }
             AluOp::Set(bit, rhs) => {
-                self.registers.set_byte(
-                    rhs,
-                    self.registers.get_byte(rhs) | (1 << bit as u8),
-                );
+                self.registers
+                    .set_byte(rhs, self.registers.get_byte(rhs) | (1 << bit as u8));
             }
         }
     }

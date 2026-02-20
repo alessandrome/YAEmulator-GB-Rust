@@ -78,7 +78,7 @@ const fn daa(mut a: u8, mut flags: u8) -> (u8, u8) {
     (a, flags)
 }
 
-const INTERRUPT_VBLANK: Instruction = Instruction {
+pub const INTERRUPT_VBLANK: Instruction = Instruction {
     opcode: 0x00, // Not important, interrupt routine hasn't an opcode
     name: "Interrupt - VBlank",
     cycles: 5,
@@ -93,9 +93,9 @@ const INTERRUPT_VBLANK: Instruction = Instruction {
     ],
 };
 
-const INTERRUPT_STAT: Instruction = Instruction {
+pub const INTERRUPT_LCD: Instruction = Instruction {
     opcode: 0x00, // Not important, interrupt routine hasn't an opcode
-    name: "Interrupt - STAT",
+    name: "Interrupt - LCD",
     cycles: 5,
     size: 0,
     flags: &[],
@@ -108,7 +108,7 @@ const INTERRUPT_STAT: Instruction = Instruction {
     ],
 };
 
-const INTERRUPT_TIMER: Instruction = Instruction {
+pub const INTERRUPT_TIMER: Instruction = Instruction {
     opcode: 0x00, // Not important, interrupt routine hasn't an opcode
     name: "Interrupt - Timer",
     cycles: 5,
@@ -123,7 +123,7 @@ const INTERRUPT_TIMER: Instruction = Instruction {
     ],
 };
 
-const INTERRUPT_SERIAL: Instruction = Instruction {
+pub const INTERRUPT_SERIAL: Instruction = Instruction {
     opcode: 0x00, // Not important, interrupt routine hasn't an opcode
     name: "Interrupt - Serial",
     cycles: 5,
@@ -138,7 +138,7 @@ const INTERRUPT_SERIAL: Instruction = Instruction {
     ],
 };
 
-const INTERRUPT_JOYPAD: Instruction = Instruction {
+pub const INTERRUPT_JOYPAD: Instruction = Instruction {
     opcode: 0x00, // Not important, interrupt routine hasn't an opcode
     name: "Interrupt - Joypad",
     cycles: 5,

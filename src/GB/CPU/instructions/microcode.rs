@@ -118,5 +118,6 @@ pub enum MCycleOp {
 pub enum MicroFlow {
     Next,
     Jump(usize),
+    End,
     PrefixCB,
 }
