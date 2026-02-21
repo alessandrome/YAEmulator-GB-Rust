@@ -1,8 +1,8 @@
 use crate::GB::bus::BusDevice;
 use crate::GB::types::address::Address;
 use crate::GB::types::Byte;
-use crate::GB::APU::channels::envelope::{Envelope, EnvelopeDirection};
-use crate::GB::APU::{mmio, ApuBusChannel, AudioPeriod, AudioVolume};
+use crate::GB::apu::channels::envelope::{Envelope, EnvelopeDirection};
+use crate::GB::apu::{mmio, ApuBusChannel, AudioPeriod, AudioVolume};
 use crate::{default_enum_u8_bit_ops, mask_flag_enum_default_impl};
 
 #[derive(Debug, Clone, Copy)]

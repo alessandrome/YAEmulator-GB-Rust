@@ -1,6 +1,6 @@
 pub mod cpu;
 pub mod ppu;
-pub mod APU;
+pub mod apu;
 pub mod cartridge;
 pub mod input;
 pub mod memory;
@@ -10,7 +10,7 @@ pub mod traits;
 pub mod utils;
 mod timer;
 mod interrupt;
-pub mod DMA;
+pub mod dma;
 
 use crate::GB::cartridge::addresses as cartridge_addresses;
 use crate::GB::input::{GBInputButtonsBits, GBInputDPadBits};
@@ -41,8 +41,8 @@ pub struct GB {
     // pub bios: BIOS, // todo!("Add Bios")
     pub cpu_ctx: cpu::CpuCtx,
     ppu_ctx: ppu::PpuCtx,
-    dma_ctx: DMA::DmaCtx,
-    apu: APU::APU,
+    dma_ctx: dma::DmaCtx,
+    apu: apu::APU,
     pub input: input::GBInput,
     cartridge: Option<cartridge::Cartridge>,
     cycles: u64, // Number to cycle needed to complete current CPU instruction. cpu.cycle() is skipped if different from 0
@@ -87,14 +87,14 @@ impl GB {
                 ppu: ppu::PPU::new(),
                 mmio: ppu::ppu_mmio::PpuMmio::new()
             },
-            dma_ctx: DMA::DmaCtx {
-                dma: DMA::DMA::new(),
-                mmio: DMA::dma_mmio::DmaMmio::new()
+            dma_ctx: dma::DmaCtx {
+                dma: dma::DMA::new(),
+                mmio: dma::dma_mmio::DmaMmio::new()
             },
             wram: WRAM::new(),
             cartridge: None,
             input: input::GBInput::default(),
-            apu: APU::APU::new(),
+            apu: apu::APU::new(),
             cycles: 0,
             cycles_overflows: 0,
         }

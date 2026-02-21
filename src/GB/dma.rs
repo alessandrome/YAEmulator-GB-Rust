@@ -1,7 +1,7 @@
 pub mod dma_mmio;
 
 use crate::GB::bus::{Bus, MmioContext, BusDevice};
-use crate::GB::DMA::dma_mmio::DmaMmio;
+use crate::GB::dma::dma_mmio::DmaMmio;
 use crate::GB::traits::Tick;
 use crate::GB::types::address::Address;
 use crate::GB::types::Byte;

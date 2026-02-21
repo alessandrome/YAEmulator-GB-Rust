@@ -1,6 +1,6 @@
 mod bus_device;
 
-use crate::GB::APU::APU;
+use crate::GB::apu::APU;
 use crate::GB::cartridge::ROM;
 use crate::GB::memory::wram::WRAM;
 use crate::GB::memory::hram::HRAM;
@@ -10,8 +10,8 @@ use crate::GB::ppu::PPU;
 use super::timer::TimerRegisters;
 pub(crate) use bus_device::{BusDevice, MmioDevice, MemoryDevice};
 use crate::GB::cpu::cpu_mmio::CpuMmio;
-use crate::GB::DMA::DMA;
-use crate::GB::DMA::dma_mmio::DmaMmio;
+use crate::GB::dma::DMA;
+use crate::GB::dma::dma_mmio::DmaMmio;
 use crate::GB::ppu::ppu_mmio::PpuMmio;
 use crate::GB::types::address::Address;
 use crate::GB::types::Byte;

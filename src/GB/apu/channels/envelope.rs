@@ -1,4 +1,4 @@
-use crate::GB::APU::constants::{FRAME_SEQUENCER_FREQUENCY, FRAME_SEQUENCER_TICKS};
+use crate::GB::apu::constants::{FRAME_SEQUENCER_FREQUENCY, FRAME_SEQUENCER_TICKS};
 use std::cmp::{max, min};
 use super::super::AudioVolume;
 

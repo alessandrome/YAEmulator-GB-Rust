@@ -1,4 +1,4 @@
-use crate::GB::APU::mmio::{WAVE_RAM_END, WAVE_RAM_START};
+use crate::GB::apu::mmio::{WAVE_RAM_END, WAVE_RAM_START};
 
 pub const WAVE_RAM_SIZE: u16 = WAVE_RAM_END.as_u16() - WAVE_RAM_START.as_u16() + 1; // Bytes
 pub const FRAME_SEQUENCER_TICKS: u32  = 8192;  // GB CPU Clock / Frame Sequencer Frequency
