@@ -1,5 +1,6 @@
 pub mod wram;
 pub mod hram;
+pub mod vram;
 
 use std::io::Read;
 use std::ops::{Deref, DerefMut};

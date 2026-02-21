@@ -12,11 +12,13 @@ pub(crate) use bus_device::{BusDevice, MmioDevice, MemoryDevice};
 use crate::GB::CPU::cpu_mmio::CpuMmio;
 use crate::GB::DMA::DMA;
 use crate::GB::DMA::dma_mmio::DmaMmio;
+use crate::GB::PPU::ppu_mmio::PpuMmio;
 use crate::GB::types::address::Address;
 use crate::GB::types::Byte;
 
 pub struct MmioContext<'a> {
     pub cpu_mmio: &'a mut CpuMmio,
+    pub ppu_mmio: &'a mut PpuMmio,
     // timer: &'a mut TimerRegisters,
     // pub apu: &'a mut APU,
     pub dma_mmio: &'a mut DmaMmio,

@@ -40,7 +40,7 @@ pub struct GB {
     pub wram: WRAM,
     // pub bios: BIOS, // todo!("Add Bios")
     pub cpu_ctx: CPU::CpuCtx,
-    pub ppu: PPU::PPU,
+    ppu_ctx: PPU::PpuCtx,
     dma_ctx: DMA::DmaCtx,
     apu: APU::APU,
     pub input: input::GBInput,
@@ -79,11 +79,14 @@ impl GB {
         Self {
             is_booting,
             bus: bus::Bus::new(),
-            cpu_ctx: CPU::CpuCtx{
+            cpu_ctx: CPU::CpuCtx {
                 cpu: CPU::CPU::new(),
                 mmio: CPU::cpu_mmio::CpuMmio::new()
             },
-            ppu: PPU::PPU::new(),
+            ppu_ctx: PPU::PpuCtx {
+                ppu: PPU::PPU::new(),
+                mmio: PPU::ppu_mmio::PpuMmio::new()
+            },
             dma_ctx: DMA::DmaCtx {
                 dma: DMA::DMA::new(),
                 mmio: DMA::dma_mmio::DmaMmio::new()
@@ -132,13 +135,14 @@ impl GB {
         // let time = Instant::now();
         let mut ctx = MmioContext {
             cpu_mmio: &mut self.cpu_ctx.mmio,
+            ppu_mmio: &mut self.ppu_ctx.mmio,
+            dma_mmio: &mut self.dma_ctx.mmio,
             wram: &mut self.wram,
         };
 
         // Tick every component
-        self.ppu.tick();
         self.apu.tick();
-        self.ppu.tick();
+        self.ppu_ctx.ppu.tick(&mut self.bus, &mut ctx);
         self.dma_ctx.dma.tick(&mut self.bus, &mut ctx);
         self.cpu_ctx.cpu.tick(&mut self.bus, &mut ctx);
 
@@ -211,7 +215,7 @@ impl GB {
     }
 
     pub fn get_frame_string(&self, doubled: bool) -> String {
-        self.ppu.get_frame_string(doubled)
+        self.ppu_ctx.get_frame_string(doubled)
     }
 }
 

@@ -11,11 +11,12 @@ use std::cell::RefCell;
 use std::fmt;
 use std::fmt::Formatter;
 use std::rc::Rc;
+use crate::GB::bus::{Bus, MmioContext};
 use crate::GB::memory;
-use crate::GB::memory::addresses::OAM_AREA_ADDRESS;
-use crate::GB::memory::interrupts::InterruptFlagsMask;
 use crate::GB::PPU::constants::{SCAN_OAM_DOTS, SCREEN_WIDTH};
+use crate::GB::PPU::ppu_mmio::PpuMmio;
 use crate::GB::PPU::oam::{OAM, OAM_BYTE_SIZE};
+use crate::GB::traits::Tick;
 
 pub mod addresses;
 pub mod constants;
@@ -26,6 +27,7 @@ pub mod ppu_mode;
 mod tests;
 pub mod tile;
 pub mod oam;
+pub mod ppu_mmio;
 
 macro_rules! ppu_get_set_flag_bit {
     ($get_func: ident, $set_func: ident, $register_ident: ident, $mask_ident: expr) => {
@@ -56,6 +58,8 @@ pub struct PPU {
 }
 
 impl PPU {
+    pub const SCAN_LINES: u8 = 154;
+
     pub fn new() -> Self {
         Self {
             frame: Box::new([GbPaletteId::Id0; constants::SCREEN_PIXELS]),
@@ -72,7 +76,7 @@ impl PPU {
     /// Execute a cycle of PPU. Each cycle is the equivalent of 1 Dot.
     ///
     /// Drawing penalties are emulated doing nothing during them. Theme are then added to HBlank mode to reduce its available dots.
-    pub fn tick(&mut self) {
+    pub fn _tick(&mut self) {
         const SCAN_OAM_DOTS_END: usize = constants::SCAN_OAM_DOTS - 1;
         const DRAW_DOTS_END: usize = constants::DRAW_LINE_MAX_DOTS - 1 + constants::SCAN_OAM_DOTS;
         const HBLANK_DOTS_START: usize = DRAW_DOTS_END + 1;
@@ -403,6 +407,19 @@ impl PPU {
     ppu_get_set_flag_bit!(get_lcd_enabled_flag, set_lcd_enabled_flag, LCDC, LCDCMasks::LcdEnabled);
 }
 
+impl Tick for PPU {
+    fn tick(&mut self, bus: &mut Bus, ctx: &mut MmioContext) {
+        todo!();
+        ctx.ppu_mmio.tick();
+    }
+}
+
+impl Default for PPU {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl fmt::Display for PPU {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         let line = self.read_memory(addresses::LY_ADDRESS as u16);
@@ -412,4 +429,9 @@ impl fmt::Display for PPU {
             line, self.screen_dot, self.line_dots
         )
     }
+}
+
+pub struct PpuCtx {
+    pub ppu: PPU,
+    pub mmio: PpuMmio,
 }
