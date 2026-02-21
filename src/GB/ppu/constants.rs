@@ -1,4 +1,4 @@
-use crate::GB::PPU::tile::{TILE_HEIGHT, TILE_WIDTH};
+use crate::GB::ppu::tile::{TILE_HEIGHT, TILE_WIDTH};
 
 pub const LINE_DOTS: usize = 456;
 

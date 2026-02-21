@@ -4,7 +4,7 @@ pub mod vram;
 
 use std::io::Read;
 use std::ops::{Deref, DerefMut};
-use crate::GB::PPU::tile::TILE_SIZE;
+use crate::GB::ppu::tile::TILE_SIZE;
 
 pub const RST_INSTRUCTIONS: usize = 0x0000; // Location in memory for RST instructions (not used on emulation)
 pub const CARTRIDGE_HEADER_ADDRESS: usize = 0x0100; // Location for ROM metadata (as name) (not used on emulation)

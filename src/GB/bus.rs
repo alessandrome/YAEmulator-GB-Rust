@@ -6,13 +6,13 @@ use crate::GB::memory::wram::WRAM;
 use crate::GB::memory::hram::HRAM;
 use crate::GB::cpu::CPU;
 use crate::GB::cpu::registers::interrupt_registers::InterruptRegisters;
-use crate::GB::PPU::PPU;
+use crate::GB::ppu::PPU;
 use super::timer::TimerRegisters;
 pub(crate) use bus_device::{BusDevice, MmioDevice, MemoryDevice};
 use crate::GB::cpu::cpu_mmio::CpuMmio;
 use crate::GB::DMA::DMA;
 use crate::GB::DMA::dma_mmio::DmaMmio;
-use crate::GB::PPU::ppu_mmio::PpuMmio;
+use crate::GB::ppu::ppu_mmio::PpuMmio;
 use crate::GB::types::address::Address;
 use crate::GB::types::Byte;
 

@@ -155,7 +155,7 @@ impl fmt::Display for Tile {
 
 #[cfg(test)]
 mod test {
-    use crate::GB::PPU::tile::{expand_bits, GbPaletteId, Tile};
+    use crate::GB::ppu::tile::{expand_bits, GbPaletteId, Tile};
 
     #[test]
     fn test_bit_expander() {

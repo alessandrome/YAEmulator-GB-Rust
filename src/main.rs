@@ -22,7 +22,7 @@ mod types;
 
 use crate::GB::instructions::Instruction;
 use crate::GB::memory::Length;
-use crate::GB::PPU::tile::Tile;
+use crate::GB::ppu::tile::Tile;
 use GB::memory;
 use GB::cpu::{CPU, CPU_CLOCK_SPEED};
 use crate::GB::cpu::CPU_INTERRUPT_CYCLES;

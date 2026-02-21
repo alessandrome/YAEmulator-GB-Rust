@@ -3,7 +3,7 @@ use crate::GB::memory::registers::LCDC;
 use crate::GB::memory::{
     UseMemory, RAM, VRAM_BLOCK_0_ADDRESS, VRAM_BLOCK_1_ADDRESS, VRAM_BLOCK_2_ADDRESS,
 };
-use crate::GB::PPU::tile::{GbPaletteId, Tile, TILE_SIZE, TILE_HEIGHT, TILE_WIDTH};
+use crate::GB::ppu::tile::{GbPaletteId, Tile, TILE_SIZE, TILE_HEIGHT, TILE_WIDTH};
 use lcd_stats_masks::LCDStatMasks;
 use lcdc_masks::LCDCMasks;
 use ppu_mode::PPUMode;
@@ -13,9 +13,9 @@ use std::fmt::Formatter;
 use std::rc::Rc;
 use crate::GB::bus::{Bus, MmioContext};
 use crate::GB::memory;
-use crate::GB::PPU::constants::{SCAN_OAM_DOTS, SCREEN_WIDTH};
-use crate::GB::PPU::ppu_mmio::PpuMmio;
-use crate::GB::PPU::oam::{OAM, OAM_BYTE_SIZE};
+use crate::GB::ppu::constants::{SCAN_OAM_DOTS, SCREEN_WIDTH};
+use crate::GB::ppu::ppu_mmio::PpuMmio;
+use crate::GB::ppu::oam::{OAM, OAM_BYTE_SIZE};
 use crate::GB::traits::Tick;
 
 pub mod addresses;

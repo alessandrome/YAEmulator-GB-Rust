@@ -1,6 +1,6 @@
 use std::cmp::Ordering;
-use crate::GB::PPU::oam::attributes_masks::AttributesMasks;
-use crate::GB::PPU::tile::{TILE_HEIGHT, TILE_WIDTH};
+use crate::GB::ppu::oam::attributes_masks::AttributesMasks;
+use crate::GB::ppu::tile::{TILE_HEIGHT, TILE_WIDTH};
 
 pub mod attributes_masks;
 
@@ -83,8 +83,8 @@ impl PartialOrd<Self> for OAM {
 
 #[cfg(test)]
 mod test {
-    use crate::GB::PPU::oam::attributes_masks::AttributesMasks;
-    use crate::GB::PPU::oam::OAM;
+    use crate::GB::ppu::oam::attributes_masks::AttributesMasks;
+    use crate::GB::ppu::oam::OAM;
 
     macro_rules! new_oam {
         ($oam: ident, $x_ident: ident, $y_ident: ident, $tile_ident: ident, $id_ident: ident, $attr_ident: ident, $x: expr, $y: expr, $tile_id: expr, $id: expr, $attributes: expr) => {

@@ -1,5 +1,5 @@
 pub mod cpu;
-pub mod PPU;
+pub mod ppu;
 pub mod APU;
 pub mod cartridge;
 pub mod input;
@@ -40,7 +40,7 @@ pub struct GB {
     pub wram: WRAM,
     // pub bios: BIOS, // todo!("Add Bios")
     pub cpu_ctx: cpu::CpuCtx,
-    ppu_ctx: PPU::PpuCtx,
+    ppu_ctx: ppu::PpuCtx,
     dma_ctx: DMA::DmaCtx,
     apu: APU::APU,
     pub input: input::GBInput,
@@ -83,9 +83,9 @@ impl GB {
                 cpu: cpu::CPU::new(),
                 mmio: cpu::cpu_mmio::CpuMmio::new()
             },
-            ppu_ctx: PPU::PpuCtx {
-                ppu: PPU::PPU::new(),
-                mmio: PPU::ppu_mmio::PpuMmio::new()
+            ppu_ctx: ppu::PpuCtx {
+                ppu: ppu::PPU::new(),
+                mmio: ppu::ppu_mmio::PpuMmio::new()
             },
             dma_ctx: DMA::DmaCtx {
                 dma: DMA::DMA::new(),
