@@ -1,3 +1,4 @@
+use crate::GB::bus::BusDevice;
 use crate::GB::memory::vram::VRAM;
 use crate::GB::types::address::{Address, AddressRangeInclusive};
 use crate::GB::types::Byte;
@@ -68,5 +69,43 @@ impl PpuMmio {
 
     pub fn tick(&mut self) {
         self.ly = (self.ly + 1) % PPU::SCAN_LINES;
+    }
+}
+
+impl BusDevice for PpuMmio {
+    fn read(&self, address: Address) -> Byte {
+        match address {
+            address if VRAM::VRAM_ADDRESS_RANGE.contains(&address) => self.vram.read(address),
+            Self::LCDC_ADDRESS => self.lcdc,
+            Self::STAT_ADDRESS => self.stat,
+            Self::SCY_ADDRESS => self.scy,
+            Self::SCX_ADDRESS => self.scx,
+            Self::LY_ADDRESS => self.ly,
+            Self::LYC_ADDRESS => self.lyc,
+            Self::BGP_ADDRESS => self.bgp,
+            Self::OBP0_ADDRESS => self.obp0,
+            Self::OBP1_ADDRESS => self.obp1,
+            Self::WY_ADDRESS => self.wy,
+            Self::WX_ADDRESS => self.wx,
+            _ => unreachable!(),
+        }
+    }
+
+    fn write(&mut self, address: Address, data: Byte) {
+        match address {
+            address if VRAM::VRAM_ADDRESS_RANGE.contains(&address) => self.vram.write(address, data),
+            Self::LCDC_ADDRESS => self.lcdc = data,
+            Self::STAT_ADDRESS => self.stat = data,
+            Self::SCY_ADDRESS => self.scy = data,
+            Self::SCX_ADDRESS => self.scx = data,
+            Self::LY_ADDRESS => (), // Read-Only
+            Self::LYC_ADDRESS => self.lyc = data,
+            Self::BGP_ADDRESS => self.bgp = data,
+            Self::OBP0_ADDRESS => self.obp0 = data,
+            Self::OBP1_ADDRESS => self.obp1 = data,
+            Self::WY_ADDRESS => self.wy = data,
+            Self::WX_ADDRESS => self.wx = data,
+            _ => unreachable!(),
+        }
     }
 }
