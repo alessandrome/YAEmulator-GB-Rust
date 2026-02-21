@@ -1,17 +1,3 @@
-use crate::GB::cartridge::addresses as cartridge_addresses;
-use crate::GB::input::{GBInputButtonsBits, GBInputDPadBits};
-use crate::GB::memory::addresses::{self, OAM_AREA_ADDRESS};
-use crate::GB::memory::BIOS::BIOS;
-use crate::GB::memory::{interrupts, RAM};
-use crate::GB::PPU::constants::OAM_NUMBERS;
-use crate::GB::PPU::oam::OAM_BYTE_SIZE;
-use std::cell::{Ref, RefCell};
-use std::rc::Rc;
-use std::time::Instant;
-use crate::GB::bus::MmioContext;
-use crate::GB::memory::interrupts::InterruptFlagsMask;
-use crate::GB::memory::wram::WRAM;
-
 pub mod CPU;
 pub mod PPU;
 pub mod APU;
@@ -25,6 +11,13 @@ pub mod utils;
 mod timer;
 mod interrupt;
 pub mod DMA;
+
+use crate::GB::cartridge::addresses as cartridge_addresses;
+use crate::GB::input::{GBInputButtonsBits, GBInputDPadBits};
+use crate::GB::bus::MmioContext;
+use crate::GB::memory::wram::WRAM;
+use traits::Tick;
+
 
 #[cfg(feature = "debug")]
 fn debug_print(args: std::fmt::Arguments) {
@@ -146,7 +139,7 @@ impl GB {
         self.ppu.tick();
         self.apu.tick();
         self.ppu.tick();
-        self.dma_ctx.tick(&mut self.bus, &mut ctx);
+        self.dma_ctx.dma.tick(&mut self.bus, &mut ctx);
         self.cpu_ctx.cpu.tick(&mut self.bus, &mut ctx);
 
         // if self.cpu.dma_transfer {
@@ -202,15 +195,6 @@ impl GB {
                 self.input.start = pressed;
             }
         }
-
-        // Update IF (Interrupt Flags) for button pressed
-        if pressed {
-            let interrupt_flags = self.memory.borrow().read(addresses::interrupt::IF as u16);
-            self.memory.borrow_mut().write(
-                addresses::interrupt::IF as u16,
-                interrupt_flags | interrupts::InterruptFlagsMask::JoyPad,
-            );
-        }
     }
 
     pub fn set_use_boot(&mut self, use_boot: bool) {
@@ -229,70 +213,10 @@ impl GB {
     pub fn get_frame_string(&self, doubled: bool) -> String {
         self.ppu.get_frame_string(doubled)
     }
-
-    pub fn dma_transfer(&mut self) {
-        let start_address = (self.memory.borrow().read(memory::registers::DMA) as u16) << 8;
-        let mut mem = self.memory.borrow_mut();
-        for i in 0..OAM_NUMBERS as u16 {
-            let oam_from_addr = start_address + i * OAM_BYTE_SIZE as u16;
-            let oam_to_addr = OAM_AREA_ADDRESS as u16 + i * OAM_BYTE_SIZE as u16;
-            let val = mem.read(oam_from_addr);
-            mem.write(oam_to_addr, val);
-            let val = mem.read(oam_from_addr + 1);
-            mem.write(oam_to_addr + 1, val);
-            let val = mem.read(oam_from_addr + 2);
-            mem.write(oam_to_addr + 2, val);
-            let val = mem.read(oam_from_addr + 3);
-            mem.write(oam_to_addr + 3, val);
-        }
-        self.cpu.dma_transfer = false;
-    }
-
-    pub fn is_managing_interrupt(&self) -> (InterruptFlagsMask, Option<u8>) {
-        (self.cpu.interrupt_type, self.cpu.interrupt_routine_cycle)
-    }
-
-    pub fn is_cpu_managing_interrupt(&self) -> bool {
-        match self.cpu.interrupt_routine_cycle {
-            Some(_) => { true }
-            _ => false
-        }
-    }
-
-    pub fn cpu_interrupt_type(&self) -> interrupts::InterruptFlagsMask {
-        self.cpu.interrupt_type
-    }
-
-    pub fn cpu_left_instruction_cycles(&self) -> u64 {
-        self.cpu.left_cycles
-    }
 }
 
 impl Default for GB {
     fn default() -> Self {
-        let inputs_ref = Rc::new(RefCell::new(input::GBInput::default()));
-        let ram = RAM::new(Rc::clone(&inputs_ref));
-        let ram_ref = Rc::new(RefCell::new(ram));
-        let cartridge_ref = Rc::new(RefCell::new(None));
-        let cpu = CPU::CPU::new(Rc::clone(&ram_ref));
-        let inputs = input::GBInput {
-            a: false,
-            b: false,
-            start: false,
-            select: false,
-            up: false,
-            down: false,
-            left: false,
-            right: false,
-        };
-        Self {
-            is_booting: false,
-            cpu,
-            ppu: PPU::PPU::new(Rc::clone(&ram_ref)),
-            memory: ram_ref,
-            bios: BIOS::new(),
-            input: inputs_ref,
-            cartridge: cartridge_ref,
-        }
+       Self::new(None)
     }
 }

@@ -2,6 +2,7 @@ pub mod dma_mmio;
 
 use crate::GB::bus::{Bus, MmioContext, BusDevice};
 use crate::GB::DMA::dma_mmio::DmaMmio;
+use crate::GB::traits::Tick;
 use crate::GB::types::address::Address;
 use crate::GB::types::Byte;
 
@@ -21,8 +22,10 @@ impl DMA {
             to_disable: false,
         }
     }
+}
 
-    pub fn tick(&mut self, bus: &mut Bus, ctx: &mut MmioContext) {
+impl Tick for DMA {
+    fn tick(&mut self, bus: &mut Bus, ctx: &mut MmioContext) {
         self.t_cycle = (self.t_cycle + 1) & 0b11;  // (T-Cycle + 1) % 4
 
         if self.to_disable {
@@ -42,7 +45,6 @@ impl DMA {
                 self.to_disable = true;
             }
         }
-        todo!()
     }
 }
 

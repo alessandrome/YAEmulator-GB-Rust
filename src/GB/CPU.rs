@@ -13,6 +13,7 @@ use registers::{core_registers::Registers, interrupt_registers::InterruptRegiste
 use crate::GB::CPU::cpu_mmio::CpuMmio;
 use crate::GB::interrupt::Interrupt;
 use crate::GB::memory::hram::HRAM;
+use crate::GB::traits::Tick;
 
 pub const DIVIDER_FREQUENCY: u64 = 16384; // Divider Update Frequency in Hz
 pub const CPU_INTERRUPT_CYCLES: u64 = 5; // Number of cycle to manage a requested Interrupt
@@ -116,34 +117,6 @@ impl CPU {
             micro_code_index: 0,
             micro_code_t_cycle: 0,
         }
-    }
-
-    /**
-    Step 1 T-Cycle (4 T-Cycle = 1 M-Cycle)
-    */
-    pub fn tick(&mut self, bus: &mut bus::Bus, ctx: &mut bus::MmioContext) {
-        self.micro_code_t_cycle = (self.micro_code_t_cycle + 1) & 0b0000_0011; // Just a Bit version of (value = value % 4)
-        let cpu_status;
-        if self.micro_code_t_cycle == 0 {
-            cpu_status = self.m_cycle_tick(bus, ctx, self.micro_code);
-        } else {
-            cpu_status = CpuStatus::Execute;
-        }
-
-        match cpu_status {
-            CpuStatus::Execute => { /* Wait 'till execution complete */ }
-            CpuStatus::Ready => {
-                let interrupt = self.interrupt(ctx.cpu_mmio.interrupt_registers());
-                if interrupt.is_none() {
-                    self.fetch_and_decode(bus, ctx, false);
-                } else {
-                    self.instruction = interrupt;
-                    self.micro_code_index = 0;
-                    self.micro_code = self.instruction.unwrap().micro_ops[0];
-                }
-            }
-        }
-        todo!()
     }
 
     pub fn fetch_next(&mut self, bus: &bus::Bus, ctx: &mut bus::MmioContext) -> Byte {
@@ -640,6 +613,32 @@ impl CPU {
             AluOp::Set(bit, rhs) => {
                 self.registers
                     .set_byte(rhs, self.registers.get_byte(rhs) | (1 << bit as u8));
+            }
+        }
+    }
+}
+
+impl Tick for CPU {
+    fn tick(&mut self, bus: &mut bus::Bus, ctx: &mut bus::MmioContext) {
+        self.micro_code_t_cycle = (self.micro_code_t_cycle + 1) & 0b0000_0011; // Just a Bit version of (value = value % 4)
+        let cpu_status;
+        if self.micro_code_t_cycle == 0 {
+            cpu_status = self.m_cycle_tick(bus, ctx, self.micro_code);
+        } else {
+            cpu_status = CpuStatus::Execute;
+        }
+
+        match cpu_status {
+            CpuStatus::Execute => { /* Wait 'till execution complete */ }
+            CpuStatus::Ready => {
+                let interrupt = self.interrupt(ctx.cpu_mmio.interrupt_registers());
+                if interrupt.is_none() {
+                    self.fetch_and_decode(bus, ctx, false);
+                } else {
+                    self.instruction = interrupt;
+                    self.micro_code_index = 0;
+                    self.micro_code = self.instruction.unwrap().micro_ops[0];
+                }
             }
         }
     }
