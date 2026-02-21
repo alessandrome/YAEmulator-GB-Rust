@@ -2,7 +2,7 @@
 mod test;
 pub mod microcode;
 
-use crate::GB::CPU::CPU;
+use crate::GB::cpu::CPU;
 use crate::GB::debug_print;
 use super::registers::core_registers::{FlagBits, Flags};
 use microcode::{*};

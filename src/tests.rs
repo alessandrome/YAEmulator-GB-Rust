@@ -1,4 +1,4 @@
-use crate::GB::CPU::{CPU};
+use crate::GB::cpu::{CPU};
 
 // #[test]
 // fn cpu_new_8bit_registers() {

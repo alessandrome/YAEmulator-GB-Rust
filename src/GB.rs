@@ -1,4 +1,4 @@
-pub mod CPU;
+pub mod cpu;
 pub mod PPU;
 pub mod APU;
 pub mod cartridge;
@@ -39,7 +39,7 @@ pub struct GB {
     bus: bus::Bus,
     pub wram: WRAM,
     // pub bios: BIOS, // todo!("Add Bios")
-    pub cpu_ctx: CPU::CpuCtx,
+    pub cpu_ctx: cpu::CpuCtx,
     ppu_ctx: PPU::PpuCtx,
     dma_ctx: DMA::DmaCtx,
     apu: APU::APU,
@@ -79,9 +79,9 @@ impl GB {
         Self {
             is_booting,
             bus: bus::Bus::new(),
-            cpu_ctx: CPU::CpuCtx {
-                cpu: CPU::CPU::new(),
-                mmio: CPU::cpu_mmio::CpuMmio::new()
+            cpu_ctx: cpu::CpuCtx {
+                cpu: cpu::CPU::new(),
+                mmio: cpu::cpu_mmio::CpuMmio::new()
             },
             ppu_ctx: PPU::PpuCtx {
                 ppu: PPU::PPU::new(),

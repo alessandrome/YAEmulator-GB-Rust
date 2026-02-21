@@ -1,6 +1,6 @@
 use std::rc::Rc;
 use std::cell::RefCell;
-use crate::GB::CPU::CPU;
+use crate::GB::cpu::CPU;
 use crate::GB::memory;
 use crate::GB::memory::{RAM, USER_PROGRAM_ADDRESS, WRAM_ADDRESS};
 use crate::GB::input::GBInput as GBInput;

@@ -4,13 +4,13 @@ pub mod cpu_mmio;
 
 use crate::GB::bus::{Bus, MmioContext, BusDevice};
 use crate::GB::types::{address::Address, Byte};
-use crate::GB::CPU::instructions::microcode::{CheckCondition, MicroFlow};
-use crate::GB::CPU::instructions::{Instruction, InstructionMicroOpIndex};
-use crate::GB::CPU::registers::core_registers::Flags;
+use crate::GB::cpu::instructions::microcode::{CheckCondition, MicroFlow};
+use crate::GB::cpu::instructions::{Instruction, InstructionMicroOpIndex};
+use crate::GB::cpu::registers::core_registers::Flags;
 use crate::GB::{bus, GB};
 use instructions::microcode::{AluOp, MCycleOp, MicroOp};
 use registers::{core_registers::Registers, interrupt_registers::InterruptRegisters};
-use crate::GB::CPU::cpu_mmio::CpuMmio;
+use crate::GB::cpu::cpu_mmio::CpuMmio;
 use crate::GB::interrupt::Interrupt;
 use crate::GB::memory::hram::HRAM;
 use crate::GB::traits::Tick;
@@ -21,7 +21,7 @@ pub const CPU_INTERRUPT_CYCLES: u64 = 5; // Number of cycle to manage a requeste
 #[cfg(test)]
 mod test {
     use crate::GB::memory::{RAM, WRAM_ADDRESS, WRAM_SIZE};
-    use crate::GB::CPU::CPU;
+    use crate::GB::cpu::CPU;
 
     #[test]
     fn cpu_new_8bit_registers() {
