@@ -8,7 +8,7 @@ use crate::GB::PPU::oam::OAM_BYTE_SIZE;
 use std::cell::{Ref, RefCell};
 use std::rc::Rc;
 use std::time::Instant;
-use crate::GB::bus::BusContext;
+use crate::GB::bus::MmioContext;
 use crate::GB::memory::interrupts::InterruptFlagsMask;
 use crate::GB::memory::wram::WRAM;
 
@@ -41,14 +41,14 @@ pub const CYCLES_PER_FRAME: u64 = SYSTEM_FREQUENCY_CLOCK / 60;
 pub const FRAME_TIME: f64 = 1_f64 / 60_f64;
 
 // #[derive()]
-pub struct GB<'a> {
+pub struct GB {
     is_booting: bool,
     bus: bus::Bus,
     pub wram: WRAM,
     // pub bios: BIOS, // todo!("Add Bios")
-    pub cpu: CPU::CPU<'a>,
+    pub cpu_ctx: CPU::CpuCtx,
     pub ppu: PPU::PPU,
-    dma: DMA::DMA,
+    dma_ctx: DMA::DmaCtx,
     apu: APU::APU,
     pub input: input::GBInput,
     cartridge: Option<cartridge::Cartridge>,
@@ -56,7 +56,7 @@ pub struct GB<'a> {
     cycles_overflows: u64, // Number of time cycles has overflowed
 }
 
-impl<'a> GB<'a> {
+impl GB {
     pub const SYSTEM_FREQUENCY_CLOCK: u32 = 4_194_304;
 
     pub fn new(bios: Option<String>) -> Self {
@@ -86,9 +86,15 @@ impl<'a> GB<'a> {
         Self {
             is_booting,
             bus: bus::Bus::new(),
-            cpu: CPU::CPU::new(),
-            ppu: PPU::PPU::new(Rc::clone(&ram_ref)),
-            dma: DMA::DMA::new(),
+            cpu_ctx: CPU::CpuCtx{
+                cpu: CPU::CPU::new(),
+                mmio: CPU::cpu_mmio::CpuMmio::new()
+            },
+            ppu: PPU::PPU::new(),
+            dma_ctx: DMA::DmaCtx {
+                dma: DMA::DMA::new(),
+                mmio: DMA::dma_mmio::DmaMmio::new()
+            },
             wram: WRAM::new(),
             cartridge: None,
             input: input::GBInput::default(),
@@ -98,20 +104,20 @@ impl<'a> GB<'a> {
         }
     }
 
-    fn with_bus<T>(&mut self, f: impl FnOnce(&mut BusContext) -> T) -> T {
-        let mut ctx = BusContext {
-            cpu: &mut self.cpu,
-            apu: &mut self.apu,
-            dma: &mut self.dma,
-            wram: &mut self.wram,
-        };
-        f(&mut ctx)
-    }
+    // fn with_bus<T>(&mut self, f: impl FnOnce(&mut MmioContext) -> T) -> T {
+    //     let mut ctx = MmioContext {
+    //         cpu: &mut self.cpu,
+    //         apu: &mut self.apu,
+    //         dma: &mut self.dma,
+    //         wram: &mut self.wram,
+    //     };
+    //     f(&mut ctx)
+    // }
 
     pub fn boot(&mut self) {
-        self.is_booting = true;
-        self.memory.borrow_mut().boot_load(&self.bios);
-        self.cpu.registers.set_pc(0);
+        // self.is_booting = true;
+        // self.memory.borrow_mut().boot_load(&self.bios);
+        // self.cpu.registers.set_pc(0);
     }
 
     pub fn insert_cartridge(&mut self, path: &String) {
@@ -131,10 +137,8 @@ impl<'a> GB<'a> {
     */
     pub fn tick(&mut self) {
         // let time = Instant::now();
-        let mut ctx = BusContext {
-            cpu: &mut self.cpu,
-            apu: &mut self.apu,
-            dma: &mut self.dma,
+        let mut ctx = MmioContext {
+            cpu_mmio: &mut self.cpu_ctx.mmio,
             wram: &mut self.wram,
         };
 
@@ -142,9 +146,9 @@ impl<'a> GB<'a> {
         self.ppu.tick();
         self.apu.tick();
         self.ppu.tick();
-        self.dma.tick(&mut self.bus, &mut ctx);
-        self.cpu.tick(&mut self.bus, &mut ctx);
-        
+        self.dma_ctx.tick(&mut self.bus, &mut ctx);
+        self.cpu_ctx.cpu.tick(&mut self.bus, &mut ctx);
+
         // if self.cpu.dma_transfer {
         //     self.dma_transfer();
         // }

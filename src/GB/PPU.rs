@@ -45,7 +45,6 @@ macro_rules! ppu_get_set_flag_bit {
 }
 
 pub struct PPU {
-    memory: Rc<RefCell<RAM>>,
     frame: Box<[GbPaletteId; constants::SCREEN_PIXELS]>,
     // mode: PPUMode, -> The mod is mapped in STAT - LCDC Register (bits 1/0)
     line_dots: usize,
@@ -57,9 +56,8 @@ pub struct PPU {
 }
 
 impl PPU {
-    pub fn new(memory: Rc<RefCell<RAM>>) -> Self {
+    pub fn new() -> Self {
         Self {
-            memory,
             frame: Box::new([GbPaletteId::Id0; constants::SCREEN_PIXELS]),
             // mode: PPUMode::OAMScan,
             line_dots: 0,

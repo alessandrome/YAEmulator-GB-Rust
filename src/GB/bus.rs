@@ -9,15 +9,17 @@ use crate::GB::CPU::registers::interrupt_registers::InterruptRegisters;
 use crate::GB::PPU::PPU;
 use super::timer::TimerRegisters;
 pub(crate) use bus_device::{BusDevice, MmioDevice, MemoryDevice};
+use crate::GB::CPU::cpu_mmio::CpuMmio;
 use crate::GB::DMA::DMA;
+use crate::GB::DMA::dma_mmio::DmaMmio;
 use crate::GB::types::address::Address;
 use crate::GB::types::Byte;
 
-pub struct BusContext<'a> {
-    pub cpu: &'a mut CPU<'a>,
+pub struct MmioContext<'a> {
+    pub cpu_mmio: &'a mut CpuMmio,
     // timer: &'a mut TimerRegisters,
-    pub apu: &'a mut APU,
-    pub dma: &'a mut DMA,
+    // pub apu: &'a mut APU,
+    pub dma_mmio: &'a mut DmaMmio,
     pub wram: &'a mut WRAM,
 }
 
@@ -30,13 +32,16 @@ impl Bus {
 }
 
 impl Bus {
-    pub fn read(&self, ctx: &BusContext, address: Address) -> Byte {
+    pub fn read(&self, ctx: &MmioContext, address: Address) -> Byte {
         match address {
             address if HRAM::HRAM_ADDRESS_RANGE.contains(&address) => {
-                ctx.cpu.read(address)
+                ctx.cpu_mmio.read(address)
             }
             InterruptRegisters::IE_ADDRESS | InterruptRegisters::IF_ADDRESS => {
-                ctx.cpu.read(address)
+                ctx.cpu_mmio.read(address)
+            }
+            DMA::DMA_SOURCE_ADDRESS => {
+                ctx.dma_mmio.read(address)
             }
             address if WRAM::WRAM_ADDRESS_RANGE.contains(&address) => {
                 ctx.wram.read(address)
@@ -45,13 +50,16 @@ impl Bus {
         }
     }
 
-    pub fn write(&mut self, ctx: &mut BusContext, address: Address, data: Byte) {
+    pub fn write(&mut self, ctx: &mut MmioContext, address: Address, data: Byte) {
         match address {
             address if HRAM::HRAM_ADDRESS_RANGE.contains(&address) => {
-                ctx.cpu.write(address, data)
+                ctx.cpu_mmio.write(address, data)
             }
             InterruptRegisters::IE_ADDRESS | InterruptRegisters::IF_ADDRESS => {
-                ctx.cpu.write(address, data)
+                ctx.cpu_mmio.write(address, data)
+            }
+            DMA::DMA_SOURCE_ADDRESS => {
+                ctx.dma_mmio.write(address, data)
             }
             address if WRAM::WRAM_ADDRESS_RANGE.contains(&address) => {
                 ctx.wram.write(address, data)

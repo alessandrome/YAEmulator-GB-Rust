@@ -1,9 +1,8 @@
 mod instructions;
 pub mod registers;
+pub mod cpu_mmio;
 
-use crate::GB::bus::{Bus, BusContext, BusDevice};
-use crate::GB::memory::interrupts::InterruptFlagsMask;
-use crate::GB::memory::{self, addresses, interrupts, USER_PROGRAM_ADDRESS};
+use crate::GB::bus::{Bus, MmioContext, BusDevice};
 use crate::GB::types::{address::Address, Byte};
 use crate::GB::CPU::instructions::microcode::{CheckCondition, MicroFlow};
 use crate::GB::CPU::instructions::{Instruction, InstructionMicroOpIndex};
@@ -11,6 +10,7 @@ use crate::GB::CPU::registers::core_registers::Flags;
 use crate::GB::{bus, GB};
 use instructions::microcode::{AluOp, MCycleOp, MicroOp};
 use registers::{core_registers::Registers, interrupt_registers::InterruptRegisters};
+use crate::GB::CPU::cpu_mmio::CpuMmio;
 use crate::GB::interrupt::Interrupt;
 use crate::GB::memory::hram::HRAM;
 
@@ -19,11 +19,8 @@ pub const CPU_INTERRUPT_CYCLES: u64 = 5; // Number of cycle to manage a requeste
 
 #[cfg(test)]
 mod test {
-    use crate::GB::input::GBInput;
     use crate::GB::memory::{RAM, WRAM_ADDRESS, WRAM_SIZE};
     use crate::GB::CPU::CPU;
-    use std::cell::RefCell;
-    use std::rc::Rc;
 
     #[test]
     fn cpu_new_8bit_registers() {
@@ -98,8 +95,6 @@ enum CpuStatus {
 
 pub struct CPU {
     pub registers: Registers,
-    pub interrupt_registers: InterruptRegisters,
-    pub hram: HRAM, // HRAM is a high-speed ram in the CPU Socket for quick and direct access
     pub ime: bool,  // Interrupt Master Enable - True if you want to enable and intercept interrupts
     pub opcode: u8, // Running Instruction Opcode - Known as IR (Instruction Register),
     pub instruction: Option<&'static Instruction>, // Instruction microcode to execute
@@ -114,8 +109,6 @@ impl CPU {
     pub fn new() -> Self {
         Self {
             registers: Registers::new(),
-            interrupt_registers: InterruptRegisters::new(),
-            hram: HRAM::new(),
             ime: false,
             opcode: 0,
             instruction: None,
@@ -128,7 +121,7 @@ impl CPU {
     /**
     Step 1 T-Cycle (4 T-Cycle = 1 M-Cycle)
     */
-    pub fn tick(&mut self, bus: &mut bus::Bus, ctx: &mut bus::BusContext) {
+    pub fn tick(&mut self, bus: &mut bus::Bus, ctx: &mut bus::MmioContext) {
         self.micro_code_t_cycle = (self.micro_code_t_cycle + 1) & 0b0000_0011; // Just a Bit version of (value = value % 4)
         let cpu_status;
         if self.micro_code_t_cycle == 0 {
@@ -140,7 +133,7 @@ impl CPU {
         match cpu_status {
             CpuStatus::Execute => { /* Wait 'till execution complete */ }
             CpuStatus::Ready => {
-                let interrupt = self.interrupt();
+                let interrupt = self.interrupt(ctx.cpu_mmio.interrupt_registers());
                 if interrupt.is_none() {
                     self.fetch_and_decode(bus, ctx, false);
                 } else {
@@ -153,7 +146,7 @@ impl CPU {
         todo!()
     }
 
-    pub fn fetch_next(&mut self, bus: &bus::Bus, ctx: &mut bus::BusContext) -> Byte {
+    pub fn fetch_next(&mut self, bus: &bus::Bus, ctx: &mut bus::MmioContext) -> Byte {
         let addr = self.registers.get_and_inc_pc();
         bus.read(ctx, Address(addr))
     }
@@ -166,7 +159,7 @@ impl CPU {
         instructions::OPCODES[opcode_usize]
     }
 
-    pub fn fetch_and_decode(&mut self, bus: &bus::Bus, ctx: &mut bus::BusContext, cb_optable: bool) -> (Option<&'static Instruction>, Byte) {
+    pub fn fetch_and_decode(&mut self, bus: &bus::Bus, ctx: &mut bus::MmioContext, cb_optable: bool) -> (Option<&'static Instruction>, Byte) {
         let opcode = self.fetch_next(bus, ctx);
         (Self::decode(opcode, cb_optable), opcode)
     }
@@ -183,23 +176,23 @@ impl CPU {
     /// Check and jump to requested interrupt address after take a snapshot of status on stack.
     ///
     /// Interrupt bit has priority from lower bit to higher (bit 0 has the higher priority).
-    pub fn interrupt(&mut self) -> Option<&'static Instruction> {
+    pub fn interrupt(&mut self, interrupt_registers: &InterruptRegisters) -> Option<&'static Instruction> {
         let mut interrupt = None;
         if self.ime {
-            if self.interrupt_registers.get_vblank_enabled() && self.interrupt_registers.get_vblank_interrupt() {
+            if interrupt_registers.get_vblank_enabled() && interrupt_registers.get_vblank_interrupt() {
                 // Bit 0
                 interrupt = Some(&instructions::INTERRUPT_VBLANK);
-            } else if self.interrupt_registers.get_lcd_enabled() && self.interrupt_registers.get_lcd_interrupt() {
+            } else if interrupt_registers.get_lcd_enabled() && interrupt_registers.get_lcd_interrupt() {
                 // Bit 1
                 interrupt = Some(&instructions::INTERRUPT_LCD);
-            } else if self.interrupt_registers.get_timer_enabled() && self.interrupt_registers.get_timer_interrupt() {
-                // Bit 1
+            } else if interrupt_registers.get_timer_enabled() && interrupt_registers.get_timer_interrupt() {
+                // Bit 2
                 interrupt = Some(&instructions::INTERRUPT_TIMER);
-            } else if self.interrupt_registers.get_serial_enabled() && self.interrupt_registers.get_serial_interrupt() {
-                // Bit 1
+            } else if interrupt_registers.get_serial_enabled() && interrupt_registers.get_serial_interrupt() {
+                // Bit 3
                 interrupt = Some(&instructions::INTERRUPT_SERIAL);
-            } else if self.interrupt_registers.get_joypad_enabled() && self.interrupt_registers.get_joypad_interrupt() {
-                // Bit 1
+            } else if interrupt_registers.get_joypad_enabled() && interrupt_registers.get_joypad_interrupt() {
+                // Bit 4
                 interrupt = Some(&instructions::INTERRUPT_JOYPAD);
             }
         }
@@ -210,7 +203,7 @@ impl CPU {
        CPU Push 1-byte using SP register (to not confuse with instruction PUSH r16, that PUSH in a 2-bytes value from a double-register)
     */
     #[inline]
-    pub fn push(&mut self, bus: &mut Bus, ctx: &mut BusContext, byte: u8) {
+    pub fn push(&mut self, bus: &mut Bus, ctx: &mut MmioContext, byte: u8) {
         bus.write(ctx, self.registers.get_sp_as_address(), byte);
         self.registers.set_sp(self.registers.get_sp() - 1);
     }
@@ -219,7 +212,7 @@ impl CPU {
        CPU Pop 1-byte using SP register (to not confuse with instruction POP r16, that pop out a 2-bytes value to put in a double-register)
     */
     #[inline]
-    pub fn pop(&mut self, bus: &mut Bus, ctx: &mut BusContext) -> Byte {
+    pub fn pop(&mut self, bus: &mut Bus, ctx: &mut MmioContext) -> Byte {
         self.registers.set_sp(self.registers.get_sp() + 1);
         bus.read(ctx, self.registers.get_sp_as_address())
     }
@@ -227,7 +220,7 @@ impl CPU {
     fn m_cycle_tick(
         &mut self,
         bus: &mut bus::Bus,
-        ctx: &mut bus::BusContext,
+        ctx: &mut bus::MmioContext,
         m_cycle_op: MCycleOp,
     ) -> CpuStatus {
         let mut flow: MicroFlow;
@@ -323,7 +316,7 @@ impl CPU {
     fn micro_tick(
         &mut self,
         bus: &mut bus::Bus,
-        ctx: &mut bus::BusContext,
+        ctx: &mut bus::MmioContext,
         micro_op: MicroOp,
     ) -> MicroFlow {
         let mut micro_flow = MicroFlow::Next;
@@ -652,28 +645,7 @@ impl CPU {
     }
 }
 
-impl BusDevice for CPU {
-    fn read(&self, address: Address) -> Byte {
-        match address {
-            InterruptRegisters::IE_ADDRESS | InterruptRegisters::IF_ADDRESS => {
-                self.interrupt_registers.read(address)
-            }
-            address if HRAM::HRAM_ADDRESS_RANGE.contains(&address) => {
-                self.hram.read(address)
-            }
-            _ => unreachable!(),
-        }
-    }
-
-    fn write(&mut self, address: Address, data: Byte) {
-        match address {
-            InterruptRegisters::IE_ADDRESS | InterruptRegisters::IF_ADDRESS => {
-                self.interrupt_registers.write(address, data)
-            }
-            address if HRAM::HRAM_ADDRESS_RANGE.contains(&address) => {
-                self.hram.write(address, data)
-            }
-            _ => unreachable!(),
-        }
-    }
+pub struct CpuCtx {
+    pub cpu: CPU,
+    pub mmio: CpuMmio
 }
