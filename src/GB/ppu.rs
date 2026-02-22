@@ -6,7 +6,7 @@ use crate::GB::memory::{
 use crate::GB::ppu::tile::{GbPaletteId, Tile, TILE_SIZE, TILE_HEIGHT, TILE_WIDTH};
 use lcd_stats_masks::LCDStatMasks;
 use lcdc_masks::LCDCMasks;
-use ppu_mode::PPUMode;
+use ppu_mode::PpuMode;
 use std::cell::RefCell;
 use std::fmt;
 use std::fmt::Formatter;
@@ -58,7 +58,11 @@ pub struct PPU {
 }
 
 impl PPU {
-    pub const SCAN_LINES: u8 = 154;
+    pub const SCAN_LINES: u16 = 154;
+    pub const SCREEN_LINES: u16 = 144;
+    pub const COLUMN_DOTS: u16 = 456;
+    pub const SCREEN_DOTS: u16 = 160;
+    pub const DOTS_PER_FRAME: u32 = (Self::SCAN_LINES as u32) * (Self::COLUMN_DOTS as u32);
 
     pub fn new() -> Self {
         Self {
@@ -88,7 +92,7 @@ impl PPU {
         // Execute
         if line > constants::SCREEN_HEIGHT - 1 {
             if line == constants::SCREEN_HEIGHT && self.line_dots == 0 {
-                self.set_mode(PPUMode::VBlank);
+                self.set_mode(PpuMode::VBlank);
                 let mut old_if = self.memory.borrow().read(memory::registers::IF) | InterruptFlagsMask::VBlank;
                 // Check if VBlank Interrupt mode is enabled on STAT register
                 let stat_reg = self.memory.borrow().read(memory::registers::STAT);
@@ -169,7 +173,7 @@ impl PPU {
             self.line_dots = (self.line_dots + 1) % constants::LINE_DOTS;
             match self.line_dots {
                 0 => {
-                    self.set_mode(PPUMode::OAMScan);
+                    self.set_mode(PpuMode::OAMScan);
                     // Check if HBlank Interrupt mode is enabled on STAT register
                     let stat_reg = self.memory.borrow().read(memory::registers::STAT);
                     if (stat_reg & LCDStatMasks::Mode2Interrupt) != 0 {
@@ -181,12 +185,12 @@ impl PPU {
                     self.write_memory(addresses::LY_ADDRESS as u16, line as u8);
                 }
                 constants::SCAN_OAM_DOTS => {
-                    self.set_mode(PPUMode::Drawing);
+                    self.set_mode(PpuMode::Drawing);
                     self.line_oam.sort();
                 }
                 HBLANK_DOTS_START => {
                     self.line_dots += self.dots_penalties;
-                    self.set_mode(PPUMode::HBlank);
+                    self.set_mode(PpuMode::HBlank);
                     // Check if HBlank Interrupt mode is enabled on STAT register
                     let stat_reg = self.memory.borrow().read(memory::registers::STAT);
                     if (stat_reg & LCDStatMasks::Mode0Interrupt) != 0 {
@@ -215,7 +219,7 @@ impl PPU {
         }
     }
 
-    fn set_mode(&mut self, mode: PPUMode) {
+    fn set_mode(&mut self, mode: PpuMode) {
         const LCD_STAT_ADDR_USIZE: u16 = addresses::LCD_STAT_ADDRESS as u16;
         let register = self.read_memory(LCD_STAT_ADDR_USIZE) & !LCDStatMasks::PPUMode;
         self.write_memory(LCD_STAT_ADDR_USIZE, register | mode);

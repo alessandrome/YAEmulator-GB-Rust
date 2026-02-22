@@ -2,9 +2,11 @@ use crate::GB::bus::BusDevice;
 use crate::GB::memory::vram::VRAM;
 use crate::GB::types::address::{Address, AddressRangeInclusive};
 use crate::GB::types::Byte;
+use super::ppu_mode::PpuMode;
 use super::PPU;
 
 pub struct PpuMmio {
+    ppu_mode: PpuMode,
     vram: VRAM,
     lcdc: Byte,
     stat: Byte,
@@ -52,6 +54,7 @@ impl PpuMmio {
 impl PpuMmio {
     pub fn new() -> Self {
         Self {
+            ppu_mode: PpuMode::OAMScan,
             vram: VRAM::new(),
             lcdc: 0,
             stat: 0,
@@ -67,8 +70,25 @@ impl PpuMmio {
         }
     }
 
+    #[inline]
     pub fn tick(&mut self) {
-        self.ly = (self.ly + 1) % PPU::SCAN_LINES;
+        self.ly = (self.ly + 1) % (PPU::SCAN_LINES as u8);
+    }
+
+    #[inline]
+    pub fn next_mode(&mut self) {
+        match self.ppu_mode {
+            PpuMode::OAMScan => self.ppu_mode = PpuMode::Drawing,
+            PpuMode::Drawing => self.ppu_mode = PpuMode::HBlank,
+            PpuMode::HBlank => {
+                if self.ly >= PPU::SCREEN_LINES as u8 {
+                    self.ppu_mode = PpuMode::VBlank
+                } else {
+                    self.ppu_mode = PpuMode::OAMScan
+                }
+            }
+            PpuMode::VBlank => self.ppu_mode = PpuMode::OAMScan,
+        }
     }
 }
 
