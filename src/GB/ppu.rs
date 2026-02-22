@@ -28,6 +28,7 @@ mod tests;
 pub mod tile;
 pub mod oam;
 pub mod ppu_mmio;
+pub mod oam_mmio;
 
 macro_rules! ppu_get_set_flag_bit {
     ($get_func: ident, $set_func: ident, $register_ident: ident, $mask_ident: expr) => {
@@ -46,12 +47,15 @@ macro_rules! ppu_get_set_flag_bit {
     };
 }
 
+const SCREEN_LINES: u16 = 144;
+const SCREEN_DOTS: u16 = 160;
+
 pub struct PPU {
-    frame: Box<[GbPaletteId; constants::SCREEN_PIXELS]>,
+    frame: Box<[GbPaletteId; SCREEN_LINES as usize * SCREEN_DOTS as usize]>,
     // mode: PPUMode, -> The mod is mapped in STAT - LCDC Register (bits 1/0)
     line_dots: usize,
     screen_dot: usize,
-    dots_penalties: usize,
+    dots_penalties: u8,
     dots_penalties_counter: usize,
     line_oam: Vec<OAM>,
     line_oam_number: usize,
@@ -59,9 +63,9 @@ pub struct PPU {
 
 impl PPU {
     pub const SCAN_LINES: u16 = 154;
-    pub const SCREEN_LINES: u16 = 144;
+    pub const SCREEN_LINES: u16 = SCREEN_LINES;
     pub const COLUMN_DOTS: u16 = 456;
-    pub const SCREEN_DOTS: u16 = 160;
+    pub const SCREEN_DOTS: u16 = SCREEN_DOTS;
     pub const DOTS_PER_FRAME: u32 = (Self::SCAN_LINES as u32) * (Self::COLUMN_DOTS as u32);
 
     pub fn new() -> Self {
@@ -413,6 +417,12 @@ impl PPU {
 
 impl Tick for PPU {
     fn tick(&mut self, bus: &mut Bus, ctx: &mut MmioContext) {
+        match ctx.ppu_mmio.ppu_mode() {
+            PpuMode::OAMScan => {}
+            PpuMode::Drawing => {}
+            PpuMode::HBlank => {}
+            PpuMode::VBlank => {}
+        }
         todo!();
         ctx.ppu_mmio.tick();
     }

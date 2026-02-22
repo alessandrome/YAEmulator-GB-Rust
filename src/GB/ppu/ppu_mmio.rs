@@ -74,6 +74,11 @@ impl PpuMmio {
     pub fn tick(&mut self) {
         self.ly = (self.ly + 1) % (PPU::SCAN_LINES as u8);
     }
+    
+    #[inline]
+    pub fn ppu_mode(&self) -> PpuMode {
+        self.ppu_mode
+    }
 
     #[inline]
     pub fn next_mode(&mut self) {

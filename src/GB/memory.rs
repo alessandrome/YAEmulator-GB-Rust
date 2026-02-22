@@ -1,6 +1,7 @@
 pub mod wram;
 pub mod hram;
 pub mod vram;
+pub mod oam_memory;
 
 use std::io::Read;
 use std::ops::{Deref, DerefMut};
@@ -82,12 +83,12 @@ pub trait Length {
 #[cfg(test)]
 mod test {
     use crate::GB::bus::BusDevice;
-    use super::RAM;
+    use super::wram::WRAM;
     use crate::GB::types::{Byte, address::Address};
 
     #[test]
     fn test_memory_read() {
-        let mut ram = RAM::new();
+        let mut ram = WRAM::new();
         let address = Address(0xC0D0);
         let data: Byte = 0x44;
         ram.memory[address.as_index()] = data;
@@ -96,7 +97,7 @@ mod test {
 
     #[test]
     fn test_memory_write() {
-        let mut ram = RAM::new();
+        let mut ram = WRAM::new();
         let address = Address(0xC0D0);
         let data: Byte = 0x45;
         ram.memory[address.as_index()] = 0xFF;
@@ -107,7 +108,7 @@ mod test {
 
     #[test]
     fn test_memory_read_vec() {
-        let mut ram = RAM::new();
+        let mut ram = WRAM::new();
         let start_address = Address(0xC0D0);
         let data: Vec<Byte> = vec![0x44, 0x55, 0xF0, 0x0F, 0x75, 0x1A, 0xA1, 0x92];
         for i in 0..data.len() {

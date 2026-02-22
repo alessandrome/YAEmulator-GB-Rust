@@ -12,6 +12,8 @@ pub(crate) use bus_device::{BusDevice, MmioDevice, MemoryDevice};
 use crate::GB::cpu::cpu_mmio::CpuMmio;
 use crate::GB::dma::DMA;
 use crate::GB::dma::dma_mmio::DmaMmio;
+use crate::GB::memory::oam_memory::OamMemory;
+use crate::GB::ppu::oam_mmio::OamMmio;
 use crate::GB::ppu::ppu_mmio::PpuMmio;
 use crate::GB::types::address::Address;
 use crate::GB::types::Byte;
@@ -19,6 +21,7 @@ use crate::GB::types::Byte;
 pub struct MmioContext<'a> {
     pub cpu_mmio: &'a mut CpuMmio,
     pub ppu_mmio: &'a mut PpuMmio,
+    pub oam_mmio: &'a mut OamMmio,
     // timer: &'a mut TimerRegisters,
     // pub apu: &'a mut APU,
     pub dma_mmio: &'a mut DmaMmio,
@@ -48,6 +51,9 @@ impl Bus {
             address if WRAM::WRAM_ADDRESS_RANGE.contains(&address) => {
                 ctx.wram.read(address)
             }
+            address if OamMemory::OAM_ADDRESS_RANGE.contains(&address) => {
+                ctx.oam_mmio.read(address)
+            }
             _ => todo!("Implement all other ranges"),
         }
     }
@@ -65,6 +71,9 @@ impl Bus {
             }
             address if WRAM::WRAM_ADDRESS_RANGE.contains(&address) => {
                 ctx.wram.write(address, data)
+            }
+            address if OamMemory::OAM_ADDRESS_RANGE.contains(&address) => {
+                ctx.oam_mmio.write(address, data)
             }
             _ => todo!("Implement all other ranges"),
         }
