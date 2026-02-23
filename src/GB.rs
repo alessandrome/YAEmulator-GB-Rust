@@ -15,7 +15,6 @@ pub mod dma;
 use crate::GB::cartridge::addresses as cartridge_addresses;
 use crate::GB::input::{GBInputButtonsBits, GBInputDPadBits};
 use crate::GB::bus::MmioContext;
-use crate::GB::memory::wram::WRAM;
 use traits::Tick;
 
 
@@ -37,7 +36,8 @@ pub const FRAME_TIME: f64 = 1_f64 / 60_f64;
 pub struct GB {
     is_booting: bool,
     bus: bus::Bus,
-    pub wram: WRAM,
+    pub wram: memory::wram::WRAM,
+    pub oam_memory: memory::oam_memory::OamMemory,
     // pub bios: BIOS, // todo!("Add Bios")
     pub cpu_ctx: cpu::CpuCtx,
     ppu_ctx: ppu::PpuCtx,
@@ -91,7 +91,8 @@ impl GB {
                 dma: dma::DMA::new(),
                 mmio: dma::dma_mmio::DmaMmio::new()
             },
-            wram: WRAM::new(),
+            oam_memory: memory::oam_memory::OamMemory::new(),
+            wram: memory::wram::WRAM::new(),
             cartridge: None,
             input: input::GBInput::default(),
             apu: apu::APU::new(),
@@ -137,6 +138,7 @@ impl GB {
             cpu_mmio: &mut self.cpu_ctx.mmio,
             ppu_mmio: &mut self.ppu_ctx.mmio,
             dma_mmio: &mut self.dma_ctx.mmio,
+            oam_mmio: &mut self.oam_memory,
             wram: &mut self.wram,
         };
 

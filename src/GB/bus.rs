@@ -13,7 +13,6 @@ use crate::GB::cpu::cpu_mmio::CpuMmio;
 use crate::GB::dma::DMA;
 use crate::GB::dma::dma_mmio::DmaMmio;
 use crate::GB::memory::oam_memory::OamMemory;
-use crate::GB::ppu::oam_mmio::OamMmio;
 use crate::GB::ppu::ppu_mmio::PpuMmio;
 use crate::GB::types::address::Address;
 use crate::GB::types::Byte;
@@ -21,10 +20,10 @@ use crate::GB::types::Byte;
 pub struct MmioContext<'a> {
     pub cpu_mmio: &'a mut CpuMmio,
     pub ppu_mmio: &'a mut PpuMmio,
-    pub oam_mmio: &'a mut OamMmio,
     // timer: &'a mut TimerRegisters,
     // pub apu: &'a mut APU,
     pub dma_mmio: &'a mut DmaMmio,
+    pub oam_mmio: &'a mut OamMemory,
     pub wram: &'a mut WRAM,
 }
 

@@ -17,9 +17,8 @@ use crate::GB::ppu::constants::{SCAN_OAM_DOTS, SCREEN_WIDTH};
 use crate::GB::ppu::ppu_mmio::PpuMmio;
 use crate::GB::ppu::oam::{OAM, OAM_BYTE_SIZE};
 use crate::GB::traits::Tick;
+use crate::GB::types::address::Address;
 
-pub mod addresses;
-pub mod constants;
 pub mod lcd_stats_masks;
 pub mod lcdc_masks;
 pub mod ppu_mode;
@@ -28,7 +27,6 @@ mod tests;
 pub mod tile;
 pub mod oam;
 pub mod ppu_mmio;
-pub mod oam_mmio;
 
 macro_rules! ppu_get_set_flag_bit {
     ($get_func: ident, $set_func: ident, $register_ident: ident, $mask_ident: expr) => {
@@ -49,16 +47,14 @@ macro_rules! ppu_get_set_flag_bit {
 
 const SCREEN_LINES: u16 = 144;
 const SCREEN_DOTS: u16 = 160;
+const OAM_BUFFER: u8 = 10;
 
 pub struct PPU {
     frame: Box<[GbPaletteId; SCREEN_LINES as usize * SCREEN_DOTS as usize]>,
-    // mode: PPUMode, -> The mod is mapped in STAT - LCDC Register (bits 1/0)
-    line_dots: usize,
-    screen_dot: usize,
+    oam_buffer: Vec<OAM>,
+    oam_scans: u8,
     dots_penalties: u8,
     dots_penalties_counter: usize,
-    line_oam: Vec<OAM>,
-    line_oam_number: usize,
 }
 
 impl PPU {
@@ -67,17 +63,16 @@ impl PPU {
     pub const COLUMN_DOTS: u16 = 456;
     pub const SCREEN_DOTS: u16 = SCREEN_DOTS;
     pub const DOTS_PER_FRAME: u32 = (Self::SCAN_LINES as u32) * (Self::COLUMN_DOTS as u32);
+    pub const SCREEN_PIXELS: u32 = (Self::SCREEN_LINES as u32) * (Self::SCREEN_DOTS as u32);
+    pub const OAM_BUFFER: u8 = OAM_BUFFER;
 
     pub fn new() -> Self {
         Self {
-            frame: Box::new([GbPaletteId::Id0; constants::SCREEN_PIXELS]),
-            // mode: PPUMode::OAMScan,
-            line_dots: 0,
-            screen_dot: 0, // Actual elaborated pixel on screen (between 0 - 143)
+            frame: Box::new([GbPaletteId::Id0; Self::SCREEN_PIXELS as usize]),
+            oam_buffer: Vec::with_capacity(Self::OAM_BUFFER as usize),
+            oam_scans: 0,
             dots_penalties: 0,
             dots_penalties_counter: 0,
-            line_oam: Vec::with_capacity(constants::MAX_SPRITE_PER_LINE),
-            line_oam_number: 0,
         }
     }
 
@@ -223,12 +218,6 @@ impl PPU {
         }
     }
 
-    fn set_mode(&mut self, mode: PpuMode) {
-        const LCD_STAT_ADDR_USIZE: u16 = addresses::LCD_STAT_ADDRESS as u16;
-        let register = self.read_memory(LCD_STAT_ADDR_USIZE) & !LCDStatMasks::PPUMode;
-        self.write_memory(LCD_STAT_ADDR_USIZE, register | mode);
-    }
-
     pub fn get_tile(&self, mut tile_id: u8, bg_win: bool) -> Tile {
         let mut data: [u8; TILE_SIZE] = [0; TILE_SIZE];
         let lcdc = self.read_memory(LCDC);
@@ -275,32 +264,6 @@ impl PPU {
             tiles.push(self.get_tile(self.get_bg_chr(i), true));
         }
         tiles
-    }
-
-    pub fn get_line(&self) -> u8 {
-        self.read_memory(addresses::LY_ADDRESS as u16)
-    }
-
-    pub fn get_line_compare(&self) -> u8 {
-        self.read_memory(addresses::LYC_ADDRESS as u16)
-    }
-
-    pub fn get_scy(&self) -> u8 {
-        self.read_memory(addresses::SCY_ADDRESS as u16)
-    }
-
-    pub fn get_scx(&self) -> u8 {
-        self.read_memory(addresses::SCX_ADDRESS as u16)
-    }
-
-    pub fn get_oam(&self, id: usize) -> OAM {
-        let address = (id * OAM_BYTE_SIZE + OAM_AREA_ADDRESS) as u16;
-        let (y, x, tile_id, attributes) =
-            (self.read_memory(address),
-             self.read_memory(address + 1),
-             self.read_memory(address + 2),
-             self.read_memory(address + 3));
-        OAM::new(y, x, tile_id, attributes, Option::from(id))
     }
 
     pub fn get_bg_x(&self) -> u8 {
@@ -418,7 +381,12 @@ impl PPU {
 impl Tick for PPU {
     fn tick(&mut self, bus: &mut Bus, ctx: &mut MmioContext) {
         match ctx.ppu_mmio.ppu_mode() {
-            PpuMode::OAMScan => {}
+            PpuMode::OAMScan => {
+                if self.oam_buffer.len() < Self::OAM_BUFFER as usize {
+                    let oam = ctx.oam_mmio.oam(self.oam_scans);
+                    self.oam_scans += 1;
+                }
+            }
             PpuMode::Drawing => {}
             PpuMode::HBlank => {}
             PpuMode::VBlank => {}

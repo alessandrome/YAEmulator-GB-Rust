@@ -6,9 +6,9 @@ pub mod attributes_masks;
 
 pub const OAM_BYTE_SIZE: usize = 4;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct OAM {
-    id: Option<usize>, // Optional - Useful to manage as ID of OAM in GB Memory
+    id: Option<u8>, // Optional - Useful to manage as ID of OAM in GB Memory
     y: u8,
     x: u8,
     tile_id: u8,
@@ -20,7 +20,9 @@ pub struct OAM {
 }
 
 impl OAM {
-    pub fn new(y: u8, x: u8, tile_id: u8, attributes: u8, id: Option<usize>) -> Self {
+    pub const OAM_BYTES: u8 = 4;
+
+    pub fn new(y: u8, x: u8, tile_id: u8, attributes: u8, id: Option<u8>) -> Self {
         let priority = (attributes & AttributesMasks::Priority) != 0;
         let y_flip = (attributes & AttributesMasks::YFlip) != 0;
         let x_flip = (attributes & AttributesMasks::XFlip) != 0;

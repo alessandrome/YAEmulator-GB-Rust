@@ -74,7 +74,7 @@ impl PpuMmio {
     pub fn tick(&mut self) {
         self.ly = (self.ly + 1) % (PPU::SCAN_LINES as u8);
     }
-    
+
     #[inline]
     pub fn ppu_mode(&self) -> PpuMode {
         self.ppu_mode
@@ -94,6 +94,71 @@ impl PpuMmio {
             }
             PpuMode::VBlank => self.ppu_mode = PpuMode::OAMScan,
         }
+    }
+
+    #[inline]
+    pub fn lcdc(&self) -> Byte {
+        self.lcdc
+    }
+
+    #[inline]
+    pub fn stat(&self) -> Byte {
+        self.stat
+    }
+
+    #[inline]
+    pub fn scy(&self) -> Byte {
+        self.scy
+    }
+
+    #[inline]
+    pub fn scx(&self) -> Byte {
+        self.scx
+    }
+
+    #[inline]
+    pub fn ly(&self) -> Byte {
+        self.ly
+    }
+
+    #[inline]
+    pub fn lyc(&self) -> Byte {
+        self.ly
+    }
+
+    #[inline]
+    pub fn bgp(&self) -> Byte {
+        self.bgp
+    }
+
+    #[inline]
+    pub fn obp0(&self) -> Byte {
+        self.obp0
+    }
+
+    #[inline]
+    pub fn obp1(&self) -> Byte {
+        self.obp1
+    }
+
+    #[inline]
+    pub fn wy(&self) -> Byte {
+        self.wy
+    }
+
+    #[inline]
+    pub fn wx(&self) -> Byte {
+        self.wx
+    }
+
+    #[inline]
+    pub fn wram(&self) -> &VRAM {
+        &self.vram
+    }
+
+    #[inline]
+    pub fn wram_mut(&mut self) -> &mut VRAM {
+        &mut self.vram
     }
 }
 
