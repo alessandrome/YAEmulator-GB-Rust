@@ -75,11 +75,6 @@ impl PpuMmio {
     }
 
     #[inline]
-    pub fn tick(&mut self) {
-        todo!("Implement tick for ppu mmio like PPU Mode")
-    }
-
-    #[inline]
     pub fn ppu_mode(&self) -> PpuMode {
         self.ppu_mode
     }
@@ -103,6 +98,12 @@ impl PpuMmio {
             }
             PpuMode::VBlank => self.ppu_mode = PpuMode::OAMScan,
         }
+    }
+
+    #[inline]
+    /// Increment LY Register
+    pub fn next_ly(&mut self) {
+        self.ly = (self.ly + 1) % PPU::SCAN_LINES as u8;
     }
 
     #[inline]

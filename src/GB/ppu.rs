@@ -441,7 +441,11 @@ impl Tick for PPU {
             }
         }
         todo!();
-        ctx.ppu_mmio.tick();
+
+        self.dot = (self.dot + 1) % Self::COLUMN_DOTS;
+        if self.dot == 0 {
+            ctx.ppu_mmio.next_ly();
+        }
     }
 }
 
