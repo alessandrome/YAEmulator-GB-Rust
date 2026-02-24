@@ -1,5 +1,7 @@
 use crate::GB::bus::BusDevice;
 use crate::GB::memory::vram::VRAM;
+use crate::GB::ppu::lcd_control::{LCDCMasks, ObjSize, TileDataArea, TileMapArea, LCDC};
+use crate::GB::ppu::lcd_stat::{LCDStatMasks, LcdStat};
 use crate::GB::types::address::{Address, AddressRangeInclusive};
 use crate::GB::types::Byte;
 use super::ppu_mode::PpuMode;
@@ -7,6 +9,7 @@ use super::PPU;
 
 pub struct PpuMmio {
     ppu_mode: PpuMode,
+    prev_ppu_mode: PpuMode, // PPU Mode in tha last T-Cycle tick
     vram: VRAM,
     lcdc: Byte,
     stat: Byte,
@@ -55,6 +58,7 @@ impl PpuMmio {
     pub fn new() -> Self {
         Self {
             ppu_mode: PpuMode::OAMScan,
+            prev_ppu_mode: PpuMode::HBlank,
             vram: VRAM::new(),
             lcdc: 0,
             stat: 0,
@@ -72,12 +76,17 @@ impl PpuMmio {
 
     #[inline]
     pub fn tick(&mut self) {
-        self.ly = (self.ly + 1) % (PPU::SCAN_LINES as u8);
+        todo!("Implement tick for ppu mmio like PPU Mode")
     }
 
     #[inline]
     pub fn ppu_mode(&self) -> PpuMode {
         self.ppu_mode
+    }
+
+    #[inline]
+    pub fn prev_ppu_mode(&self) -> PpuMode {
+        self.prev_ppu_mode
     }
 
     #[inline]
@@ -152,13 +161,67 @@ impl PpuMmio {
     }
 
     #[inline]
-    pub fn wram(&self) -> &VRAM {
+    pub fn vram(&self) -> &VRAM {
         &self.vram
     }
 
     #[inline]
-    pub fn wram_mut(&mut self) -> &mut VRAM {
+    pub fn vram_mut(&mut self) -> &mut VRAM {
         &mut self.vram
+    }
+
+    #[inline]
+    pub fn stat_view(&self) -> LcdStat {
+        LcdStat {
+            lyc_interrupt_enabled: (self.stat & LCDStatMasks::LYCInterrupt) != 0,
+            hblank_interrupt_enabled: (self.stat & LCDStatMasks::Mode0Interrupt) != 0,
+            vblank_interrupt_enabled: (self.stat & LCDStatMasks::Mode1Interrupt) != 0,
+            oam_scan_interrupt_enabled: (self.stat & LCDStatMasks::Mode2Interrupt) != 0,
+            lcy_eq_ly: self.ly == self.lyc,
+            ppu_mode: self.ppu_mode,
+        }
+    }
+
+    #[inline]
+    pub fn lcdc_view(&self) -> LCDC {
+        let obj_size;
+        if (self.lcdc & LCDCMasks::ObjSize) != 0 {
+            obj_size = ObjSize::Single
+        } else {
+            obj_size = ObjSize::Double
+        }
+
+        let window_tile_map;
+        if (self.lcdc & LCDCMasks::WinTileMapArea) != 0 {
+            window_tile_map = TileMapArea::MapBlock1;
+        } else {
+            window_tile_map = TileMapArea::MapBlock0;
+        }
+
+        let bg_window_tile_area;
+        if (self.lcdc & LCDCMasks::BgWinTilesArea) != 0 {
+            bg_window_tile_area = TileDataArea::DataBlock01;
+        } else {
+            bg_window_tile_area = TileDataArea::DataBlock12;
+        }
+
+        let bg_tile_map;
+        if (self.lcdc & LCDCMasks::WinTileMapArea) != 0 {
+            bg_tile_map = TileMapArea::MapBlock1;
+        } else {
+            bg_tile_map = TileMapArea::MapBlock0;
+        }
+
+        LCDC {
+            lcd_enabled: (self.lcdc & LCDCMasks::LcdEnabled) != 0,
+            window_tile_map,
+            window_enabled: (self.lcdc & LCDCMasks::WinEnabled) != 0,
+            bg_window_tile_area,
+            bg_tile_map,
+            obj_size,
+            obj_enabled: (self.lcdc & LCDCMasks::ObjEnabled) != 0,
+            bg_win_enabled: (self.lcdc & LCDCMasks::BgWinEnabled) != 0,
+        }
     }
 }
 

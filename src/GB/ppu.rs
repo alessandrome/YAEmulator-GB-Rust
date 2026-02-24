@@ -4,23 +4,26 @@ use crate::GB::memory::{
     UseMemory, RAM, VRAM_BLOCK_0_ADDRESS, VRAM_BLOCK_1_ADDRESS, VRAM_BLOCK_2_ADDRESS,
 };
 use crate::GB::ppu::tile::{GbPaletteId, Tile, TILE_SIZE, TILE_HEIGHT, TILE_WIDTH};
-use lcd_stats_masks::LCDStatMasks;
-use lcdc_masks::LCDCMasks;
+use lcd_stat::LCDStatMasks;
+use lcd_control::LCDCMasks;
 use ppu_mode::PpuMode;
 use std::cell::RefCell;
 use std::fmt;
 use std::fmt::Formatter;
 use std::rc::Rc;
-use crate::GB::bus::{Bus, MmioContext};
+use crate::GB::bus::{Bus, BusDevice, MmioContext};
 use crate::GB::memory;
+use crate::GB::memory::oam_memory::OamMemory;
 use crate::GB::ppu::constants::{SCAN_OAM_DOTS, SCREEN_WIDTH};
+use crate::GB::ppu::lcd_control::ObjSize;
 use crate::GB::ppu::ppu_mmio::PpuMmio;
 use crate::GB::ppu::oam::{OAM, OAM_BYTE_SIZE};
 use crate::GB::traits::Tick;
 use crate::GB::types::address::Address;
+use crate::GB::types::Byte;
 
-pub mod lcd_stats_masks;
-pub mod lcdc_masks;
+pub mod lcd_stat;
+pub mod lcd_control;
 pub mod ppu_mode;
 #[cfg(test)]
 mod tests;
@@ -52,9 +55,11 @@ const OAM_BUFFER: u8 = 10;
 pub struct PPU {
     frame: Box<[GbPaletteId; SCREEN_LINES as usize * SCREEN_DOTS as usize]>,
     oam_buffer: Vec<OAM>,
+    oam_loading: Vec<Byte>,
     oam_scans: u8,
+    dot: u16,
     dots_penalties: u8,
-    dots_penalties_counter: usize,
+    dots_penalties_counter: u8,
 }
 
 impl PPU {
@@ -70,7 +75,9 @@ impl PPU {
         Self {
             frame: Box::new([GbPaletteId::Id0; Self::SCREEN_PIXELS as usize]),
             oam_buffer: Vec::with_capacity(Self::OAM_BUFFER as usize),
+            oam_loading: Vec::with_capacity(OAM::OAM_BYTES as usize),
             oam_scans: 0,
+            dot: 0,
             dots_penalties: 0,
             dots_penalties_counter: 0,
         }
@@ -367,29 +374,71 @@ impl PPU {
         }
         ret_s
     }
-
-    ppu_get_set_flag_bit!(get_bg_win_enabled_flag, set_bg_win_enabled_flag, LCDC, LCDCMasks::BgWinEnabled);
-    ppu_get_set_flag_bit!(get_obj_enabled_flag, set_obj_enabled_flag, LCDC, LCDCMasks::ObjEnabled);
-    ppu_get_set_flag_bit!(get_obj_size_flag, set_obj_size_flag, LCDC, LCDCMasks::ObjSize);
-    ppu_get_set_flag_bit!(get_bg_tile_map_area_flag, set_bg_tile_map_area_flag, LCDC, LCDCMasks::BgTileMapArea);
-    ppu_get_set_flag_bit!(get_bg_win_tiles_area_flag, set_bg_win_tiles_area_flag, LCDC, LCDCMasks::BgWinTilesArea);
-    ppu_get_set_flag_bit!(get_win_enabled_flag, set_win_enabled_flag, LCDC, LCDCMasks::WinEnabled);
-    ppu_get_set_flag_bit!(get_win_tile_map_area_flag, set_win_tile_map_area_flag, LCDC, LCDCMasks::WinTileMapArea);
-    ppu_get_set_flag_bit!(get_lcd_enabled_flag, set_lcd_enabled_flag, LCDC, LCDCMasks::LcdEnabled);
 }
 
 impl Tick for PPU {
     fn tick(&mut self, bus: &mut Bus, ctx: &mut MmioContext) {
+        let stat_view = ctx.ppu_mmio.stat_view();
+        let lcdc_view = ctx.ppu_mmio.lcdc_view();
+
+        if ctx.ppu_mmio.prev_ppu_mode() != ctx.ppu_mmio.ppu_mode() {
+            match ctx.ppu_mmio.ppu_mode() {
+                PpuMode::OAMScan => {
+                    self.oam_scans = 0;
+                    self.oam_loading.clear();
+                    self.oam_buffer.clear();
+                    self.dot = 0;
+                    self.dots_penalties = 0;
+                    self.dots_penalties_counter = 0;
+                }
+                PpuMode::Drawing => {
+                    self.oam_buffer.sort();
+                }
+                PpuMode::HBlank => {}
+                PpuMode::VBlank => {}
+            }
+        }
+
         match ctx.ppu_mmio.ppu_mode() {
             PpuMode::OAMScan => {
+                // Mode 2 - OAM Scan
                 if self.oam_buffer.len() < Self::OAM_BUFFER as usize {
-                    let oam = ctx.oam_mmio.oam(self.oam_scans);
-                    self.oam_scans += 1;
+                    let oam_id = self.oam_scans * 2 / OAM::OAM_BYTES;
+                    let oam_base_addr = OamMemory::OAM_START_ADDRESS + (oam_id * 4) as u16;
+                    let oam_byte_idx0 = ((self.oam_scans * 2) % OAM::OAM_BYTES);
+                    let oam_byte_idx1 = oam_byte_idx0 + 1;
+
+                    // Get OAM Byte 0/1 with oam_scans even, OAM Byte 2/3 if odd
+                    self.oam_loading[oam_byte_idx0 as usize] = ctx.oam_mmio.read(oam_base_addr + oam_byte_idx0 as u16);
+                    self.oam_loading[oam_byte_idx1 as usize] = ctx.oam_mmio.read(oam_base_addr + oam_byte_idx1 as u16);
+                    if !(self.oam_loading.len() < OAM::OAM_BYTES as usize) {
+                        let oam = OAM::new(
+                            self.oam_loading[0],
+                            self.oam_loading[1],
+                            self.oam_loading[2],
+                            self.oam_loading[3],
+                            Some(oam_id)
+                        );
+
+                        let obj_height = lcdc_view.obj_size as u8;
+                        let ly = ctx.ppu_mmio.ly();
+                        if (ly >= oam.y()) && (ly < (oam.y() + obj_height)) {
+                            self.oam_buffer.push(oam);
+                        }
+                        // todo!("Test if OAM storing is correct");
+                    }
                 }
+                self.oam_scans = (self.oam_scans + 1) & Self::OAM_BUFFER;
             }
-            PpuMode::Drawing => {}
-            PpuMode::HBlank => {}
-            PpuMode::VBlank => {}
+            PpuMode::Drawing => {
+                // Mode 3 - Drawing Pixels
+            }
+            PpuMode::HBlank => {
+                // Mode 0 - HBlank
+            }
+            PpuMode::VBlank => {
+                // Mode 1 - VBlank
+            }
         }
         todo!();
         ctx.ppu_mmio.tick();
