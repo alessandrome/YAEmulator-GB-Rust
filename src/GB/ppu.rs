@@ -60,6 +60,8 @@ pub struct PPU {
     dot: u16,
     dots_penalties: u8,
     dots_penalties_counter: u8,
+    screen_dot: u8,
+    switch_mode: bool,
 }
 
 impl PPU {
@@ -67,6 +69,7 @@ impl PPU {
     pub const SCREEN_LINES: u16 = SCREEN_LINES;
     pub const COLUMN_DOTS: u16 = 456;
     pub const SCREEN_DOTS: u16 = SCREEN_DOTS;
+    pub const OAM_SCAN_DOTS: u16 = 80;
     pub const DOTS_PER_FRAME: u32 = (Self::SCAN_LINES as u32) * (Self::COLUMN_DOTS as u32);
     pub const SCREEN_PIXELS: u32 = (Self::SCREEN_LINES as u32) * (Self::SCREEN_DOTS as u32);
     pub const OAM_BUFFER: u8 = OAM_BUFFER;
@@ -80,6 +83,8 @@ impl PPU {
             dot: 0,
             dots_penalties: 0,
             dots_penalties_counter: 0,
+            screen_dot: 0,
+            switch_mode: false,
         }
     }
 
@@ -381,6 +386,12 @@ impl Tick for PPU {
         let stat_view = ctx.ppu_mmio.stat_view();
         let lcdc_view = ctx.ppu_mmio.lcdc_view();
 
+        // If previous mode is ended and next mode is requested, switch to next ppu mode
+        if self.switch_mode {
+            ctx.ppu_mmio.next_mode();
+            self.switch_mode = false;
+        }
+
         if ctx.ppu_mmio.prev_ppu_mode() != ctx.ppu_mmio.ppu_mode() {
             match ctx.ppu_mmio.ppu_mode() {
                 PpuMode::OAMScan => {
@@ -390,6 +401,7 @@ impl Tick for PPU {
                     self.dot = 0;
                     self.dots_penalties = 0;
                     self.dots_penalties_counter = 0;
+                    self.screen_dot = 0;
                 }
                 PpuMode::Drawing => {
                     self.oam_buffer.sort();
@@ -432,6 +444,11 @@ impl Tick for PPU {
             }
             PpuMode::Drawing => {
                 // Mode 3 - Drawing Pixels
+                if self.dots_penalties_counter < self.dots_penalties {
+                    self.dots_penalties_counter += 1;
+                } else {
+                    self.screen_dot += 1;
+                }
             }
             PpuMode::HBlank => {
                 // Mode 0 - HBlank
@@ -440,11 +457,19 @@ impl Tick for PPU {
                 // Mode 1 - VBlank
             }
         }
-        todo!();
+
+        // todo!();
 
         self.dot = (self.dot + 1) % Self::COLUMN_DOTS;
         if self.dot == 0 {
             ctx.ppu_mmio.next_ly();
+            if ctx.ppu_mmio.ly() == Self::SCREEN_LINES as u8 || ctx.ppu_mmio.ly() == 0 {
+                self.switch_mode = true;
+            }
+        } else if self.dot == Self::OAM_SCAN_DOTS {
+            self.switch_mode = true;
+        } else if self.screen_dot >= Self::SCREEN_DOTS as u8 {
+            self.switch_mode = true;
         }
     }
 }

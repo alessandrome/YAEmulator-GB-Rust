@@ -38,7 +38,7 @@ impl Tick for DMA {
             let from_address = Address(((ctx.dma_mmio.value() as u16) << 8) | lsb_address);
             let to_address = Address(0xFE00 | lsb_address);
             let transfer_byte = bus.read(ctx, from_address);
-            bus.write(ctx, to_address, transfer_byte);
+            ctx.oam_mmio.write(to_address, transfer_byte);  // DMA has direct Access to OAM
 
             self.m_cycle = (self.m_cycle + 1) % 160;
             if self.m_cycle == 0 {
