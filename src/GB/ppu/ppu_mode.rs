@@ -1,6 +1,6 @@
 use crate::{default_enum_u8, default_enum_u8_bit_ops};
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 #[repr(u8)]
 pub enum PpuMode {
     OAMScan = 0,

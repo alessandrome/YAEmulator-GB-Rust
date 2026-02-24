@@ -1,10 +1,31 @@
 use std::cmp::Ordering;
-use crate::GB::ppu::oam::attributes_masks::AttributesMasks;
 use crate::GB::ppu::tile::{TILE_HEIGHT, TILE_WIDTH};
+use crate::{default_enum_u8, default_enum_u8_bit_ops};
+use crate::GB::types::Byte;
 
-pub mod attributes_masks;
+pub mod test;
 
-pub const OAM_BYTE_SIZE: usize = 4;
+#[derive(Copy, Clone, Debug)]
+#[repr(u8)]
+pub enum AttributesMasks {
+    Priority = 0b1000_0000,
+    YFlip = 0b0100_0000,
+    XFlip = 0b0010_0000,
+    Palette = 0b0001_0000,
+}
+
+default_enum_u8!(AttributesMasks {Priority = 128, YFlip = 64, XFlip = 32, Palette = 16});
+
+
+const OAM_BYTE_SIZE: usize = 4;
+
+/// 4-bytes of a OAM item. Order of byte in memory is the following: y, x, tile_id, attributes
+pub struct OamBytes {
+    pub y: Byte,
+    pub x: Byte,
+    pub tile_id: Byte,
+    pub attributes: Byte,
+}
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct OAM {
@@ -16,13 +37,14 @@ pub struct OAM {
     y_flip: bool,
     x_flip: bool,
     palette: bool, // False = OBP0 | True = OBP1
-    original_attributes: u8,
+    original_attributes: Byte,
 }
 
+/// High-Level View of a OAM item
 impl OAM {
     pub const OAM_BYTES: u8 = 4;
 
-    pub fn new(y: u8, x: u8, tile_id: u8, attributes: u8, id: Option<u8>) -> Self {
+    pub fn new(y: u8, x: u8, tile_id: u8, attributes: Byte, id: Option<u8>) -> Self {
         let priority = (attributes & AttributesMasks::Priority) != 0;
         let y_flip = (attributes & AttributesMasks::YFlip) != 0;
         let x_flip = (attributes & AttributesMasks::XFlip) != 0;
@@ -40,16 +62,65 @@ impl OAM {
         }
     }
 
-    /// Return a tuple of 4 four bytes representing OAM in memory.
-    ///
-    /// Order of bytes is (Y, X, Tile ID, Attributes). Structure attributes are converted in its representing byte in memory.
-    pub fn get_oam_bytes(&self) -> (u8, u8, u8, u8) {
-        let attributes: u8 = (self.priority as u8) << (AttributesMasks::Priority as u8).trailing_zeros()
+    #[inline]
+    pub fn id(&self) -> Option<u8> {
+        self.id
+    }
+
+    #[inline]
+    pub fn y(&self) -> u8 {
+        self.y
+    }
+
+    #[inline]
+    pub fn x(&self) -> u8 {
+        self.x
+    }
+
+    #[inline]
+    pub fn tile_id(&self) -> u8 {
+        self.tile_id
+    }
+
+    #[inline]
+    pub fn priority(&self) -> bool {
+        self.priority
+    }
+
+    #[inline]
+    pub fn y_flip(&self) -> bool {
+        self.y_flip
+    }
+
+    #[inline]
+    pub fn x_flip(&self) -> bool {
+        self.x_flip
+    }
+
+    #[inline]
+    pub fn palette(&self) -> bool {
+        self.palette
+    }
+
+    #[inline]
+    pub fn attributes_byte(&self) -> Byte {
+        (self.priority as u8) << (AttributesMasks::Priority as u8).trailing_zeros()
             | (self.y_flip as u8) << (AttributesMasks::YFlip as u8).trailing_zeros()
             | (self.x_flip as u8) << (AttributesMasks::XFlip as u8).trailing_zeros()
             | (self.palette as u8) << (AttributesMasks::Palette as u8).trailing_zeros()
-            | (self.original_attributes & 0x0F);
-        (self.y, self.x, self.tile_id, attributes)
+            | (self.original_attributes & 0x0F)
+    }
+
+    /// Return a OamBytes structure with u8 representation of OAM data.
+    pub fn get_oam_bytes(&self) -> OamBytes {
+        let attributes: Byte = self.attributes_byte();
+
+        OamBytes {
+            y: self.y,
+            x: self.x,
+            tile_id: self.tile_id,
+            attributes
+        }
     }
 
     pub fn get_y_screen(&self) -> isize {
@@ -67,12 +138,7 @@ impl OAM {
 
 impl Ord for OAM {
     fn cmp(&self, other: &Self) -> Ordering {
-        let x_cmp = self.x.cmp(&other.x);
-        if x_cmp == std::cmp::Ordering::Equal {
-            self.id.cmp(&other.id)
-        } else {
-            x_cmp
-        }
+        (self.x, self.id).cmp(&(other.x, other.id))
     }
 }
 
@@ -80,52 +146,5 @@ impl Ord for OAM {
 impl PartialOrd<Self> for OAM {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use crate::GB::ppu::oam::attributes_masks::AttributesMasks;
-    use crate::GB::ppu::oam::OAM;
-
-    macro_rules! new_oam {
-        ($oam: ident, $x_ident: ident, $y_ident: ident, $tile_ident: ident, $id_ident: ident, $attr_ident: ident, $x: expr, $y: expr, $tile_id: expr, $id: expr, $attributes: expr) => {
-            let ($y_ident, $x_ident, $tile_ident, $id_ident) = ($y, $x, $tile_id, $id);
-            let $attr_ident: u8 = $attributes;
-            let $oam = OAM::new($y_ident, $x_ident, $tile_ident, $attr_ident, $id_ident);
-        };
-    }
-
-    #[test]
-    fn new_oam() {
-        new_oam!(oam, test_x, test_y, test_tile_id, test_id, attributes, 56u8, 131u8, 33u8, Some(1usize), 0b1111_0000);
-        assert_eq!(oam.y, test_y);
-        assert_eq!(oam.x, test_x);
-        assert_eq!(oam.tile_id, test_tile_id);
-        assert_eq!(oam.id, test_id);
-        assert_eq!(oam.priority, true);
-        assert_eq!(oam.y_flip, true);
-        assert_eq!(oam.x_flip, true);
-        assert_eq!(oam.palette, true);
-    }
-
-    #[test]
-    fn get_oam_bytes() {
-        new_oam!(oam, test_x, test_y, test_tile_id, test_id, attributes, 56u8, 131u8, 33u8, None, 0b1001_0110);
-        assert_eq!(oam.id, None);
-        assert_eq!(oam.priority, true);
-        assert_eq!(oam.y_flip, false);
-        assert_eq!(oam.x_flip, false);
-        assert_eq!(oam.palette, true);
-        assert_eq!(oam.get_oam_bytes(), (test_y, test_x, test_tile_id, attributes));
-    }
-
-    #[test]
-    fn test_order() {
-        new_oam!(oam_1, test_x, test_y, test_tile_id, test_id, attributes, 56u8, 131u8, 33u8, Some(1), 0b1001_0110);
-        new_oam!(oam_2, test_x, test_y, test_tile_id, test_id, attributes, 56u8, 131u8, 33u8, Some(2), 0b1001_0110);
-        new_oam!(oam_3, test_x, test_y, test_tile_id, test_id, attributes, 39u8, 131u8, 33u8, Some(3), 0b1001_0110);
-        assert_eq!(oam_1 < oam_2, true);
-        assert_eq!(oam_2 < oam_3, false);
     }
 }
