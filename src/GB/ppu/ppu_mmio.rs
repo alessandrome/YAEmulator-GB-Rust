@@ -1,7 +1,9 @@
+use std::collections::VecDeque;
 use crate::GB::bus::BusDevice;
 use crate::GB::memory::vram::VRAM;
 use crate::GB::ppu::lcd_control::{LCDCMasks, ObjSize, TileDataArea, TileMapArea, LCDC};
 use crate::GB::ppu::lcd_stat::{LCDStatMasks, LcdStat};
+use crate::GB::ppu::pixel::PixelFifo;
 use crate::GB::types::address::{Address, AddressRangeInclusive};
 use crate::GB::types::Byte;
 use super::ppu_mode::PpuMode;
@@ -10,6 +12,8 @@ use super::PPU;
 pub struct PpuMmio {
     ppu_mode: PpuMode,
     prev_ppu_mode: PpuMode, // PPU Mode in tha last T-Cycle tick
+    obj_fifo: VecDeque<PixelFifo>,
+    background_fifo: VecDeque<PixelFifo>,
     vram: VRAM,
     lcdc: Byte,
     stat: Byte,
@@ -59,6 +63,8 @@ impl PpuMmio {
         Self {
             ppu_mode: PpuMode::OAMScan,
             prev_ppu_mode: PpuMode::HBlank,
+            obj_fifo: VecDeque::with_capacity(16),
+            background_fifo: VecDeque::with_capacity(16),
             vram: VRAM::new(),
             lcdc: 0,
             stat: 0,
@@ -104,6 +110,36 @@ impl PpuMmio {
     /// Increment LY Register
     pub fn next_ly(&mut self) {
         self.ly = (self.ly + 1) % PPU::SCAN_LINES as u8;
+    }
+
+    #[inline]
+    pub fn push_obj_pixel(&mut self, pixel: PixelFifo) {
+        self.obj_fifo.push_back(pixel);
+    }
+
+    #[inline]
+    pub fn push_bg_pixel(&mut self, pixel: PixelFifo) {
+        self.background_fifo.push_back(pixel);
+    }
+
+    #[inline]
+    pub fn pop_obj_pixel(&mut self) -> Option<PixelFifo> {
+        self.obj_fifo.pop_front()
+    }
+
+    #[inline]
+    pub fn pop_bg_pixel(&mut self) -> Option<PixelFifo> {
+        self.background_fifo.pop_front()
+    }
+
+    #[inline]
+    pub fn obj_fifo(&self) -> &VecDeque<PixelFifo> {
+        &self.obj_fifo
+    }
+
+    #[inline]
+    pub fn bg_fifo(&self) -> &VecDeque<PixelFifo> {
+        &self.background_fifo
     }
 
     #[inline]

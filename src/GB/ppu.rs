@@ -30,6 +30,8 @@ mod tests;
 pub mod tile;
 pub mod oam;
 pub mod ppu_mmio;
+pub mod pixel;
+pub mod lcd;
 
 macro_rules! ppu_get_set_flag_bit {
     ($get_func: ident, $set_func: ident, $register_ident: ident, $mask_ident: expr) => {
@@ -49,11 +51,11 @@ macro_rules! ppu_get_set_flag_bit {
 }
 
 const SCREEN_LINES: u16 = 144;
-const SCREEN_DOTS: u16 = 160;
+const SCREEN_COLUMNS: u16 = 160;
 const OAM_BUFFER: u8 = 10;
 
 pub struct PPU {
-    frame: Box<[GbPaletteId; SCREEN_LINES as usize * SCREEN_DOTS as usize]>,
+    frame: Box<[GbPaletteId; SCREEN_LINES as usize * SCREEN_COLUMNS as usize]>,
     oam_buffer: Vec<OAM>,
     oam_loading: Vec<Byte>,
     oam_scans: u8,
@@ -68,10 +70,10 @@ impl PPU {
     pub const SCAN_LINES: u16 = 154;
     pub const SCREEN_LINES: u16 = SCREEN_LINES;
     pub const COLUMN_DOTS: u16 = 456;
-    pub const SCREEN_DOTS: u16 = SCREEN_DOTS;
+    pub const SCREEN_COLUMNS: u16 = SCREEN_COLUMNS;
     pub const OAM_SCAN_DOTS: u16 = 80;
     pub const DOTS_PER_FRAME: u32 = (Self::SCAN_LINES as u32) * (Self::COLUMN_DOTS as u32);
-    pub const SCREEN_PIXELS: u32 = (Self::SCREEN_LINES as u32) * (Self::SCREEN_DOTS as u32);
+    pub const SCREEN_PIXELS: u32 = (Self::SCREEN_LINES as u32) * (Self::SCREEN_COLUMNS as u32);
     pub const OAM_BUFFER: u8 = OAM_BUFFER;
 
     pub fn new() -> Self {
@@ -468,7 +470,7 @@ impl Tick for PPU {
             }
         } else if self.dot == Self::OAM_SCAN_DOTS {
             self.switch_mode = true;
-        } else if self.screen_dot >= Self::SCREEN_DOTS as u8 {
+        } else if self.screen_dot >= Self::SCREEN_COLUMNS as u8 {
             self.switch_mode = true;
         }
     }
