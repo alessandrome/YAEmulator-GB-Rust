@@ -1,11 +1,9 @@
-use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
-use std::rc::Rc;
-use winit::{keyboard::{KeyCode, PhysicalKey}};
-use crate::GB::memory::{addresses, RAM, UseMemory};
 use crate::{mask_flag_enum_default_impl, default_enum_u8_bit_ops};
-// use winit::event::VirtualKeyCode;
+use crate::GB::bus::BusDevice;
+use crate::GB::types::address::Address;
+use crate::GB::types::Byte;
 
 pub const GB_A_BUTTON: u32 = 0x00;
 pub const GB_B_BUTTON: u32 = 0x01;
@@ -129,6 +127,16 @@ impl Default for GBInput {
             left: false,
             right: false,
         }
+    }
+}
+
+impl BusDevice for GBInput {
+    fn read(&self, address: Address) -> Byte {
+        todo!()
+    }
+
+    fn write(&mut self, address: Address, data: Byte) {
+        todo!()
     }
 }
 

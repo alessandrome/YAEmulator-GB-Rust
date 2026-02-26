@@ -1,10 +1,6 @@
-use crate::GB::types::address::Address;
-use crate::GB::types::Byte;
+use crate::GB::bus;
 
-pub trait BusDevice {
-    fn read(&self, address: Address) -> Byte;
-    fn write(&mut self, address: Address, data: Byte);
+/// Trait for component that must tick 1 T-Cycle at time (4 T-Cycle = 1 N-Cycle)
+pub trait Tick {
+    fn tick(&mut self, bus: &mut bus::Bus, ctx: &mut bus::MmioContext);
 }
-
-pub trait MmioDevice: BusDevice {}
-pub trait MemoryDevice: BusDevice {}

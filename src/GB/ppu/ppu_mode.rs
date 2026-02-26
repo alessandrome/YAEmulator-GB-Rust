@@ -1,0 +1,12 @@
+use crate::{default_enum_u8, default_enum_u8_bit_ops};
+
+#[derive(Copy, Clone, Debug, PartialEq)]
+#[repr(u8)]
+pub enum PpuMode {
+    OAMScan = 0,
+    Drawing = 3,
+    HBlank = 2,
+    VBlank = 1,
+}
+
+default_enum_u8!(PpuMode {OAMScan = 0, Drawing = 3, HBlank = 2, VBlank = 1});
