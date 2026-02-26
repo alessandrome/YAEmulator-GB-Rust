@@ -42,7 +42,7 @@ pub struct GB {
     pub cpu_ctx: cpu::CpuCtx,
     ppu_ctx: ppu::PpuCtx,
     dma_ctx: dma::DmaCtx,
-    apu: apu::APU,
+    apu_ctx: apu::ApuCtx,
     pub input: input::GBInput,
     cartridge: Option<cartridge::Cartridge>,
     cycles: u64, // Number to cycle needed to complete current CPU instruction. cpu.cycle() is skipped if different from 0
@@ -85,7 +85,12 @@ impl GB {
             },
             ppu_ctx: ppu::PpuCtx {
                 ppu: ppu::PPU::new(),
+                lcd: ppu::lcd::LCD::new(),
                 mmio: ppu::ppu_mmio::PpuMmio::new()
+            },
+            apu_ctx: apu::ApuCtx {
+                apu: apu::APU::new(),
+                mmio: apu::apu_mmio::ApuMmio::new(),
             },
             dma_ctx: dma::DmaCtx {
                 dma: dma::DMA::new(),
@@ -95,7 +100,6 @@ impl GB {
             wram: memory::wram::WRAM::new(),
             cartridge: None,
             input: input::GBInput::default(),
-            apu: apu::APU::new(),
             cycles: 0,
             cycles_overflows: 0,
         }
@@ -137,16 +141,18 @@ impl GB {
         let mut ctx = MmioContext {
             cpu_mmio: &mut self.cpu_ctx.mmio,
             ppu_mmio: &mut self.ppu_ctx.mmio,
+            apu_mmio: &mut self.apu_ctx.mmio,
             dma_mmio: &mut self.dma_ctx.mmio,
             oam_mmio: &mut self.oam_memory,
-            wram: &mut self.wram,
+            wram_mmio: &mut self.wram,
         };
 
         // Tick every component
-        self.apu.tick();
+        self.apu_ctx.apu.tick(&mut self.bus, &mut ctx);
         self.ppu_ctx.ppu.tick(&mut self.bus, &mut ctx);
         self.dma_ctx.dma.tick(&mut self.bus, &mut ctx);
         self.cpu_ctx.cpu.tick(&mut self.bus, &mut ctx);
+        self.ppu_ctx.lcd.tick(&mut self.bus, &mut ctx);
 
         // if self.cpu.dma_transfer {
         //     self.dma_transfer();

@@ -1,10 +1,12 @@
-use crate::GB::bus::{BusDevice, MmioDevice};
+use crate::GB::bus::{Bus, BusDevice, MmioContext, MmioDevice};
+use crate::GB::traits::Tick;
 use crate::GB::types::address::Address;
 use crate::GB::types::Byte;
 
 mod channels;
 pub mod constants;
 pub mod mmio;
+pub mod apu_mmio;
 
 type AudioVolume = u8;
 type AudioPeriod = u16;
@@ -24,30 +26,18 @@ impl APU {
     pub fn new() -> APU {
         Self {
             noise: channels::noise_channel::NoiseChannel::new(),
-            div: u16::MAX_VALUE,
+            div: u16::MAX,
         }
-    }
-    pub fn tick(&mut self) {
-        self.div = self.div.wrapping_add(1);
     }
 }
 
-impl BusDevice for APU {
-    fn read(&self, address: Address) -> Byte {
+impl Tick for APU {
+    fn tick(&mut self, bus: &mut Bus, ctx: &mut MmioContext) {
         todo!()
     }
-
-    fn write(&mut self, address: Address, data: Byte) {
-        match address {
-            mmio::NR10 => {}
-            a if mmio::NOISE_CHANNEL_RANGE.contains(&a) => {
-                self.noise.write(address, data);
-            }
-            a if mmio::MATER_VOLUME_RANGE.contains(&a) => {}
-            a if mmio::WAVE_RAM_RANGE.contains(&a) => {}
-            _ => unimplemented!(),
-        }
-    }
 }
 
-impl MmioDevice for APU {}
+pub struct ApuCtx {
+    pub apu: APU,
+    pub mmio: ApuCtx
+}

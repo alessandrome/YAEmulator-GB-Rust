@@ -1,14 +1,10 @@
 mod bus_device;
 
-use crate::GB::apu::APU;
-use crate::GB::cartridge::ROM;
+pub(crate) use bus_device::{BusDevice, MmioDevice, MemoryDevice};
 use crate::GB::memory::wram::WRAM;
 use crate::GB::memory::hram::HRAM;
-use crate::GB::cpu::CPU;
 use crate::GB::cpu::registers::interrupt_registers::InterruptRegisters;
-use crate::GB::ppu::PPU;
-use super::timer::TimerRegisters;
-pub(crate) use bus_device::{BusDevice, MmioDevice, MemoryDevice};
+use crate::GB::apu::apu_mmio::ApuMmio;
 use crate::GB::cpu::cpu_mmio::CpuMmio;
 use crate::GB::dma::DMA;
 use crate::GB::dma::dma_mmio::DmaMmio;
@@ -20,11 +16,10 @@ use crate::GB::types::Byte;
 pub struct MmioContext<'a> {
     pub cpu_mmio: &'a mut CpuMmio,
     pub ppu_mmio: &'a mut PpuMmio,
-    // timer: &'a mut TimerRegisters,
-    // pub apu: &'a mut APU,
+    pub apu_mmio: &'a mut ApuMmio,
     pub dma_mmio: &'a mut DmaMmio,
     pub oam_mmio: &'a mut OamMemory,
-    pub wram: &'a mut WRAM,
+    pub wram_mmio: &'a mut WRAM,
 }
 
 pub struct Bus {}
@@ -48,7 +43,7 @@ impl Bus {
                 ctx.dma_mmio.read(address)
             }
             address if WRAM::WRAM_ADDRESS_RANGE.contains(&address) => {
-                ctx.wram.read(address)
+                ctx.wram_mmio.read(address)
             }
             address if OamMemory::OAM_ADDRESS_RANGE.contains(&address) => {
                 ctx.oam_mmio.read(address)
@@ -69,7 +64,7 @@ impl Bus {
                 ctx.dma_mmio.write(address, data)
             }
             address if WRAM::WRAM_ADDRESS_RANGE.contains(&address) => {
-                ctx.wram.write(address, data)
+                ctx.wram_mmio.write(address, data)
             }
             address if OamMemory::OAM_ADDRESS_RANGE.contains(&address) => {
                 ctx.oam_mmio.write(address, data)
