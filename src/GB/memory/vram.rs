@@ -1,4 +1,5 @@
 use crate::GB::bus::BusDevice;
+use crate::GB::ppu::tile::{Tile, TileDataArea};
 use super::{Length, Memory};
 use crate::GB::types::address::{Address, AddressRangeInclusive};
 use crate::GB::types::Byte;
@@ -33,8 +34,24 @@ impl VRAM {
         }
     }
 
-    pub fn read_vec(&self, start_address: u16, length: u16) -> &[u8] {
+    pub fn read_vec(&self, start_address: u16, length: u16) -> &[Byte] {
         &self.memory[start_address as usize..(start_address + length) as usize]
+    }
+
+    pub fn tile(&self, id: u8, tile_blocks: TileDataArea) -> Tile {
+        let tile_address_summer: u16;
+        let base_tile_idx: usize;
+        if tile_blocks == TileDataArea::DataBlock01 {
+            tile_address_summer = id as u16;
+            base_tile_idx = Self::VRAM_TILE_BLOCK_0_START.as_index() - Self::VRAM_START_ADDRESS.as_index();
+        } else {
+            tile_address_summer = (id as u16 + 128) % 256;
+            base_tile_idx = Self::VRAM_TILE_BLOCK_1_START.as_index() - Self::VRAM_START_ADDRESS.as_index();
+        }
+
+        let memory_idx = base_tile_idx + tile_address_summer as usize * Tile::TILE_SIZE as usize;
+        let slice = &self.memory[memory_idx..memory_idx + Tile::TILE_SIZE as usize];
+        Tile::from_bytes(<&[Byte; 16]>::try_from(slice).expect("Expecting 16 bytes"))
     }
 }
 

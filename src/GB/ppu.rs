@@ -7,7 +7,6 @@ use crate::GB::ppu::tile::{GbPaletteId, Tile, TILE_SIZE, TILE_HEIGHT, TILE_WIDTH
 use lcd_stat::LCDStatMasks;
 use lcd_control::LCDCMasks;
 use ppu_mode::PpuMode;
-use std::cell::RefCell;
 use std::fmt;
 use std::fmt::Formatter;
 use std::rc::Rc;
@@ -17,10 +16,12 @@ use crate::GB::memory::oam_memory::OamMemory;
 use crate::GB::ppu::constants::{SCAN_OAM_DOTS, SCREEN_WIDTH};
 use crate::GB::ppu::lcd_control::ObjSize;
 use crate::GB::ppu::ppu_mmio::PpuMmio;
-use crate::GB::ppu::oam::{OAM, OAM_BYTE_SIZE};
+use crate::GB::ppu::oam::{OAM};
 use crate::GB::traits::Tick;
 use crate::GB::types::address::Address;
 use crate::GB::types::Byte;
+use lcd::LCD;
+use crate::GB::ppu::pixel_fetcher::PixelFetcher;
 
 pub mod lcd_stat;
 pub mod lcd_control;
@@ -32,6 +33,8 @@ pub mod oam;
 pub mod ppu_mmio;
 pub mod pixel;
 pub mod lcd;
+pub mod palette;
+pub mod pixel_fetcher;
 
 macro_rules! ppu_get_set_flag_bit {
     ($get_func: ident, $set_func: ident, $register_ident: ident, $mask_ident: expr) => {
@@ -56,7 +59,7 @@ const OAM_BUFFER: u8 = 10;
 
 pub struct PPU {
     frame: Box<[GbPaletteId; SCREEN_LINES as usize * SCREEN_COLUMNS as usize]>,
-    oam_buffer: Vec<OAM>,
+    pixel_fetcher: PixelFetcher,
     oam_loading: Vec<Byte>,
     oam_scans: u8,
     dot: u16,
@@ -79,7 +82,7 @@ impl PPU {
     pub fn new() -> Self {
         Self {
             frame: Box::new([GbPaletteId::Id0; Self::SCREEN_PIXELS as usize]),
-            oam_buffer: Vec::with_capacity(Self::OAM_BUFFER as usize),
+            pixel_fetcher: PixelFetcher::new(),
             oam_loading: Vec::with_capacity(OAM::OAM_BYTES as usize),
             oam_scans: 0,
             dot: 0,
@@ -152,7 +155,7 @@ impl PPU {
                                 if obj_line >= 0 && obj_line < TILE_HEIGHT as isize {
                                     let tile = self.get_tile(oam.get_tile_id(), false);
                                     let tile_pixel_index = obj_dot + obj_line * TILE_WIDTH as isize;
-                                    let pixel = tile.get_tile_map()[tile_pixel_index as usize].clone();
+                                    let pixel = tile.tile_map()[tile_pixel_index as usize].clone();
                                     if pixel != GbPaletteId::Id0 {
                                         self.frame[screen_pixel_index] = pixel;
                                         pixel_set = true;
@@ -165,7 +168,7 @@ impl PPU {
                                 true);
                             let x_tile = self.get_bg_x() as usize % TILE_WIDTH;
                             let y_tile = self.get_bg_y() as usize % TILE_HEIGHT;
-                            self.frame[screen_pixel_index] = tile.get_tile_map()[x_tile + y_tile * TILE_WIDTH].clone();
+                            self.frame[screen_pixel_index] = tile.tile_map()[x_tile + y_tile * TILE_WIDTH].clone();
                         } else {
                             self.frame[screen_pixel_index] = GbPaletteId::Id0;
                         }
@@ -231,156 +234,6 @@ impl PPU {
             self.memory.borrow_mut().write(memory::registers::STAT, stat_reg & !LCDStatMasks::LYCeLY);
         }
     }
-
-    pub fn get_tile(&self, mut tile_id: u8, bg_win: bool) -> Tile {
-        let mut data: [u8; TILE_SIZE] = [0; TILE_SIZE];
-        let lcdc = self.read_memory(LCDC);
-        let mut start_address = VRAM_BLOCK_0_ADDRESS;
-        if bg_win {
-            let bg_wind_tile = (lcdc & LCDCMasks::BgWinTilesArea) == 0;
-            if bg_wind_tile {
-                start_address = if tile_id > 127 {
-                    VRAM_BLOCK_1_ADDRESS
-                } else {
-                    VRAM_BLOCK_2_ADDRESS
-                };
-                tile_id %= 128;
-            }
-        }
-        start_address += tile_id as usize * TILE_SIZE;
-        for i in 0..TILE_SIZE {
-            data[i] = self.read_memory((start_address + i) as u16);
-        }
-        Tile::new(data)
-    }
-
-    /// Retrieve tile/obj size mode. Return False if OBJ is a single 8x8 obj or True if a dual tile in 8x16 obj
-    pub fn get_tile_mode(&self) -> bool {
-        let lcdc = self.read_memory(addresses::LCDC_ADDRESS as u16);
-        (lcdc & LCDCMasks::ObjSize) != 0
-    }
-
-    /// Get true if BG/Window should be drawn
-    pub fn is_bg_win_enabled(&self) -> bool {
-        let lcdc = self.read_memory(addresses::LCDC_ADDRESS as u16);
-        (lcdc & LCDCMasks::BgWinEnabled) != 0
-    }
-
-    /// Get true if OBJs should be drawn
-    pub fn is_obj_enabled(&self) -> bool {
-        let lcdc = self.read_memory(addresses::LCDC_ADDRESS as u16);
-        (lcdc & LCDCMasks::ObjEnabled) != 0
-    }
-
-    pub fn get_bg(&self) -> Vec<Tile> {
-        let mut tiles = Vec::with_capacity(1024);
-        for i in 0..constants::MAP_TILES {
-            tiles.push(self.get_tile(self.get_bg_chr(i), true));
-        }
-        tiles
-    }
-
-    pub fn get_bg_x(&self) -> u8 {
-        ((self.get_scx() as usize + self.screen_dot) % constants::MAP_ROW_PIXELS) as u8
-    }
-
-    pub fn get_bg_y(&self) -> u8 {
-        ((self.get_scy() as usize + self.get_line() as usize) % constants::MAP_HEIGHT_PIXELS) as u8
-    }
-
-    /// In DMG CHR represent ID of the in-memory tile.
-    pub fn get_bg_chr(&self, id: usize) -> u8 {
-        self.read_memory((addresses::BG_DATA_1_ADDRESS + id) as u16)
-    }
-
-    pub fn get_bg_chr_id(&self, x: u8, y: u8) -> usize {
-        let scy = self.get_scy() as usize;
-        let scx = self.get_scx() as usize;
-        let y = (scy + y as usize) % constants::MAP_HEIGHT_PIXELS;
-        let x = (scx + x as usize) % constants::MAP_ROW_PIXELS;
-        let map_row = y / TILE_HEIGHT;
-        let map_column = x / TILE_WIDTH;
-        map_column + map_row * constants::MAP_ROW_TILES
-    }
-
-    pub fn get_frame_string(&self, doubled: bool) -> String {
-        let mut s = "".to_string();
-        for i in 0..constants::SCREEN_HEIGHT {
-            for j in 0..constants::SCREEN_WIDTH {
-                let frame_char = tile::PALETTE_ID_REPR[&self.frame[j + i * constants::SCREEN_WIDTH]];
-                s.push_str(frame_char);
-                if doubled {
-                    s.push_str(frame_char);
-                }
-            }
-            s.push('\n')
-        }
-        s
-    }
-
-    /// String/Draw map of tiles in VRAM. Can be useful for debug.
-    pub fn get_tile_map(&self, bank: u8) -> String {
-        let bank = bank % 2;
-        // TODO: we should use Tile Map bank as GB switch between 2 different VRAM banks
-        let mut ret_s = "".to_string();
-        let tile_per_row: u8 = 16;
-        let tile_rows: u8 = 16;
-        for i in 0..tile_rows {
-            let mut row_tiles: Vec<String> = vec!["".to_string(); TILE_HEIGHT];
-            for j in 0..tile_per_row {
-                let tile = self.get_tile(i * 16 + j, false).get_printable_id_map(true);
-                let tile_lines: Vec<&str> = tile.split('\n').collect();
-                for line in 0..tile_lines.len()-1 {
-                    row_tiles[line].push_str(tile_lines[line]);
-                }
-            }
-            ret_s.push_str(&row_tiles.join("\n"));
-            ret_s.push('\n');
-        }
-        ret_s
-    }
-
-    /// String/Draw map of OAM tiles in VRAM. OAM item contain ID of its tile and other useful data. This function can be useful for debug.
-    pub fn get_oam_tile_map(&self, oam_bank: u8, tile_bank: u8) -> String {
-        let tile_bank = tile_bank % 2;
-        let oam_bank = oam_bank % 2;
-        // TODO: we should use Tile Map bank as GB switch between 2 different VRAM banks
-        let mut ret_s = "".to_string();
-        let tile_per_row: u8 = 10;
-        let tile_rows: u8 = 4;
-        for i in 0..tile_rows {
-            let mut row_tiles: Vec<String> = vec!["".to_string(); TILE_HEIGHT];
-            for j in 0..tile_per_row {
-                let oam = self.get_oam((i * tile_per_row + j) as usize);
-                let tile = self.get_tile(oam.get_tile_id(), false).get_printable_id_map(true);
-                let tile_lines: Vec<&str> = tile.split('\n').collect();
-                for line in 0..tile_lines.len()-1 {
-                    row_tiles[line].push_str(tile_lines[line]);
-                }
-            }
-            ret_s.push_str(&row_tiles.join("\n"));
-            ret_s.push('\n');
-        }
-        ret_s
-    }
-
-    pub fn get_bg_map(&self) -> String {
-        let tiles = self.get_bg();
-        let mut ret_s = "".to_string();
-        for i in 0..constants::MAP_LINES {
-            let mut row: Vec<String> = vec!["".to_string(); TILE_HEIGHT];
-            for j in 0..constants::MAP_ROW_TILES {
-                let tile = tiles[i * constants::MAP_ROW_TILES + j].get_printable_id_map(true);
-                let tile_lines: Vec<&str> = tile.split('\n').collect();
-                for line in 0..tile_lines.len()-1 {
-                    row[line].push_str(tile_lines[line]);
-                }
-            }
-            ret_s.push_str(&row.join("\n"));
-            ret_s.push('\n');
-        }
-        ret_s
-    }
 }
 
 impl Tick for PPU {
@@ -399,14 +252,14 @@ impl Tick for PPU {
                 PpuMode::OAMScan => {
                     self.oam_scans = 0;
                     self.oam_loading.clear();
-                    self.oam_buffer.clear();
+                    self.pixel_fetcher.clear_oam_buffer();
                     self.dot = 0;
                     self.dots_penalties = 0;
                     self.dots_penalties_counter = 0;
                     self.screen_dot = 0;
                 }
                 PpuMode::Drawing => {
-                    self.oam_buffer.sort();
+                    self.pixel_fetcher.order_oam_buffer();
                 }
                 PpuMode::HBlank => {}
                 PpuMode::VBlank => {}
@@ -416,7 +269,7 @@ impl Tick for PPU {
         match ctx.ppu_mmio.ppu_mode() {
             PpuMode::OAMScan => {
                 // Mode 2 - OAM Scan
-                if self.oam_buffer.len() < Self::OAM_BUFFER as usize {
+                if self.pixel_fetcher.oam_buffer().len() < Self::OAM_BUFFER as usize {
                     let oam_id = self.oam_scans * 2 / OAM::OAM_BYTES;
                     let oam_base_addr = OamMemory::OAM_START_ADDRESS + (oam_id * 4) as u16;
                     let oam_byte_idx0 = ((self.oam_scans * 2) % OAM::OAM_BYTES);
@@ -425,6 +278,8 @@ impl Tick for PPU {
                     // Get OAM Byte 0/1 with oam_scans even, OAM Byte 2/3 if odd
                     self.oam_loading[oam_byte_idx0 as usize] = ctx.oam_mmio.read(oam_base_addr + oam_byte_idx0 as u16);
                     self.oam_loading[oam_byte_idx1 as usize] = ctx.oam_mmio.read(oam_base_addr + oam_byte_idx1 as u16);
+
+                    // 4 Bytes = 1 OAM - Push it to OAM Buffer
                     if !(self.oam_loading.len() < OAM::OAM_BYTES as usize) {
                         let oam = OAM::new(
                             self.oam_loading[0],
@@ -437,15 +292,17 @@ impl Tick for PPU {
                         let obj_height = lcdc_view.obj_size as u8;
                         let ly = ctx.ppu_mmio.ly();
                         if (ly >= oam.y()) && (ly < (oam.y() + obj_height)) {
-                            self.oam_buffer.push(oam);
+                            self.pixel_fetcher.push_oam_buffer(oam);
                         }
-                        // todo!("Test if OAM storing is correct");
                     }
                 }
                 self.oam_scans = (self.oam_scans + 1) & Self::OAM_BUFFER;
             }
             PpuMode::Drawing => {
                 // Mode 3 - Drawing Pixels
+                self.pixel_fetcher.tick(bus, ctx);
+
+                // Penalities
                 if self.dots_penalties_counter < self.dots_penalties {
                     self.dots_penalties_counter += 1;
                 } else {
@@ -484,16 +341,16 @@ impl Default for PPU {
 
 impl fmt::Display for PPU {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        let line = self.read_memory(addresses::LY_ADDRESS as u16);
         write!(
             f,
-            "PPU {{ Y: {}, X: {}, ldot: {} }}",
-            line, self.screen_dot, self.line_dots
+            "PPU {{ dot: {} }}",
+            self.dot,
         )
     }
 }
 
 pub struct PpuCtx {
     pub ppu: PPU,
+    pub lcd: LCD,
     pub mmio: PpuMmio,
 }

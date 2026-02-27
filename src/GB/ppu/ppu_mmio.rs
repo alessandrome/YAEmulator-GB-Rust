@@ -3,6 +3,7 @@ use crate::GB::bus::BusDevice;
 use crate::GB::memory::vram::VRAM;
 use crate::GB::ppu::lcd_control::{LCDCMasks, ObjSize, TileDataArea, TileMapArea, LCDC};
 use crate::GB::ppu::lcd_stat::{LCDStatMasks, LcdStat};
+use crate::GB::ppu::palette::GbPalette;
 use crate::GB::ppu::pixel::PixelFifo;
 use crate::GB::types::address::{Address, AddressRangeInclusive};
 use crate::GB::types::Byte;
@@ -243,6 +244,21 @@ impl PpuMmio {
             obj_enabled: (self.lcdc & LCDCMasks::ObjEnabled) != 0,
             bg_win_enabled: (self.lcdc & LCDCMasks::BgWinEnabled) != 0,
         }
+    }
+
+    #[inline]
+    pub fn bgp_view(&self) -> GbPalette {
+        GbPalette::from_byte(self.bgp)
+    }
+
+    #[inline]
+    pub fn obp0_view(&self) -> GbPalette {
+        GbPalette::from_byte(self.obp0)
+    }
+
+    #[inline]
+    pub fn obp1_view(&self) -> GbPalette {
+        GbPalette::from_byte(self.obp1)
     }
 }
 
