@@ -29,22 +29,6 @@ pub struct PpuMmio {
 }
 
 impl PpuMmio {
-    pub const VRAM_BLOCK_0_START: Address = Address(0x8000);
-    pub const VRAM_BLOCK_0_END: Address = Address(0x87FF);
-    pub const VRAM_BLOCK_0_RANGE: AddressRangeInclusive = Self::VRAM_BLOCK_0_START..=Self::VRAM_BLOCK_0_END;
-    pub const VRAM_BLOCK_1_START: Address = Address(0x8800);
-    pub const VRAM_BLOCK_1_END: Address = Address(0x8FFF);
-    pub const VRAM_BLOCK_1_RANGE: AddressRangeInclusive = Self::VRAM_BLOCK_1_START..=Self::VRAM_BLOCK_1_END;
-    pub const VRAM_BLOCK_2_START: Address = Address(0x9000);
-    pub const VRAM_BLOCK_2_END: Address = Address(0x97FF);
-    pub const VRAM_BLOCK_2_RANGE: AddressRangeInclusive = Self::VRAM_BLOCK_2_START..=Self::VRAM_BLOCK_2_END;
-    pub const VRAM_TILE_MAP_0_START: Address = Address(0x9800);
-    pub const VRAM_TILE_MAP_0_END: Address = Address(0x9BFF);
-    pub const VRAM_TILE_MAP_0_RANGE: AddressRangeInclusive = Self::VRAM_TILE_MAP_0_START..=Self::VRAM_TILE_MAP_0_END;
-    pub const VRAM_TILE_MAP_1_START: Address = Address(0x9C00);
-    pub const VRAM_TILE_MAP_1_END: Address = Address(0x9FFF);
-    pub const VRAM_TILE_MAP_1_RANGE: AddressRangeInclusive = Self::VRAM_TILE_MAP_1_START..=Self::VRAM_TILE_MAP_1_END;
-
     pub const LCDC_ADDRESS: Address = Address(0xFF40);
     pub const STAT_ADDRESS: Address = Address(0xFF41);
     pub const SCY_ADDRESS: Address = Address(0xFF42);

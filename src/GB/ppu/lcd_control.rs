@@ -1,4 +1,5 @@
-use crate::{mask_flag_enum_default_impl, default_enum_u8_bit_ops};
+use crate::GB::ppu::tile::{TileDataArea, TileMapArea};
+use crate::{default_enum_u8_bit_ops, mask_flag_enum_default_impl};
 
 #[derive(Copy, Clone, Debug)]
 #[repr(u8)]
@@ -19,18 +20,6 @@ mask_flag_enum_default_impl!(LCDCMasks);
 pub enum ObjSize {
     Single = 8,
     Double = 16,
-}
-
-#[derive(Copy, Clone, Debug, PartialEq)]
-pub enum TileMapArea {
-    MapBlock0,
-    MapBlock1,
-}
-
-#[derive(Copy, Clone, Debug, PartialEq)]
-pub enum TileDataArea {
-    DataBlock01,
-    DataBlock12,
 }
 
 /// High-Level view of a LCDC register
