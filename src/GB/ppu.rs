@@ -35,6 +35,7 @@ pub mod pixel;
 pub mod lcd;
 pub mod palette;
 pub mod pixel_fetcher;
+pub mod tile_line;
 
 macro_rules! ppu_get_set_flag_bit {
     ($get_func: ident, $set_func: ident, $register_ident: ident, $mask_ident: expr) => {
