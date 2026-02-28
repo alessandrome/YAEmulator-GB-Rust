@@ -12,6 +12,16 @@ where
     (old_value & mask) != T::from(0) && (new_value & mask) == T::from(0)
 }
 
+/// Take a byte (u8) and expand it adding zeroes between original bits. Zeroes are added at left of the bit.
+/// E.g. 1001_1011 become the following 16-bit value 0100_0001_0100_0101
+pub fn expand_byte_bits(byte: u8) -> u16 {
+    let mut x = byte as u16;
+    x = (x | (x << 4)) & 0x0F0F;
+    x = (x | (x << 2)) & 0x3333;
+    x = (x | (x << 1)) & 0x5555;
+    x
+}
+
 #[cfg(test)]
 mod test {
     use crate::utils::falling_edge;

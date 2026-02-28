@@ -3,6 +3,7 @@ use std::fmt;
 use std::fmt::Formatter;
 use crate::{default_enum_u8_bit_ops, default_enum_u8};
 use crate::GB::types::Byte;
+use crate::utils::expand_byte_bits;
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum TileMapArea {
@@ -62,14 +63,6 @@ lazy_static! {
     ]);
 }
 
-pub fn expand_bits(byte: u8) -> u16 {
-    let mut x = byte as u16;
-    x = (x | (x << 4)) & 0x0F0F;
-    x = (x | (x << 2)) & 0x3333;
-    x = (x | (x << 1)) & 0x5555;
-    x
-}
-
 const TILE_SIZE: u8 = 16;
 pub const TILE_WIDTH: u8 = 8;
 pub const TILE_HEIGHT: u8 = 8;
@@ -94,7 +87,7 @@ impl Tile {
         for row in 0_usize..8 {
             let byte_1 = bytes[row * 2];
             let byte_2 = bytes[row * 2 + 1];
-            let word = (expand_bits(byte_2) << 1) | expand_bits(byte_1);
+            let word = (expand_byte_bits(byte_2) << 1) | expand_byte_bits(byte_1);
             for col in 0_usize..8 {
                 pixels[row * Self::TILE_WIDTH as usize + col] = Self::half_nibble_to_palette_map(((word >> ((7 - col) * 2)) as Byte) & 0b11);
             }
@@ -112,8 +105,8 @@ impl Tile {
         for i in 0..8 {
             let byte1 = self.data[i * 2];
             let byte2 = self.data[i * 2 + 1];
-            let byte1_expanded = expand_bits(byte1);
-            let byte2_expanded = expand_bits(byte2) << 1;
+            let byte1_expanded = expand_byte_bits(byte1);
+            let byte2_expanded = expand_byte_bits(byte2) << 1;
             let resulting_byte = byte2_expanded | byte1_expanded;
             for j in 0..8 {
                 let shift = (7 - j) * 2;
@@ -190,22 +183,22 @@ impl fmt::Display for Tile {
 
 #[cfg(test)]
 mod test {
-    use crate::GB::ppu::tile::{expand_bits, GbPaletteId, Tile};
+    use crate::GB::ppu::tile::{expand_byte_bits, GbPaletteId, Tile};
 
     #[test]
     fn test_bit_expander() {
         let mut byte = 0b1111_1111;
-        let mut expanded = expand_bits(byte);
+        let mut expanded = expand_byte_bits(byte);
         let mut expected: u16 = 0b01010101_01010101;
         assert_eq!(expanded, expected);
 
         byte = 0b1001_0110;
-        expanded = expand_bits(byte);
+        expanded = expand_byte_bits(byte);
         expected = 0b01000001_00010100;
         assert_eq!(expanded, expected);
 
         byte = 0b0000_0000;
-        expanded = expand_bits(byte);
+        expanded = expand_byte_bits(byte);
         expected = 0b00000000_00000000;
         assert_eq!(expanded, expected);
     }
