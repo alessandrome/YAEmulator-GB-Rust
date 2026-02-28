@@ -252,15 +252,12 @@ impl Tick for PPU {
                 PpuMode::OAMScan => {
                     self.oam_scans = 0;
                     self.oam_loading.clear();
-                    self.pixel_fetcher.clear_oam_buffer();
                     self.dot = 0;
                     self.dots_penalties = 0;
                     self.dots_penalties_counter = 0;
                     self.screen_dot = 0;
                 }
-                PpuMode::Drawing => {
-                    self.pixel_fetcher.order_oam_buffer();
-                }
+                PpuMode::Drawing => {}
                 PpuMode::HBlank => {}
                 PpuMode::VBlank => {}
             }
