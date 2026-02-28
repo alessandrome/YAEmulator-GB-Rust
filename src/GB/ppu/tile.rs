@@ -36,6 +36,19 @@ pub enum GbPaletteId {
     Id3 = 3u8,
 }
 
+impl GbPaletteId {
+    #[inline]
+    pub fn half_nibble_to_palette_map(byte: Byte) -> GbPaletteId {
+        match byte & 0b0000_0011 {
+            0 => GbPaletteId::Id0,
+            1 => GbPaletteId::Id1,
+            2 => GbPaletteId::Id2,
+            3 => GbPaletteId::Id3,
+            _ => unreachable!()
+        }
+    }
+}
+
 #[derive(Debug, Copy, Clone)]
 #[repr(u32)]
 pub enum RGBPalette {
@@ -89,46 +102,19 @@ impl Tile {
             let byte_2 = bytes[row * 2 + 1];
             let word = (expand_byte_bits(byte_2) << 1) | expand_byte_bits(byte_1);
             for col in 0_usize..8 {
-                pixels[row * Self::TILE_WIDTH as usize + col] = Self::half_nibble_to_palette_map(((word >> ((7 - col) * 2)) as Byte) & 0b11);
+                pixels[row * Self::TILE_WIDTH as usize + col] = GbPaletteId::half_nibble_to_palette_map(((word >> ((7 - col) * 2)) as Byte) & 0b11);
             }
         }
 
         Self { data: pixels }
     }
 
-    pub fn tile_map(&self) -> [GbPaletteId; 64] {
-        self.to_picture_map()
-    }
-
-    pub fn to_picture_map(&self) -> [GbPaletteId; 64] {
-        let mut picture = [GbPaletteId::Id0; 8 * 8];
-        for i in 0..8 {
-            let byte1 = self.data[i * 2];
-            let byte2 = self.data[i * 2 + 1];
-            let byte1_expanded = expand_byte_bits(byte1);
-            let byte2_expanded = expand_byte_bits(byte2) << 1;
-            let resulting_byte = byte2_expanded | byte1_expanded;
-            for j in 0..8 {
-                let shift = (7 - j) * 2;
-                picture[i * 8 + j] = Self::half_nibble_to_palette_map(((resulting_byte & (3 << shift)) >> shift) as u8);
-            }
-        }
-        picture
-    }
-
-    #[inline]
-    pub fn half_nibble_to_palette_map(byte: Byte) -> GbPaletteId {
-        match byte & 0b0000_0011 {
-            0 => GbPaletteId::Id0,
-            1 => GbPaletteId::Id1,
-            2 => GbPaletteId::Id2,
-            3 => GbPaletteId::Id3,
-            _ => unreachable!()
-        }
+    pub fn tile(&self) -> &[GbPaletteId; Self::TILE_DOTS as usize] {
+        &self.data
     }
 
     pub fn get_printable_id_map(&self, doubled: bool) -> String {
-        Self::palette_id_map_to_printable_id_map(&self.tile_map(), doubled)
+        Self::palette_id_map_to_printable_id_map(&self.tile(), doubled)
     }
 
     pub fn palette_id_map_to_printable_id_map(array_map: &[GbPaletteId; 8 * 8], doubled: bool) -> String {

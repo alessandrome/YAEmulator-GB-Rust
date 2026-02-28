@@ -41,20 +41,36 @@ impl VRAM {
         &self.memory[start_address as usize..(start_address + length) as usize]
     }
 
-    pub fn tile(&self, id: u8, tile_blocks: TileDataArea) -> Tile {
-        let tile_address_summer: u16;
+    fn tile_memory_index(id: u8, tile_block: TileDataArea) -> usize {
+        let tile_address_summer: u8;
         let base_tile_idx: usize;
-        if tile_blocks == TileDataArea::DataBlock01 {
-            tile_address_summer = id as u16;
+        if tile_block == TileDataArea::DataBlock01 {
+            tile_address_summer = id;
             base_tile_idx = Self::VRAM_TILE_BLOCK_0_START.as_index() - Self::VRAM_START_ADDRESS.as_index();
         } else {
-            tile_address_summer = (id as u16 + 128) & 0xFF; // -- AND 0xFF is like do % 256 but faster
+            tile_address_summer = ((id as u16 + 128) & 0xFF) as u8; // -- AND 0xFF is like do % 256 but faster
             base_tile_idx = Self::VRAM_TILE_BLOCK_1_START.as_index() - Self::VRAM_START_ADDRESS.as_index();
         }
+        base_tile_idx + tile_address_summer as usize * Tile::TILE_SIZE as usize
+    }
 
-        let memory_idx = base_tile_idx + tile_address_summer as usize * Tile::TILE_SIZE as usize;
+    pub fn tile(&self, id: u8, tile_block: TileDataArea) -> Tile {
+        let memory_idx = Self::tile_memory_index(id, tile_block);
         let slice = &self.memory[memory_idx..memory_idx + Tile::TILE_SIZE as usize];
         Tile::from_bytes(<&[Byte; 16]>::try_from(slice).expect("Expecting 16 bytes"))
+    }
+
+    #[inline]
+    pub fn tile_line_lsb_byte(&self, id: u8, line: u8, tile_block: TileDataArea) -> Byte {
+        assert!(line < Tile::TILE_HEIGHT);
+        let memory_idx = Self::tile_memory_index(id, tile_block);
+        self.memory[memory_idx + line as usize * 2]
+    }
+
+    #[inline]
+    pub fn tile_line_msb_byte(&self, id: u8, line: u8, tile_block: TileDataArea) -> Byte {
+        let memory_idx = Self::tile_memory_index(id, tile_block);
+        self.memory[memory_idx + line as usize * 2 + 1]
     }
 
     #[inline]
