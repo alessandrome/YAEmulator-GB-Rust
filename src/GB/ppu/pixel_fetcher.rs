@@ -22,6 +22,7 @@ pub enum PixelFetcherState {
 pub struct PixelFetcher {
     state: PixelFetcherState,
     oam_buffer: Vec<OAM>,
+    first_cycle: bool,
     screen_tile_x: u8,
     pixel_shift: u8,
     tile_map_id: u16,
@@ -38,6 +39,7 @@ impl PixelFetcher {
         Self {
             state: PixelFetcherState::FetchTileT1,
             oam_buffer: Vec::with_capacity(Self::OAM_BUFFER as usize),
+            first_cycle: true,
             screen_tile_x: 0,
             pixel_shift: 0,
             tile_map_id: 0,
@@ -83,6 +85,7 @@ impl Tick for PixelFetcher {
                 }
                 PpuMode::Drawing => {
                     self.order_oam_buffer();
+                    self.first_cycle = true;
                     self.pixel_shift = ctx.ppu_mmio.scx() & 0x07;
                 }
                 PpuMode::HBlank => {}
@@ -131,7 +134,12 @@ impl Tick for PixelFetcher {
                 self.state = PixelFetcherState::FetchTileDataHighT2;
             }
             PixelFetcherState::FetchTileDataHighT2 => {
-                self.state = PixelFetcherState::PushT1;
+                if self.first_cycle {
+                    self.first_cycle = false;
+                    self.state = PixelFetcherState::FetchTileT1;
+                } else {
+                    self.state = PixelFetcherState::PushT1;
+                }
             }
             PixelFetcherState::PushT1 => {
                 self.tile_line = TileLine::new(self.line_high_byte, self.line_low_byte);
