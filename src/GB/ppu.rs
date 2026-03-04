@@ -1,27 +1,14 @@
-use crate::mask_flag_enum_default_impl;
-use crate::GB::memory::registers::LCDC;
-use crate::GB::memory::{
-    UseMemory, RAM, VRAM_BLOCK_0_ADDRESS, VRAM_BLOCK_1_ADDRESS, VRAM_BLOCK_2_ADDRESS,
-};
-use crate::GB::ppu::tile::{GbPaletteId, Tile, TILE_SIZE, TILE_HEIGHT, TILE_WIDTH};
-use lcd_stat::LCDStatMasks;
-use lcd_control::LCDCMasks;
+use crate::GB::ppu::tile::{GbPaletteId};
 use ppu_mode::PpuMode;
 use std::fmt;
 use std::fmt::Formatter;
-use std::rc::Rc;
 use crate::GB::bus::{Bus, BusDevice, MmioContext};
-use crate::GB::memory;
 use crate::GB::memory::oam_memory::OamMemory;
-use crate::GB::ppu::constants::{SCAN_OAM_DOTS, SCREEN_WIDTH};
-use crate::GB::ppu::lcd_control::ObjSize;
 use crate::GB::ppu::ppu_mmio::PpuMmio;
 use crate::GB::ppu::oam::{OAM};
 use crate::GB::traits::Tick;
-use crate::GB::types::address::Address;
 use crate::GB::types::Byte;
 use lcd::LCD;
-use crate::GB::ppu::pixel_fetcher::PixelFetcher;
 
 pub mod lcd_stat;
 pub mod lcd_control;
@@ -43,7 +30,8 @@ const OAM_BUFFER: u8 = 10;
 
 pub struct PPU {
     frame: Box<[GbPaletteId; SCREEN_LINES as usize * SCREEN_COLUMNS as usize]>,
-    pixel_fetcher: PixelFetcher,
+    bg_fetcher: pixel_fetcher::BackgroundFetcher,
+    sprite_fetcher: pixel_fetcher::SpriteFetcher,
     oam_loading: Vec<Byte>,
     oam_scans: u8,
     discarding_pixels: u8,
@@ -67,7 +55,8 @@ impl PPU {
     pub fn new() -> Self {
         Self {
             frame: Box::new([GbPaletteId::Id0; Self::SCREEN_PIXELS as usize]),
-            pixel_fetcher: PixelFetcher::new(),
+            bg_fetcher: pixel_fetcher::BackgroundFetcher::new(),
+            sprite_fetcher: pixel_fetcher::SpriteFetcher::new(),
             oam_loading: Vec::with_capacity(OAM::OAM_BYTES as usize),
             oam_scans: 0,
             discarding_pixels: 0,
@@ -85,11 +74,9 @@ impl Tick for PPU {
         let stat_view = ctx.ppu_mmio.stat_view();
         let lcdc_view = ctx.ppu_mmio.lcdc_view();
 
-        // If previous mode is ended and next mode is requested, switch to next ppu mode
-        if self.switch_mode {
-            ctx.ppu_mmio.next_mode();
-            self.switch_mode = false;
-        }
+        // Ticking and update as needed PPU mode in PPU Context
+        ctx.ppu_mmio.tick(self.switch_mode);
+        self.switch_mode = false;
 
         if ctx.ppu_mmio.prev_ppu_mode() != ctx.ppu_mmio.ppu_mode() {
             match ctx.ppu_mmio.ppu_mode() {
@@ -102,6 +89,7 @@ impl Tick for PPU {
                     self.screen_dot = 0;
                 }
                 PpuMode::Drawing => {
+                    ctx.ppu_mmio.sort_oam_buffer();
                     self.discarding_pixels = ctx.ppu_mmio.scx() & 7;
                 }
                 PpuMode::HBlank => {}
@@ -112,7 +100,7 @@ impl Tick for PPU {
         match ctx.ppu_mmio.ppu_mode() {
             PpuMode::OAMScan => {
                 // Mode 2 - OAM Scan
-                if self.pixel_fetcher.oam_buffer().len() < Self::OAM_BUFFER as usize {
+                if ctx.ppu_mmio.oam_buffer().len() < Self::OAM_BUFFER as usize {
                     let oam_id = self.oam_scans * 2 / OAM::OAM_BYTES;
                     let oam_base_addr = OamMemory::OAM_START_ADDRESS + (oam_id * 4) as u16;
                     let oam_byte_idx0 = ((self.oam_scans * 2) % OAM::OAM_BYTES);
@@ -135,7 +123,7 @@ impl Tick for PPU {
                         let obj_height = lcdc_view.obj_size as u8;
                         let ly = ctx.ppu_mmio.ly();
                         if (ly >= oam.y()) && (ly < (oam.y() + obj_height)) {
-                            self.pixel_fetcher.push_oam_buffer(oam);
+                            ctx.ppu_mmio.push_oam_buffer(oam);
                         }
                     }
                 }
@@ -152,7 +140,7 @@ impl Tick for PPU {
                     todo!("LCD Tick - Mix & Push pixel to screen (if BG ready!)");
                 }
 
-                self.pixel_fetcher.tick(bus, ctx);
+                self.bg_fetcher.tick(bus, ctx);
 
                 // Penalities - Now are already included in Pixel FIFO Behavior
             }

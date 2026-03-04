@@ -3,6 +3,7 @@ use crate::GB::bus::BusDevice;
 use crate::GB::memory::vram::VRAM;
 use crate::GB::ppu::lcd_control::{LCDCMasks, ObjSize, TileDataArea, TileMapArea, LCDC};
 use crate::GB::ppu::lcd_stat::{LCDStatMasks, LcdStat};
+use crate::GB::ppu::oam::OAM;
 use crate::GB::ppu::palette::GbPalette;
 use crate::GB::ppu::pixel::PixelFifo;
 use crate::GB::types::address::{Address, AddressRangeInclusive};
@@ -13,6 +14,7 @@ use super::PPU;
 pub struct PpuMmio {
     ppu_mode: PpuMode,
     prev_ppu_mode: PpuMode, // PPU Mode in tha last T-Cycle tick
+    oam_buffer: Vec<OAM>,
     obj_fifo: VecDeque<PixelFifo>,
     background_fifo: VecDeque<PixelFifo>,
     vram: VRAM,
@@ -48,6 +50,7 @@ impl PpuMmio {
         Self {
             ppu_mode: PpuMode::OAMScan,
             prev_ppu_mode: PpuMode::HBlank,
+            oam_buffer: Vec::with_capacity(10),
             obj_fifo: VecDeque::with_capacity(16),
             background_fifo: VecDeque::with_capacity(16),
             vram: VRAM::new(),
@@ -76,7 +79,7 @@ impl PpuMmio {
     }
 
     #[inline]
-    pub fn next_mode(&mut self) {
+    fn next_mode(&mut self) {
         match self.ppu_mode {
             PpuMode::OAMScan => self.ppu_mode = PpuMode::Drawing,
             PpuMode::Drawing => self.ppu_mode = PpuMode::HBlank,
@@ -92,9 +95,37 @@ impl PpuMmio {
     }
 
     #[inline]
+    pub fn tick(&mut self, next_mode: bool) {
+        self.prev_ppu_mode = self.ppu_mode;
+        if next_mode {
+            self.next_mode();
+        }
+    }
+
+    #[inline]
     /// Increment LY Register
     pub fn next_ly(&mut self) {
         self.ly = (self.ly + 1) % PPU::SCAN_LINES as u8;
+    }
+
+    #[inline]
+    pub fn push_oam_buffer(&mut self, oam: OAM) {
+        self.oam_buffer.push(oam);
+    }
+
+    #[inline]
+    pub fn pop_oam_buffer(&mut self) -> Option<OAM> {
+        self.oam_buffer.pop()
+    }
+
+    #[inline]
+    pub fn sort_oam_buffer(&mut self) {
+        self.oam_buffer.sort();
+    }
+
+    #[inline]
+    pub fn clear_oam_buffer(&mut self) {
+        self.oam_buffer.clear();
     }
 
     #[inline]
@@ -115,6 +146,11 @@ impl PpuMmio {
     #[inline]
     pub fn pop_bg_pixel(&mut self) -> Option<PixelFifo> {
         self.background_fifo.pop_front()
+    }
+
+    #[inline]
+    pub fn oam_buffer(&self) -> &Vec<OAM> {
+        &self.oam_buffer
     }
 
     #[inline]
