@@ -9,6 +9,7 @@ use crate::GB::ppu::oam::{OAM};
 use crate::GB::traits::Tick;
 use crate::GB::types::Byte;
 use lcd::LCD;
+use crate::GB::ppu::pixel_fetcher::PixelFetcherState;
 
 pub mod lcd_stat;
 pub mod lcd_control;
@@ -28,8 +29,15 @@ const SCREEN_LINES: u16 = 144;
 const SCREEN_COLUMNS: u16 = 160;
 const OAM_BUFFER: u8 = 10;
 
+#[derive(Copy, Clone, Debug, PartialEq)]
+enum PpuFetchingMode {
+    FetchBg,
+    FetchSprite,
+}
+
 pub struct PPU {
     frame: Box<[GbPaletteId; SCREEN_LINES as usize * SCREEN_COLUMNS as usize]>,
+    fetching_mode: PpuFetchingMode,
     bg_fetcher: pixel_fetcher::BackgroundFetcher,
     sprite_fetcher: pixel_fetcher::SpriteFetcher,
     oam_loading: Vec<Byte>,
@@ -55,6 +63,7 @@ impl PPU {
     pub fn new() -> Self {
         Self {
             frame: Box::new([GbPaletteId::Id0; Self::SCREEN_PIXELS as usize]),
+            fetching_mode: PpuFetchingMode::FetchBg,
             bg_fetcher: pixel_fetcher::BackgroundFetcher::new(),
             sprite_fetcher: pixel_fetcher::SpriteFetcher::new(),
             oam_loading: Vec::with_capacity(OAM::OAM_BYTES as usize),
@@ -90,6 +99,7 @@ impl Tick for PPU {
                 }
                 PpuMode::Drawing => {
                     ctx.ppu_mmio.sort_oam_buffer();
+                    self.fetching_mode = PpuFetchingMode::FetchBg;
                     self.discarding_pixels = ctx.ppu_mmio.scx() & 7;
                 }
                 PpuMode::HBlank => {}
@@ -131,8 +141,11 @@ impl Tick for PPU {
             }
             PpuMode::Drawing => {
                 // Mode 3 - Drawing Pixels
+
+                // Discard pixels on new drawing line as needed
                 let discard_pixels = self.discarding_pixels > 0;
                 if discard_pixels {
+                    // Can discard pixel only when BG FIFO is not empty
                     if ctx.ppu_mmio.pop_bg_pixel().is_some() {
                         self.discarding_pixels -= 1;
                     }
@@ -140,9 +153,31 @@ impl Tick for PPU {
                     todo!("LCD Tick - Mix & Push pixel to screen (if BG ready!)");
                 }
 
-                self.bg_fetcher.tick(bus, ctx);
+                let sprite_oam = ctx.ppu_mmio.oam_buffer().first();
+                match sprite_oam {
+                    None => {}
+                    Some(oam) => {
+                        if self.fetching_mode == PpuFetchingMode::FetchBg && oam.x().saturating_sub(8) == ctx.ppu_mmio.screen_x() {
+                            self.fetching_mode = PpuFetchingMode::FetchSprite;
+                            self.bg_fetcher.reset();
+                        }
+                    }
+                }
 
-                // Penalities - Now are already included in Pixel FIFO Behavior
+                match self.fetching_mode {
+                    PpuFetchingMode::FetchBg => {
+                        self.bg_fetcher.tick(bus, ctx);
+                        todo!("Advance LCD driver");
+                    }
+                    PpuFetchingMode::FetchSprite => {
+                        self.sprite_fetcher.tick(bus, ctx);
+                        if self.sprite_fetcher.state() == PixelFetcherState::FetchTileT1 {
+                            self.fetching_mode = PpuFetchingMode::FetchBg;
+                        }
+                    }
+                }
+
+                // Penalities - Now already included in Pixel FIFO Behavior
             }
             PpuMode::HBlank => {
                 // Mode 0 - HBlank

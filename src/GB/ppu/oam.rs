@@ -136,6 +136,12 @@ impl OAM {
     }
 }
 
+impl Default for OAM {
+    fn default() -> Self {
+        Self::new(0, 0, 0, 0, None)
+    }
+}
+
 impl Ord for OAM {
     fn cmp(&self, other: &Self) -> Ordering {
         (self.x, self.id).cmp(&(other.x, other.id))

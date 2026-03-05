@@ -3,28 +3,13 @@ pub mod hram;
 pub mod vram;
 pub mod oam_memory;
 
-use std::io::Read;
-use std::ops::{Deref, DerefMut};
-use crate::GB::ppu::tile::TILE_SIZE;
-
 pub const RST_INSTRUCTIONS: usize = 0x0000; // Location in memory for RST instructions (not used on emulation)
 pub const CARTRIDGE_HEADER_ADDRESS: usize = 0x0100; // Location for ROM metadata (as name) (not used on emulation)
 pub const USER_PROGRAM_ADDRESS: usize = 0x0150; // Location User Program (not used on emulation)
-pub const VRAM_ADDRESS: usize = 0x8000; // Video memory
-pub const VRAM_BLOCK_SIZE: usize = TILE_SIZE * 128;
-pub const VRAM_BLOCK_0_ADDRESS: usize = VRAM_ADDRESS; // Video memory - Block 0
-pub const VRAM_BLOCK_1_ADDRESS: usize = VRAM_BLOCK_0_ADDRESS + VRAM_BLOCK_SIZE ; // Video memory - Block 1
-pub const VRAM_BLOCK_2_ADDRESS: usize = VRAM_BLOCK_1_ADDRESS + VRAM_BLOCK_SIZE ; // Video memory - Block 2
 pub const EXTERNAL_RAM_ADDRESS: usize = 0xA000; // External Extension memory
-pub const OAM_RAM_ADDRESS: usize = 0xFE00; // Up to 40 Display Object Data (512B)
-pub const INTERNAL_RAM_ADDRESS: usize = 0xFF00; // Instruction Registers & Flags
-pub const HRAM_ADDRESS: usize = 0xFF80; // High memory 127B (Memory w/ direct access from CPU)
-
 pub const RST_MEM_SIZE: usize = CARTRIDGE_HEADER_ADDRESS - RST_INSTRUCTIONS;
 pub const CARTRIDGE_HEADER_SIZE: usize = USER_PROGRAM_ADDRESS - CARTRIDGE_HEADER_ADDRESS;
-pub const USER_PROGRAM_MEM_SIZE: usize = VRAM_ADDRESS - USER_PROGRAM_ADDRESS;
-pub const WRAM_SIZE: usize = 0x2000;
-pub const HRAM_SIZE: usize = 127;
+pub const USER_PROGRAM_MEM_SIZE: usize = vram::VRAM::VRAM_START_ADDRESS.as_usize() - USER_PROGRAM_ADDRESS;
 
 pub struct Memory<T> where T: Clone {
     #[cfg(test)]

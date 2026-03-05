@@ -36,6 +36,10 @@ impl BackgroundFetcher {
             tile_line: TileLine::default(),
         }
     }
+
+    pub fn reset(&mut self) {
+        self.state = PixelFetcherState::FetchTileT1;
+    }
 }
 
 impl Tick for BackgroundFetcher {

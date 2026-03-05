@@ -1,7 +1,8 @@
 use std::collections::VecDeque;
 use crate::GB::bus::BusDevice;
 use crate::GB::memory::vram::VRAM;
-use crate::GB::ppu::lcd_control::{LCDCMasks, ObjSize, TileDataArea, TileMapArea, LCDC};
+use crate::GB::ppu::tile::{TileDataArea, TileMapArea};
+use crate::GB::ppu::lcd_control::{LCDCMasks, ObjSize, LCDC};
 use crate::GB::ppu::lcd_stat::{LCDStatMasks, LcdStat};
 use crate::GB::ppu::oam::OAM;
 use crate::GB::ppu::palette::GbPalette;
@@ -17,6 +18,7 @@ pub struct PpuMmio {
     oam_buffer: Vec<OAM>,
     obj_fifo: VecDeque<PixelFifo>,
     background_fifo: VecDeque<PixelFifo>,
+    screen_x: u8,
     vram: VRAM,
     lcdc: Byte,
     stat: Byte,
@@ -53,6 +55,7 @@ impl PpuMmio {
             oam_buffer: Vec::with_capacity(10),
             obj_fifo: VecDeque::with_capacity(16),
             background_fifo: VecDeque::with_capacity(16),
+            screen_x: 0,
             vram: VRAM::new(),
             lcdc: 0,
             stat: 0,
@@ -161,6 +164,21 @@ impl PpuMmio {
     #[inline]
     pub fn bg_fifo(&self) -> &VecDeque<PixelFifo> {
         &self.background_fifo
+    }
+
+    #[inline]
+    pub fn screen_x(&self) -> u8 {
+        self.screen_x
+    }
+
+    #[inline]
+    pub fn next_screen_x(&mut self) {
+        self.screen_x += 1;
+    }
+
+    #[inline]
+    pub fn reset_screen_x(&mut self) {
+        self.screen_x = 0;
     }
 
     #[inline]
