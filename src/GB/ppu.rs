@@ -158,8 +158,11 @@ impl Tick for PPU {
                     None => {}
                     Some(oam) => {
                         if self.fetching_mode == PpuFetchingMode::FetchBg && oam.x().saturating_sub(8) == ctx.ppu_mmio.screen_x() {
-                            self.fetching_mode = PpuFetchingMode::FetchSprite;
-                            self.bg_fetcher.reset();
+                            // Sprite Pixel fetching starts only if OBJs are enabled
+                            if ctx.ppu_mmio.lcdc_view().obj_enabled {
+                                self.fetching_mode = PpuFetchingMode::FetchSprite;
+                                self.bg_fetcher.reset();
+                            }
                         }
                     }
                 }

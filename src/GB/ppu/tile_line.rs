@@ -19,12 +19,30 @@ impl TileLine {
         }
     }
 
+    #[inline]
     pub fn line(&self) -> &[GbPaletteId; Tile::TILE_WIDTH as usize] {
         &self.line
     }
 
+    #[inline]
     pub fn line_mut(&mut self) -> &mut [GbPaletteId; Tile::TILE_WIDTH as usize] {
         &mut self.line
+    }
+
+    #[inline]
+    pub fn reverse(&self) -> TileLine {
+        TileLine {
+            line: [
+                self.line[7].clone(),
+                self.line[6].clone(),
+                self.line[5].clone(),
+                self.line[4].clone(),
+                self.line[3].clone(),
+                self.line[2].clone(),
+                self.line[1].clone(),
+                self.line[0].clone(),
+            ]
+        }
     }
 }
 
