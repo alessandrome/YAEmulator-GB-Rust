@@ -316,6 +316,19 @@ impl CPU {
                 let value = self.registers.get_byte(rhs);
                 bus.write(ctx, addr, value);
             }
+            MicroOp::Write16msb(lhs, rhs) => {
+                let addr = Address(self.registers.get_word(lhs));
+                let msb = self.registers.get_word_msb(rhs);
+                bus.write(ctx, addr, msb);
+            }
+            MicroOp::Write16lsb(lhs, rhs) => {
+                let addr = Address(self.registers.get_word(lhs));
+                let lsb = self.registers.get_word_lsb(rhs);
+                bus.write(ctx, addr, lsb);
+                // Incremente LHS address register for next byte (MSB one)
+                let word = self.registers.get_word(lhs);
+                self.registers.set_word(lhs, word.wrapping_add(1));
+            }
             MicroOp::Push16msb(rhs) => {
                 let msb = self.registers.get_word_msb(rhs);
                 self.push(bus, ctx, msb);
@@ -369,6 +382,31 @@ impl CPU {
                 self.registers.set_byte(lhs, new_lhs);
                 self.registers.set_flags(Flags::new(
                     new_lhs == 0,
+                    false,
+                    Flags::add_half_carry(old_lhs, rhs, false),
+                    Flags::add_carry(old_lhs, rhs, false),
+                ));
+            }
+            AluOp::AddMsb(lhs, rhs) => {
+                let old_lhs = self.registers.get_byte(lhs);
+                let rhs = self.registers.get_byte(rhs);
+                let carry = self.registers.get_carry_flag();
+                let new_lhs = old_lhs.wrapping_add(rhs).wrapping_add(carry.into());
+                self.registers.set_byte(lhs, new_lhs);
+                self.registers.set_flags(Flags::new(
+                    flags.z(),
+                    false,
+                    Flags::add_half_carry(old_lhs, rhs, carry),
+                    Flags::add_carry(old_lhs, rhs, carry),
+                ));
+            }
+            AluOp::AddLsb(lhs, rhs) => {
+                let old_lhs = self.registers.get_byte(lhs);
+                let rhs = self.registers.get_byte(rhs);
+                let new_lhs = old_lhs.wrapping_add(rhs);
+                self.registers.set_byte(lhs, new_lhs);
+                self.registers.set_flags(Flags::new(
+                    flags.z(),
                     false,
                     Flags::add_half_carry(old_lhs, rhs, false),
                     Flags::add_carry(old_lhs, rhs, false),

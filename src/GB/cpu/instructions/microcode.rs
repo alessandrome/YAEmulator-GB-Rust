@@ -55,6 +55,8 @@ pub enum CheckCondition {
 #[derive(Debug, Clone, Copy)]
 pub enum AluOp {
     Add(Lhs8Bit, Rhs8Bit),
+    AddMsb(Lhs8Bit, Rhs8Bit), // For MSB of 16-bit registers: Z flag is not latched and propagated
+    AddLsb(Lhs8Bit, Rhs8Bit), // For lsb of 16-bit registers: Z flag is not latched and propagated
     Adc(Lhs8Bit, Rhs8Bit),
     Sub(Lhs8Bit, Rhs8Bit),
     Sbc(Lhs8Bit, Rhs8Bit),
@@ -93,6 +95,8 @@ pub enum MicroOp {
     Ld16(Lhs16Bit, Rhs16Bit),
     Read8(Lhs8Bit, AddressRegister),
     Write8(AddressRegister, Rhs8Bit),
+    Write16msb(AddressRegister, Rhs16Bit),
+    Write16lsb(AddressRegister, Rhs16Bit),
     Push16msb(Rhs16Bit),
     Push16lsb(Rhs16Bit),
     Pop16msb(Rhs16Bit),
