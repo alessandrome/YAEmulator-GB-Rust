@@ -383,6 +383,12 @@ impl CPU {
             MicroOp::Alu(alu_op) => {
                 self.alu_operation(alu_op);
             }
+            MicroOp::AluAndWrite8(alu_op, lhs, rhs) => {
+                self.alu_operation(alu_op);
+                let addr = Address(self.registers.get_word(lhs));
+                let value = self.registers.get_byte(rhs);
+                bus.write(ctx, addr, value);
+            }
             MicroOp::ImeEnabled(enabled) => {
                 self.ime = enabled;
             }
@@ -412,11 +418,11 @@ impl CPU {
                 ));
             }
             AluOp::AddMsb(lhs, rhs) => {
-                let old_lhs = self.registers.get_byte(lhs);
-                let rhs = self.registers.get_byte(rhs);
+                let old_lhs = self.registers.get_word_msb(lhs);
+                let rhs = self.registers.get_word_msb(rhs);
                 let carry = self.registers.get_carry_flag();
                 let new_lhs = old_lhs.wrapping_add(rhs).wrapping_add(carry.into());
-                self.registers.set_byte(lhs, new_lhs);
+                self.registers.set_word_msb(lhs, new_lhs);
                 self.registers.set_flags(Flags::new(
                     flags.z(),
                     false,
@@ -425,10 +431,10 @@ impl CPU {
                 ));
             }
             AluOp::AddLsb(lhs, rhs) => {
-                let old_lhs = self.registers.get_byte(lhs);
-                let rhs = self.registers.get_byte(rhs);
+                let old_lhs = self.registers.get_word_lsb(lhs);
+                let rhs = self.registers.get_word_lsb(rhs);
                 let new_lhs = old_lhs.wrapping_add(rhs);
-                self.registers.set_byte(lhs, new_lhs);
+                self.registers.set_word_lsb(lhs, new_lhs);
                 self.registers.set_flags(Flags::new(
                     flags.z(),
                     false,

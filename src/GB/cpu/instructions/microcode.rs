@@ -55,8 +55,8 @@ pub enum CheckCondition {
 #[derive(Debug, Clone, Copy)]
 pub enum AluOp {
     Add(Lhs8Bit, Rhs8Bit),
-    AddMsb(Lhs8Bit, Rhs8Bit), // For MSB of 16-bit registers: Z flag is not latched and propagated
-    AddLsb(Lhs8Bit, Rhs8Bit), // For lsb of 16-bit registers: Z flag is not latched and propagated
+    AddMsb(Lhs16Bit, Lhs16Bit), // For MSB of 16-bit registers: Z flag is not latched and propagated
+    AddLsb(Lhs16Bit, Lhs16Bit), // For lsb of 16-bit registers: Z flag is not latched and propagated
     Adc(Lhs8Bit, Rhs8Bit),
     Sub(Lhs8Bit, Rhs8Bit),
     Sbc(Lhs8Bit, Rhs8Bit),
@@ -109,6 +109,7 @@ pub enum MicroOp {
     Dec16(Rhs16Bit),
     JumpVector(VectorAddress), // To immediate set PC during interrupts and RST
     Alu(AluOp),
+    AluAndWrite8(AluOp, AddressRegister, Rhs8Bit),
     ImeEnabled(bool),
     PrefixCB,
     Idle,
