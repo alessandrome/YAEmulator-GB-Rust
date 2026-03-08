@@ -96,6 +96,10 @@ pub enum MicroOp {
     Read8(Lhs8Bit, AddressRegister),
     Read8Inc(Lhs8Bit, AddressRegister),  // For HL+
     Read8Dec(Lhs8Bit, AddressRegister),  // For HL-
+    Read16msbInc(Rhs16Bit, AddressRegister),
+    Read16msbDec(Rhs16Bit, AddressRegister),
+    Read16lsbInc(Rhs16Bit, AddressRegister),
+    Read16lsbDec(Rhs16Bit, AddressRegister),
     Write8(AddressRegister, Rhs8Bit),
     Write8Inc(AddressRegister, Rhs8Bit),  // For HL+
     Write8Dec(AddressRegister, Rhs8Bit),  // For HL-

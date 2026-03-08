@@ -323,6 +323,30 @@ impl CPU {
                 self.registers.set_byte(lhs, value);
                 self.registers.set_word(rhs, addr.as_u16().wrapping_sub(1));
             }
+            MicroOp::Read16msbInc(lhs, rhs) => {
+                let addr = Address(self.registers.get_word(rhs));
+                let value = bus.read(ctx, addr);
+                self.registers.set_word_msb(lhs, value);
+                self.registers.set_word(rhs, addr.as_u16().wrapping_add(1));
+            }
+            MicroOp::Read16msbDec(lhs, rhs) => {
+                let addr = Address(self.registers.get_word(rhs));
+                let value = bus.read(ctx, addr);
+                self.registers.set_word_msb(lhs, value);
+                self.registers.set_word(rhs, addr.as_u16().wrapping_sub(1));
+            }
+            MicroOp::Read16lsbInc(lhs, rhs) => {
+                let addr = Address(self.registers.get_word(rhs));
+                let value = bus.read(ctx, addr);
+                self.registers.set_word_lsb(lhs, value);
+                self.registers.set_word(rhs, addr.as_u16().wrapping_add(1));
+            }
+            MicroOp::Read16lsbDec(lhs, rhs) => {
+                let addr = Address(self.registers.get_word(rhs));
+                let value = bus.read(ctx, addr);
+                self.registers.set_word_lsb(lhs, value);
+                self.registers.set_word(rhs, addr.as_u16().wrapping_sub(1));
+            }
             MicroOp::Write8(lhs, rhs) => {
                 let addr = Address(self.registers.get_word(lhs));
                 let value = self.registers.get_byte(rhs);
