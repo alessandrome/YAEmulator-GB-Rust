@@ -93,6 +93,8 @@ pub enum MicroOp {
     Fetch8(Registers8Bit),
     Ld8(Lhs8Bit, Rhs8Bit),
     Ld16(Lhs16Bit, Rhs16Bit),
+    Read8H(Lhs8Bit, Rhs8Bit),
+    Write8H(Lhs8Bit, Rhs8Bit),
     Read8(Lhs8Bit, AddressRegister),
     Read8Inc(Lhs8Bit, AddressRegister),  // For HL+
     Read8Dec(Lhs8Bit, AddressRegister),  // For HL-

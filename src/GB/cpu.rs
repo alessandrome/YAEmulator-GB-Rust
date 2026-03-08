@@ -306,6 +306,16 @@ impl CPU {
                 let moved = self.registers.get_word(rhs);
                 self.registers.set_word(lhs, moved);
             }
+            MicroOp::Read8H(lhs, rhs) => {
+                let addr = Address(0xFF00 | self.registers.get_byte(rhs) as u16);
+                let value = bus.read(ctx, addr);
+                self.registers.set_byte(lhs, value);
+            }
+            MicroOp::Write8H(lhs, rhs) => {
+                let addr = Address(0xFF00 | self.registers.get_byte(lhs) as u16);
+                let value =  self.registers.get_byte(lhs);
+                bus.write(ctx, addr, value);
+            }
             MicroOp::Read8(lhs, rhs) => {
                 let addr = Address(self.registers.get_word(rhs));
                 let value = bus.read(ctx, addr);
