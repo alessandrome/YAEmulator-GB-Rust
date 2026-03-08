@@ -101,10 +101,10 @@ pub enum MicroOp {
     Write8Dec(AddressRegister, Rhs8Bit),  // For HL-
     Write16msb(AddressRegister, Rhs16Bit),
     Write16lsb(AddressRegister, Rhs16Bit),
-    Push16msb(Rhs16Bit),
-    Push16lsb(Rhs16Bit),
-    Pop16msb(Rhs16Bit),
-    Pop16lsb(Rhs16Bit),
+    Write16msbInc(AddressRegister, Rhs16Bit),
+    Write16msbDec(AddressRegister, Rhs16Bit),
+    Write16lsbInc(AddressRegister, Rhs16Bit),
+    Write16lsbDec(AddressRegister, Rhs16Bit),
     Inc16(Rhs16Bit),
     Dec16(Rhs16Bit),
     JumpVector(VectorAddress), // To immediate set PC during interrupts and RST

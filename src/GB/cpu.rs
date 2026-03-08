@@ -349,25 +349,34 @@ impl CPU {
                 let addr = Address(self.registers.get_word(lhs));
                 let lsb = self.registers.get_word_lsb(rhs);
                 bus.write(ctx, addr, lsb);
-                // Incremente LHS address register for next byte (MSB one)
+            }
+            MicroOp::Write16msbInc(lhs, rhs) => {
+                let addr = Address(self.registers.get_word(lhs));
+                let msb = self.registers.get_word_msb(rhs);
+                bus.write(ctx, addr, msb);
                 let word = self.registers.get_word(lhs);
                 self.registers.set_word(lhs, word.wrapping_add(1));
             }
-            MicroOp::Push16msb(rhs) => {
+            MicroOp::Write16msbDec(lhs, rhs) => {
+                let addr = Address(self.registers.get_word(lhs));
                 let msb = self.registers.get_word_msb(rhs);
-                self.push(bus, ctx, msb);
+                bus.write(ctx, addr, msb);
+                let word = self.registers.get_word(lhs);
+                self.registers.set_word(lhs, word.wrapping_sub(1));
             }
-            MicroOp::Push16lsb(rhs) => {
+            MicroOp::Write16lsbInc(lhs, rhs) => {
+                let addr = Address(self.registers.get_word(lhs));
                 let lsb = self.registers.get_word_lsb(rhs);
-                self.push(bus, ctx, lsb);
+                bus.write(ctx, addr, lsb);
+                let word = self.registers.get_word(lhs);
+                self.registers.set_word(lhs, word.wrapping_add(1));
             }
-            MicroOp::Pop16msb(rhs) => {
-                let msb = self.pop(bus, ctx);
-                self.registers.set_word_msb(rhs, msb);
-            }
-            MicroOp::Pop16lsb(rhs) => {
-                let lsb = self.pop(bus, ctx);
-                self.registers.set_word_lsb(rhs, lsb);
+            MicroOp::Write16lsbDec(lhs, rhs) => {
+                let addr = Address(self.registers.get_word(lhs));
+                let lsb = self.registers.get_word_lsb(rhs);
+                bus.write(ctx, addr, lsb);
+                let word = self.registers.get_word(lhs);
+                self.registers.set_word(lhs, word.wrapping_sub(1));
             }
             MicroOp::Inc16(lhs) => {
                 let word = self.registers.get_word(lhs);
