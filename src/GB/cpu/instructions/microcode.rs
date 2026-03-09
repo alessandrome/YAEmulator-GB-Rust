@@ -121,6 +121,7 @@ pub enum MicroOp {
     Inc16(Rhs16Bit),
     Dec16(Rhs16Bit),
     JumpVector(VectorAddress), // To immediate set PC during interrupts and RST
+    SumSignedByte16(Rhs16Bit, Rhs8Bit),
     Alu(AluOp),
     Idu(IduOp),
     AluAndWrite8(AluOp, AddressRegister, Rhs8Bit),

@@ -423,6 +423,9 @@ impl CPU {
             MicroOp::JumpVector(jump_addr) => {
                 self.registers.set_pc(jump_addr as u16);
             }
+            MicroOp::SumSignedByte16(lhs, rhs) => {
+                todo!("Add sum of rhs 8-bit as signed to lhs 16-bit");
+            }
             MicroOp::Alu(alu_op) => {
                 self.alu_operation(alu_op);
             }
