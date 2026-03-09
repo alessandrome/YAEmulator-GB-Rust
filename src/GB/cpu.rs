@@ -4,7 +4,7 @@ pub mod cpu_mmio;
 
 use crate::GB::bus::{Bus, MmioContext, BusDevice};
 use crate::GB::types::{address::Address, Byte};
-use crate::GB::cpu::instructions::microcode::{CheckCondition, MicroFlow};
+use crate::GB::cpu::instructions::microcode::{CheckCondition, IduOp, MicroFlow};
 use crate::GB::cpu::instructions::{Instruction, InstructionMicroOpIndex};
 use crate::GB::cpu::registers::core_registers::Flags;
 use crate::GB::{bus, GB};
@@ -426,6 +426,9 @@ impl CPU {
             MicroOp::Alu(alu_op) => {
                 self.alu_operation(alu_op);
             }
+            MicroOp::Idu(idu_op) => {
+                self.idu_operation(idu_op);
+            }
             MicroOp::AluAndWrite8(alu_op, lhs, rhs) => {
                 self.alu_operation(alu_op);
                 let addr = Address(self.registers.get_word(lhs));
@@ -443,6 +446,23 @@ impl CPU {
             MicroOp::Idle => {}
         }
         micro_flow
+    }
+
+    fn idu_operation(&mut self, op: IduOp) {
+        match op {
+            IduOp::None(lhs, rhs) => {
+                let value = self.registers.get_word(rhs);
+                self.registers.set_word(lhs, value);
+            }
+            IduOp::Inc(lhs, rhs) => {
+                let value = self.registers.get_word(rhs);
+                self.registers.set_word(lhs, value.wrapping_add(1));
+            }
+            IduOp::Dec(lhs, rhs) => {
+                let value = self.registers.get_word(rhs);
+                self.registers.set_word(lhs, value.wrapping_sub(1));
+            }
+        }
     }
 
     fn alu_operation(&mut self, op: AluOp) {
