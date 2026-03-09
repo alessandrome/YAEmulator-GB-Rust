@@ -184,7 +184,7 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         size: 1,
         flags: &[],
         micro_ops: &[
-            MCycleOp::Main(MicroOp::Write8(AddressRegister::BC,Rhs8Bit::A)),
+            MCycleOp::Main(MicroOp::Write8(AddressRegister::BC, Rhs8Bit::A)),
             MCycleOp::End(MicroOp::Idle), // Simulating M-Cycle to reset Address Buffer to PC
         ],
     });
@@ -194,10 +194,10 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 2,
         size: 1,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.registers.set_bc(cpu.registers.get_bc() + 1);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::Main(MicroOp::Inc16(AddressRegister::BC)),
+            MCycleOp::End(MicroOp::Idle), // Simulating M-Cycle to stabilize bit signals after Inc/Dec in the 16-bit register
+        ],
     });
     opcodes[0x04] = Some(&Instruction {
         opcode: 0x04,
@@ -205,15 +205,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let original_b = cpu.registers.get_b();
-            cpu.registers.set_b(cpu.registers.get_b().wrapping_add(1));
-            // Write flags (This could be calculated and place and just made a single functions call to set Flag register)
-            cpu.registers.set_half_carry_flag((original_b & 0x0F) == 0x0F);
-            cpu.registers.set_zero_flag(cpu.registers.get_b() == 0);
-            cpu.registers.set_negative_flag(false);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Alu(AluOp::Inc(Rhs8Bit::B)))
+        ],
     });
     opcodes[0x05] = Some(&Instruction {
         opcode: 0x05,
@@ -221,15 +215,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let original_b = cpu.registers.get_b();
-            cpu.registers.set_b(cpu.registers.get_b().wrapping_sub(1));
-            // Write flags
-            cpu.registers.set_half_carry_flag((original_b & 0x0F) == 0);
-            cpu.registers.set_zero_flag(cpu.registers.get_b() == 0);
-            cpu.registers.set_negative_flag(true);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Alu(AluOp::Dec(Rhs8Bit::B))),
+        ],
     });
     opcodes[0x06] = Some(&Instruction {
         opcode: 0x06,
@@ -237,11 +225,10 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 2,
         size: 2,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let byte = cpu.fetch_next();
-            cpu.registers.set_b(byte);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::Main(MicroOp::Fetch8(Rhs8Bit::Z)),
+            MCycleOp::End(MicroOp::Ld8(Rhs8Bit::B, Rhs8Bit::Z)),
+        ],
     });
     opcodes[0x07] = Some(&Instruction {
         opcode: 0x07,
@@ -249,29 +236,23 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.registers.set_carry_flag((cpu.registers.get_a() & 0b1000_0000) != 0);
-            cpu.registers.set_a(cpu.registers.get_a().wrapping_shl(1) | cpu.registers.get_a().wrapping_shr(7));
-            cpu.registers.set_zero_flag(false);
-            cpu.registers.set_half_carry_flag(false);
-            cpu.registers.set_negative_flag(false);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Alu(AluOp::Rlca())),
+        ],
     });
     opcodes[0x08] = Some(&Instruction {
         opcode: 0x08,
         name: "LD [a16], SP",
         cycles: 5,
         size: 3,
-        flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let byte_low_addr = cpu.fetch_next();
-            let byte_high_addr = cpu.fetch_next();
-            let imm16_address: u16 = (byte_high_addr as u16) << 8 | (byte_low_addr as u16) & 0xFF;
-            cpu.write_memory(imm16_address, (cpu.registers.get_sp() & 0xFF) as u8);
-            cpu.write_memory(imm16_address + 1, (cpu.registers.get_sp() >> 8) as u8);
-            opcode.cycles as u64
-        },
+        flags: &[],
+        micro_ops: &[
+            MCycleOp::Main(MicroOp::Fetch8(Rhs8Bit::Z)),
+            MCycleOp::Main(MicroOp::Fetch8(Rhs8Bit::W)),
+            MCycleOp::Main(MicroOp::Write16lsbInc(AddressRegister::WZ, Rhs16Bit::SP)),
+            MCycleOp::Main(MicroOp::Write16msb(AddressRegister::WZ, Rhs16Bit::SP)),
+            MCycleOp::End(MicroOp::Idle), // Need to reload PC as buffer address
+        ],
     });
     opcodes[0x09] = Some(&Instruction {
         opcode: 0x09,
@@ -279,21 +260,10 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 2,
         size: 1,
         flags: &[FlagBits::N, FlagBits::H, FlagBits::C],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            // Half carry is checked on bit 11 of HL (or bit 3 of H)
-            let pre_h = cpu.registers.get_h();
-            let pre_l = cpu.registers.get_l();
-            cpu.registers.set_negative_flag(false);
-            if (cpu.registers.get_bc() != 0) {
-                cpu.registers.set_hl(cpu.registers.get_hl().wrapping_add(cpu.registers.get_bc()));
-                cpu.registers.set_half_carry_flag((cpu.registers.get_h() & 0x0F) < (pre_h & 0x0F));
-                cpu.registers.set_carry_flag(cpu.registers.get_h() < pre_h);
-            } else {
-                cpu.registers.set_half_carry_flag(false);
-                cpu.registers.set_carry_flag(false);
-            }
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::Main(MicroOp::Alu(AluOp::AddLsb(Lhs16Bit::HL, Lhs16Bit::BC))),
+            MCycleOp::End(MicroOp::Alu(AluOp::AddMsb(Lhs16Bit::HL, Lhs16Bit::BC))),
+        ],
     });
     opcodes[0x0A] = Some(&Instruction {
         opcode: 0x0A,
@@ -301,10 +271,10 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 2,
         size: 1,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.registers.set_a(cpu.read_memory(cpu.registers.get_bc()));
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::Main(MicroOp::Read8(Lhs8Bit::Z, AddressRegister::BC)),
+            MCycleOp::End(MicroOp::Ld8(Lhs8Bit::A, Rhs8Bit::Z)),
+        ],
     });
     opcodes[0x0B] = Some(&Instruction {
         opcode: 0x0B,
@@ -312,10 +282,10 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 2,
         size: 1,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.registers.set_bc(cpu.registers.get_bc().wrapping_sub(1));
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::Main(MicroOp::Dec16(Rhs16Bit::BC)), // This need to put BC on Address Buffer
+            MCycleOp::End(MicroOp::Idle), // Need to re-latch PC in Address Buffer
+        ],
     });
     opcodes[0x0C] = Some(&Instruction {
         opcode: 0x0C,
@@ -323,14 +293,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let original_c = cpu.registers.get_c();
-            cpu.registers.set_c(cpu.registers.get_c().wrapping_add(1));
-            cpu.registers.set_zero_flag(cpu.registers.get_c() == 0);
-            cpu.registers.set_negative_flag(false);
-            cpu.registers.set_half_carry_flag((original_c & 0x0F) == 0x0F);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Alu(AluOp::Inc(Rhs8Bit::C))),
+        ],
     });
     opcodes[0x0D] = Some(&Instruction {
         opcode: 0x0D,
@@ -338,14 +303,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let original_c = cpu.registers.get_c();
-            cpu.registers.set_c(cpu.registers.get_c().wrapping_sub(1));
-            cpu.registers.set_zero_flag(cpu.registers.get_c() == 0);
-            cpu.registers.set_negative_flag(true);
-            cpu.registers.set_half_carry_flag((original_c & 0x0F) == 0);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Alu(AluOp::Dec(Rhs8Bit::C))),
+        ],
     });
     opcodes[0x0E] = Some(&Instruction {
         opcode: 0x0E,
@@ -353,11 +313,10 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 2,
         size: 2,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let byte = cpu.fetch_next();
-            cpu.registers.set_c(byte);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::Main(MicroOp::Fetch8(Lhs8Bit::Z)),
+            MCycleOp::End(MicroOp::Ld8(Lhs8Bit::C, Rhs8Bit::Z)),
+        ],
     });
     opcodes[0x0F] = Some(&Instruction {
         opcode: 0x0F,
@@ -365,15 +324,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            // TODO: Test
-            cpu.registers.set_carry_flag(cpu.registers.get_a() & 1 != 0);
-            cpu.registers.set_a((cpu.registers.get_a().wrapping_shr(1)) | cpu.registers.get_a().wrapping_shl(7));
-            cpu.registers.set_zero_flag(false);
-            cpu.registers.set_negative_flag(false);
-            cpu.registers.set_half_carry_flag(false);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Alu(AluOp::Rrca())),
+        ],
     });
     opcodes[0x10] = Some(&Instruction {
         opcode: 0x10,
@@ -381,11 +334,10 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 2,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            // TODO: implement
-            let byte = cpu.fetch_next();
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            // TODO: implement STOP
+            MCycleOp::End(MicroOp::Alu(AluOp::Rrca())),
+        ],
     });
     opcodes[0x11] = Some(&Instruction {
         opcode: 0x11,
@@ -393,14 +345,11 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 3,
         size: 3,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let byte_1 = cpu.fetch_next();
-            let byte_2 = cpu.fetch_next();
-            let mut dual_byte = byte_1 as u16 & 0xFF;
-            dual_byte = dual_byte | (byte_2 as u16) << 8;
-            cpu.registers.set_de(dual_byte);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::Main(MicroOp::Fetch8(Rhs8Bit::Z)),
+            MCycleOp::Main(MicroOp::Fetch8(Rhs8Bit::W)),
+            MCycleOp::End(MicroOp::Ld16(Lhs16Bit::DE, Rhs16Bit::WZ)),
+        ],
     });
     opcodes[0x12] = Some(&Instruction {
         opcode: 0x12,
@@ -408,13 +357,10 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 2,
         size: 1,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.write_memory(cpu.registers.get_de(), cpu.registers.get_a());
-            if cpu.registers.get_de() == memory::registers::DMA {
-                cpu.dma_transfer = true;
-            }
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::Main(MicroOp::Write8(AddressRegister::DE, Rhs8Bit::A)),
+            MCycleOp::End(MicroOp::Idle), // Simulating M-Cycle to reset Address Buffer to PC
+        ],
     });
     opcodes[0x13] = Some(&Instruction {
         opcode: 0x13,
@@ -422,10 +368,10 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 2,
         size: 1,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.registers.set_de(cpu.registers.get_de() + 1);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::Main(MicroOp::Inc16(AddressRegister::DE)),
+            MCycleOp::End(MicroOp::Idle), // Simulating M-Cycle to stabilize bit signals after Inc/Dec in the 16-bit register
+        ],
     });
     opcodes[0x14] = Some(&Instruction {
         opcode: 0x14,
@@ -433,15 +379,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let original_d = cpu.registers.get_d();
-            cpu.registers.set_d(cpu.registers.get_d().wrapping_add(1));
-            // Write flags (This could be calculated and place and just made a single functions call to set Flag register)
-            cpu.registers.set_half_carry_flag((cpu.registers.get_d() & 0x0F) < (original_d & 0x0F));
-            cpu.registers.set_zero_flag(cpu.registers.get_d() == 0);
-            cpu.registers.set_negative_flag(false);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Alu(AluOp::Inc(Rhs8Bit::D)))
+        ],
     });
     opcodes[0x15] = Some(&Instruction {
         opcode: 0x15,
@@ -449,15 +389,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let original_d = cpu.registers.get_d();
-            cpu.registers.set_d(cpu.registers.get_d().wrapping_sub(1));
-            // Write flags
-            cpu.registers.set_half_carry_flag((cpu.registers.get_d() & 0x0F) > (original_d & 0x0F));
-            cpu.registers.set_zero_flag(cpu.registers.get_d() == 0);
-            cpu.registers.set_negative_flag(true);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Alu(AluOp::Dec(Rhs8Bit::D)))
+        ],
     });
     opcodes[0x16] = Some(&Instruction {
         opcode: 0x16,
@@ -465,11 +399,10 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 2,
         size: 2,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let byte = cpu.fetch_next();
-            cpu.registers.set_d(byte);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::Main(MicroOp::Fetch8(Lhs8Bit::Z)),
+            MCycleOp::End(MicroOp::Ld8(Lhs8Bit::D, Rhs8Bit::Z)),
+        ],
     });
     opcodes[0x17] = Some(&Instruction {
         opcode: 0x17,
@@ -477,16 +410,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            // TODO: Test
-            let original_carry_flag: u8 = cpu.registers.get_carry_flag() as u8;
-            cpu.registers.set_carry_flag((cpu.registers.get_a() & 0b1000_0000) != 0);
-            cpu.registers.set_a(cpu.registers.get_a().wrapping_shl(1) | original_carry_flag);
-            cpu.registers.set_zero_flag(false);
-            cpu.registers.set_half_carry_flag(false);
-            cpu.registers.set_negative_flag(false);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Alu(AluOp::Rla())),
+        ],
     });
     opcodes[0x18] = Some(&Instruction {
         opcode: 0x18,
@@ -494,15 +420,11 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 3,
         size: 2,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let byte = cpu.fetch_next() as i8;
-            if byte > 0 {
-                cpu.registers.set_pc(cpu.registers.get_pc().wrapping_add(byte as u16));
-            } else {
-                cpu.registers.set_pc(cpu.registers.get_pc().wrapping_sub((byte as i16).abs() as u16));
-            }
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::Main(MicroOp::Fetch8(Lhs8Bit::Z)),
+            MCycleOp::Main(),
+            MCycleOp::End(MicroOp::Alu(AluOp::Rla())),
+        ],
     });
     opcodes[0x19] = Some(&Instruction {
         opcode: 0x19,
@@ -510,15 +432,10 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 2,
         size: 1,
         flags: &[FlagBits::N, FlagBits::H, FlagBits::C],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let pre_h = cpu.registers.get_h();
-            let pre_l = cpu.registers.get_l();
-            cpu.registers.set_hl(cpu.registers.get_hl().wrapping_add(cpu.registers.get_de()));
-            cpu.registers.set_negative_flag(false);
-            cpu.registers.set_half_carry_flag((cpu.registers.get_h() & 0x0F) < (pre_h & 0x0F));
-            cpu.registers.set_carry_flag(cpu.registers.get_h() < pre_h);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::Main(MicroOp::Alu(AluOp::AddLsb(Lhs16Bit::HL, Lhs16Bit::DE))),
+            MCycleOp::End(MicroOp::Alu(AluOp::AddMsb(Lhs16Bit::HL, Lhs16Bit::DE))),
+        ],
     });
     opcodes[0x1A] = Some(&Instruction {
         opcode: 0x1A,
@@ -526,10 +443,10 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 2,
         size: 1,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.registers.set_a(cpu.read_memory(cpu.registers.get_de()));
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::Main(MicroOp::Read8(Lhs8Bit::Z, AddressRegister::DE)),
+            MCycleOp::End(MicroOp::Ld8(Lhs8Bit::A, Rhs8Bit::Z)),
+        ],
     });
     opcodes[0x1B] = Some(&Instruction {
         opcode: 0x1B,
@@ -537,10 +454,10 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 2,
         size: 1,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.registers.set_de(cpu.registers.get_de().wrapping_sub(1));
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::Main(MicroOp::Dec16(Rhs16Bit::DE)), // This need to put DE on Address Buffer
+            MCycleOp::End(MicroOp::Idle), // Need to re-latch PC in Address Buffer
+        ],
     });
     opcodes[0x1C] = Some(&Instruction {
         opcode: 0x1C,
@@ -548,14 +465,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let original_e = cpu.registers.get_e();
-            cpu.registers.set_e(cpu.registers.get_e().wrapping_add(1));
-            cpu.registers.set_zero_flag(cpu.registers.get_e() == 0);
-            cpu.registers.set_negative_flag(false);
-            cpu.registers.set_half_carry_flag((cpu.registers.get_e() & 0x0F) < (original_e & 0x0F));
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Alu(AluOp::Inc(Rhs8Bit::E)))
+        ],
     });
     opcodes[0x1D] = Some(&Instruction {
         opcode: 0x1D,
@@ -563,14 +475,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let original_e = cpu.registers.get_e();
-            cpu.registers.set_e(cpu.registers.get_e().wrapping_sub(1));
-            cpu.registers.set_zero_flag(cpu.registers.get_e() == 0);
-            cpu.registers.set_negative_flag(true);
-            cpu.registers.set_half_carry_flag((cpu.registers.get_e() & 0x0F) > (original_e & 0x0F));
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Alu(AluOp::Dec(Rhs8Bit::E)))
+        ],
     });
     opcodes[0x1E] = Some(&Instruction {
         opcode: 0x1E,
@@ -578,11 +485,10 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 2,
         size: 2,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let byte = cpu.fetch_next();
-            cpu.registers.set_e(byte);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::Main(MicroOp::Fetch8(Lhs8Bit::Z)),
+            MCycleOp::End(MicroOp::Ld8(Lhs8Bit::E, Rhs8Bit::Z)),
+        ],
     });
     opcodes[0x1F] = Some(&Instruction {
         opcode: 0x1F,
@@ -590,16 +496,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            // TODO: Test
-            let original_carry_flag: u8 = cpu.registers.get_carry_flag() as u8;
-            cpu.registers.set_carry_flag(cpu.registers.get_a() & 1 != 0);
-            cpu.registers.set_a((cpu.registers.get_a().wrapping_shr(1)) | original_carry_flag.wrapping_shl(7));
-            cpu.registers.set_zero_flag(false);
-            cpu.registers.set_negative_flag(false);
-            cpu.registers.set_half_carry_flag(false);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Alu(AluOp::Rra())),
+        ],
     });
     opcodes[0x20] = Some(&Instruction {
         opcode: 0x20,
@@ -626,14 +525,11 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 3,
         size: 3,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let byte_1 = cpu.fetch_next();
-            let byte_2 = cpu.fetch_next();
-            let mut dual_byte = byte_1 as u16 & 0xFF;
-            dual_byte = dual_byte | (byte_2 as u16) << 8;
-            cpu.registers.set_hl(dual_byte);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::Main(MicroOp::Fetch8(Rhs8Bit::Z)),
+            MCycleOp::Main(MicroOp::Fetch8(Rhs8Bit::W)),
+            MCycleOp::End(MicroOp::Ld16(Lhs16Bit::HL, Rhs16Bit::WZ)),
+        ],
     });
     opcodes[0x22] = Some(&Instruction {
         opcode: 0x22,
@@ -641,14 +537,10 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 2,
         size: 1,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.write_memory(cpu.registers.get_hl(), cpu.registers.get_a());
-            if cpu.registers.get_hl() == memory::registers::DMA {
-                cpu.dma_transfer = true;
-            }
-            cpu.registers.set_hl(cpu.registers.get_hl() + 1);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::Main(MicroOp::Write8Inc(AddressRegister::HL, Rhs8Bit::A)),
+            MCycleOp::End(MicroOp::Idle), // Simulating M-Cycle to stabilize bit signals after Inc/Dec in the 16-bit register
+        ],
     });
     opcodes[0x23] = Some(&Instruction {
         opcode: 0x23,
@@ -656,10 +548,10 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 2,
         size: 1,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.registers.set_hl(cpu.registers.get_hl() + 1);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::Main(MicroOp::Inc16(AddressRegister::HL)),
+            MCycleOp::End(MicroOp::Idle), // Simulating M-Cycle to stabilize bit signals after Inc/Dec in the 16-bit register
+        ],
     });
     opcodes[0x24] = Some(&Instruction {
         opcode: 0x24,
@@ -667,14 +559,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let original_h = cpu.registers.get_h();
-            cpu.registers.set_h(cpu.registers.get_h().wrapping_add(1));
-            cpu.registers.set_half_carry_flag((cpu.registers.get_h() & 0x0F) < (original_h & 0x0F));
-            cpu.registers.set_zero_flag(cpu.registers.get_h() == 0);
-            cpu.registers.set_negative_flag(false);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Alu(AluOp::Inc(Rhs8Bit::H)))
+        ],
     });
     opcodes[0x25] = Some(&Instruction {
         opcode: 0x25,
@@ -682,15 +569,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let original_h = cpu.registers.get_h();
-            cpu.registers.set_h(cpu.registers.get_h().wrapping_sub(1));
-            // Write flags
-            cpu.registers.set_half_carry_flag((original_h & 0x0F) == 0);
-            cpu.registers.set_zero_flag(cpu.registers.get_h() == 0);
-            cpu.registers.set_negative_flag(true);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Alu(AluOp::Dec(Rhs8Bit::H)))
+        ],
     });
     opcodes[0x26] = Some(&Instruction {
         opcode: 0x26,
@@ -698,11 +579,10 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 2,
         size: 2,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let byte = cpu.fetch_next();
-            cpu.registers.set_h(byte);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::Main(MicroOp::Fetch8(Rhs8Bit::Z)),
+            MCycleOp::End(MicroOp::Ld8(Lhs8Bit::H, Rhs8Bit::Z)),
+        ],
     });
     opcodes[0x27] = Some(&Instruction {
         opcode: 0x27,
@@ -710,12 +590,10 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[FlagBits::Z, FlagBits::H, FlagBits::C],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let (a, flags) = daa(cpu.registers.get_a(), cpu.registers.get_f());
-            cpu.registers.set_a(a);
-            cpu.registers.set_f(flags);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            //TODO: Implement
+            MCycleOp::End(MicroOp::Idle),
+        ],
     });
     opcodes[0x28] = Some(&Instruction {
         opcode: 0x28,
@@ -743,15 +621,10 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 2,
         size: 1,
         flags: &[FlagBits::N, FlagBits::H, FlagBits::C],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let pre_h = cpu.registers.get_h();
-            let pre_l = cpu.registers.get_l();
-            cpu.registers.set_hl(cpu.registers.get_hl().wrapping_add(cpu.registers.get_hl()));
-            cpu.registers.set_negative_flag(false);
-            cpu.registers.set_half_carry_flag((cpu.registers.get_h() & 0x0F) < (pre_h & 0x0F));
-            cpu.registers.set_carry_flag(cpu.registers.get_h() < pre_h);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::Main(MicroOp::Alu(AluOp::AddLsb(Lhs16Bit::HL, Lhs16Bit::HL))),
+            MCycleOp::End(MicroOp::Alu(AluOp::AddMsb(Lhs16Bit::HL, Lhs16Bit::HL))),
+        ],
     });
     opcodes[0x2A] = Some(&Instruction {
         opcode: 0x3A,
@@ -759,11 +632,10 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 2,
         size: 1,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.registers.set_a(cpu.read_memory(cpu.registers.get_hl()));
-            cpu.registers.set_hl(cpu.registers.get_hl().wrapping_add(1));
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::Main(MicroOp::Read8Inc(Rhs8Bit::Z, AddressRegister::HL)),
+            MCycleOp::End(MicroOp::Ld8(Rhs8Bit::A, Rhs8Bit::Z)),
+        ],
     });
     opcodes[0x2B] = Some(&Instruction {
         opcode: 0x2B,
@@ -771,10 +643,10 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 2,
         size: 1,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.registers.set_hl(cpu.registers.get_hl().wrapping_sub(1));
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::Main(MicroOp::Dec16(Rhs16Bit::HL)), // This need to push HL on Address Buffer
+            MCycleOp::End(MicroOp::Idle), // Need to re-latch PC in Address Buffer
+        ],
     });
     opcodes[0x2C] = Some(&Instruction {
         opcode: 0x2C,
@@ -782,14 +654,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let original_l = cpu.registers.get_l();
-            cpu.registers.set_l(cpu.registers.get_l().wrapping_add(1));
-            cpu.registers.set_half_carry_flag((cpu.registers.get_l() & 0x0F) < (original_l & 0x0F));
-            cpu.registers.set_zero_flag(cpu.registers.get_l() == 0);
-            cpu.registers.set_negative_flag(false);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Alu(AluOp::Inc(Rhs8Bit::L)))
+        ],
     });
     opcodes[0x2D] = Some(&Instruction {
         opcode: 0x2D,
@@ -797,15 +664,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let original_l = cpu.registers.get_l();
-            cpu.registers.set_l(cpu.registers.get_l().wrapping_sub(1));
-            // Write flags
-            cpu.registers.set_half_carry_flag((original_l & 0x0F) == 0);
-            cpu.registers.set_zero_flag(cpu.registers.get_l() == 0);
-            cpu.registers.set_negative_flag(true);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Alu(AluOp::Dec(Rhs8Bit::E)))
+        ],
     });
     opcodes[0x2E] = Some(&Instruction {
         opcode: 0x2E,
@@ -813,11 +674,10 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 2,
         size: 2,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let byte = cpu.fetch_next();
-            cpu.registers.set_l(byte);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::Main(MicroOp::Fetch8(Rhs8Bit::Z)),
+            MCycleOp::End(MicroOp::Ld8(Lhs8Bit::L, Rhs8Bit::Z)),
+        ],
     });
     opcodes[0x2F] = Some(&Instruction {
         opcode: 0x2F,
@@ -825,12 +685,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.registers.set_a(!cpu.registers.get_a());
-            cpu.registers.set_half_carry_flag(true);
-            cpu.registers.set_negative_flag(true);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Alu(AluOp::Cpl(Rhs8Bit::A))),
+        ],
     });
     opcodes[0x30] = Some(&Instruction {
         opcode: 0x20,
@@ -858,14 +715,11 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 3,
         size: 3,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let byte_1 = cpu.fetch_next();
-            let byte_2 = cpu.fetch_next();
-            let mut dual_byte = byte_1 as u16 & 0xFF;
-            dual_byte = dual_byte | (byte_2 as u16) << 8;
-            cpu.registers.set_sp(dual_byte);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::Main(MicroOp::Fetch8(Rhs8Bit::Z)),
+            MCycleOp::Main(MicroOp::Fetch8(Rhs8Bit::W)),
+            MCycleOp::End(MicroOp::Ld16(Lhs16Bit::SP, Rhs16Bit::WZ)),
+        ],
     });
     opcodes[0x32] = Some(&Instruction {
         opcode: 0x32,
@@ -873,14 +727,10 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 2,
         size: 1,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.write_memory(cpu.registers.get_hl(), cpu.registers.get_a());
-            if cpu.registers.get_hl() == memory::registers::DMA {
-                cpu.dma_transfer = true;
-            }
-            cpu.registers.set_hl(cpu.registers.get_hl() - 1);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::Main(MicroOp::Write8Dec(AddressRegister::HL, Rhs8Bit::A)),
+            MCycleOp::End(MicroOp::Idle), // Simulating M-Cycle to stabilize bit signals after Inc/Dec in the 16-bit register
+        ],
     });
     opcodes[0x33] = Some(&Instruction {
         opcode: 0x33,
@@ -888,10 +738,10 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 2,
         size: 1,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.registers.set_sp(cpu.registers.get_sp() + 1);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::Main(MicroOp::Inc16(AddressRegister::SP)),
+            MCycleOp::End(MicroOp::Idle), // Simulating M-Cycle to stabilize bit signals after Inc/Dec in the 16-bit register
+        ],
     });
     opcodes[0x34] = Some(&Instruction {
         opcode: 0x34,
@@ -899,17 +749,11 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 3,
         size: 1,
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let original_hl_ram = cpu.read_memory(cpu.registers.get_hl());
-            if cpu.registers.get_hl() == memory::registers::DMA {
-                cpu.dma_transfer = true;
-            }
-            cpu.write_memory(cpu.registers.get_hl(), original_hl_ram.wrapping_add(1));
-            cpu.registers.set_half_carry_flag((cpu.read_memory(cpu.registers.get_hl()) & 0x0F) < (original_hl_ram & 0x0F));
-            cpu.registers.set_zero_flag(cpu.read_memory(cpu.registers.get_hl()) == 0);
-            cpu.registers.set_negative_flag(false);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::Main(MicroOp::Read8(Rhs8Bit::Z, AddressRegister::HL)),
+            MCycleOp::Main(MicroOp::AluAndWrite8(AluOp::Inc(Rhs8Bit::Z), AddressRegister::HL, Rhs8Bit::Z)),
+            MCycleOp::End(MicroOp::Idle), // Simulating M-Cycle to restore Buffer Address to PC
+        ],
     });
     opcodes[0x35] = Some(&Instruction {
         opcode: 0x35,
@@ -917,17 +761,11 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 3,
         size: 1,
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let original_byte = cpu.read_memory(cpu.registers.get_hl());
-            if cpu.registers.get_hl() == memory::registers::DMA {
-                cpu.dma_transfer = true;
-            }
-            cpu.write_memory(cpu.registers.get_hl(), original_byte.wrapping_sub(1));
-            cpu.registers.set_half_carry_flag((cpu.read_memory(cpu.registers.get_hl()) & 0x0F) > (original_byte & 0x0F));
-            cpu.registers.set_zero_flag(cpu.read_memory(cpu.registers.get_hl()) == 0);
-            cpu.registers.set_negative_flag(true);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::Main(MicroOp::Read8(Rhs8Bit::Z, AddressRegister::HL)),
+            MCycleOp::Main(MicroOp::AluAndWrite8(AluOp::Dec(Rhs8Bit::Z), AddressRegister::HL, Rhs8Bit::Z)),
+            MCycleOp::End(MicroOp::Idle), // Simulating M-Cycle to restore Buffer Address to PC
+        ],
     });
     opcodes[0x36] = Some(&Instruction {
         opcode: 0x36,
@@ -935,14 +773,11 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 3,
         size: 2,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let byte = cpu.fetch_next();
-            cpu.write_memory(cpu.registers.get_hl(), byte);
-            if cpu.registers.get_hl() == memory::registers::DMA {
-                cpu.dma_transfer = true;
-            }
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::Main(MicroOp::Fetch8(Rhs8Bit::Z)),
+            MCycleOp::Main(MicroOp::Write8(AddressRegister::HL, Rhs8Bit::Z)),
+            MCycleOp::End(MicroOp::Idle), // Re-latching of Address Buffer to PC
+        ],
     });
     opcodes[0x37] = Some(&Instruction {
         opcode: 0x37,
@@ -983,15 +818,10 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 2,
         size: 1,
         flags: &[FlagBits::N, FlagBits::H, FlagBits::C],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let pre_h = cpu.registers.get_h();
-            let pre_l = cpu.registers.get_l();
-            cpu.registers.set_hl(cpu.registers.get_hl().wrapping_add(cpu.registers.get_sp()));
-            cpu.registers.set_negative_flag(false);
-            cpu.registers.set_half_carry_flag((cpu.registers.get_h() & 0x0F) < (pre_h & 0x0F));
-            cpu.registers.set_carry_flag(cpu.registers.get_h() < pre_h);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::Main(MicroOp::Alu(AluOp::AddLsb(Lhs16Bit::HL, Rhs16Bit::SP))),
+            MCycleOp::End(MicroOp::Alu(AluOp::AddMsb(Lhs16Bit::HL, Rhs16Bit::SP))),
+        ],
     });
     opcodes[0x3A] = Some(&Instruction {
         opcode: 0x3A,
@@ -999,11 +829,10 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 2,
         size: 1,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.registers.set_a(cpu.read_memory(cpu.registers.get_hl()));
-            cpu.registers.set_hl(cpu.registers.get_hl().wrapping_sub(1));
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::Main(MicroOp::Read8Dec(Rhs8Bit::Z, AddressRegister::HL)),
+            MCycleOp::End(MicroOp::Ld8(Rhs8Bit::A, Rhs8Bit::Z)),
+        ],
     });
     opcodes[0x3B] = Some(&Instruction {
         opcode: 0x3B,
@@ -1011,10 +840,10 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 2,
         size: 1,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.registers.set_sp(cpu.registers.get_sp().wrapping_sub(1));
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::Main(MicroOp::Dec16(AddressRegister::HL)),
+            MCycleOp::End(MicroOp::Idle), // Simulating M-Cycle to stabilize bit signals after Inc/Dec in the 16-bit register
+        ],
     });
     opcodes[0x3C] = Some(&Instruction {
         opcode: 0x3C,
@@ -1022,14 +851,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let original_a = cpu.registers.get_a();
-            cpu.registers.set_a(cpu.registers.get_a().wrapping_add(1));
-            cpu.registers.set_half_carry_flag((cpu.registers.get_a() & 0x0F) < (original_a & 0x0F));
-            cpu.registers.set_zero_flag(cpu.registers.get_a() == 0);
-            cpu.registers.set_negative_flag(false);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Alu(AluOp::Inc(Rhs8Bit::A))),
+        ],
     });
     opcodes[0x3D] = Some(&Instruction {
         opcode: 0x3D,
@@ -1037,15 +861,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let original_a = cpu.registers.get_a();
-            cpu.registers.set_a(cpu.registers.get_a().wrapping_sub(1));
-            // Write flags
-            cpu.registers.set_half_carry_flag((original_a & 0x0F) == 0);
-            cpu.registers.set_zero_flag(cpu.registers.get_a() == 0);
-            cpu.registers.set_negative_flag(true);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Alu(AluOp::Dec(Rhs8Bit::A))),
+        ],
     });
     opcodes[0x3E] = Some(&Instruction {
         opcode: 0x3E,
@@ -1053,11 +871,10 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 2,
         size: 2,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let byte = cpu.fetch_next();
-            cpu.registers.set_a(byte);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::Main(MicroOp::Fetch8(Rhs8Bit::Z)),
+            MCycleOp::End(MicroOp::Ld8(Rhs8Bit::A, Rhs8Bit::Z)),
+        ],
     });
     opcodes[0x3F] = Some(&Instruction {
         opcode: 0x3F,
@@ -1078,10 +895,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.registers.set_b(cpu.registers.get_b());
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Ld8(Rhs8Bit::B, Rhs8Bit::B)),
+        ],
     });
     opcodes[0x41] = Some(&Instruction {
         opcode: 0x41,
@@ -1089,10 +905,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.registers.set_b(cpu.registers.get_c());
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Ld8(Rhs8Bit::B, Rhs8Bit::C)),
+        ],
     });
     opcodes[0x42] = Some(&Instruction {
         opcode: 0x42,
@@ -1100,10 +915,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.registers.set_b(cpu.registers.get_d());
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Ld8(Rhs8Bit::B, Rhs8Bit::D)),
+        ],
     });
     opcodes[0x43] = Some(&Instruction {
         opcode: 0x43,
@@ -1111,10 +925,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.registers.set_b(cpu.registers.get_e());
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Ld8(Rhs8Bit::B, Rhs8Bit::E)),
+        ],
     });
     opcodes[0x44] = Some(&Instruction {
         opcode: 0x44,
@@ -1122,10 +935,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.registers.set_b(cpu.registers.get_h());
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Ld8(Rhs8Bit::B, Rhs8Bit::H)),
+        ],
     });
     opcodes[0x45] = Some(&Instruction {
         opcode: 0x45,
@@ -1133,10 +945,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.registers.set_b(cpu.registers.get_l());
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Ld8(Rhs8Bit::B, Rhs8Bit::L)),
+        ],
     });
     opcodes[0x46] = Some(&Instruction {
         opcode: 0x46,
@@ -1144,10 +955,10 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 2,
         size: 1,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.registers.set_b(cpu.read_memory(cpu.registers.get_hl()));
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::Main(MicroOp::Read8(Rhs8Bit::Z, AddressRegister::HL)),
+            MCycleOp::End(MicroOp::Ld8(Rhs8Bit::B, Rhs8Bit::Z)),
+        ],
     });
     opcodes[0x47] = Some(&Instruction {
         opcode: 0x47,
@@ -1155,10 +966,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.registers.set_b(cpu.registers.get_a());
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Ld8(Rhs8Bit::B, Rhs8Bit::A)),
+        ],
     });
     opcodes[0x48] = Some(&Instruction {
         opcode: 0x48,
@@ -1166,10 +976,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.registers.set_c(cpu.registers.get_b());
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Ld8(Rhs8Bit::C, Rhs8Bit::B)),
+        ],
     });
     opcodes[0x49] = Some(&Instruction {
         opcode: 0x49,
@@ -1177,10 +986,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.registers.set_c(cpu.registers.get_c());
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Ld8(Rhs8Bit::C, Rhs8Bit::C)),
+        ],
     });
     opcodes[0x4A] = Some(&Instruction {
         opcode: 0x4A,
@@ -1188,10 +996,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.registers.set_c(cpu.registers.get_d());
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Ld8(Rhs8Bit::C, Rhs8Bit::D)),
+        ],
     });
     opcodes[0x4B] = Some(&Instruction {
         opcode: 0x4B,
@@ -1199,10 +1006,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.registers.set_c(cpu.registers.get_e());
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Ld8(Rhs8Bit::C, Rhs8Bit::E)),
+        ],
     });
     opcodes[0x4C] = Some(&Instruction {
         opcode: 0x4C,
@@ -1210,10 +1016,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.registers.set_c(cpu.registers.get_h());
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Ld8(Rhs8Bit::C, Rhs8Bit::H)),
+        ],
     });
     opcodes[0x4D] = Some(&Instruction {
         opcode: 0x4D,
@@ -1221,10 +1026,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.registers.set_c(cpu.registers.get_l());
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Ld8(Rhs8Bit::C, Rhs8Bit::L)),
+        ],
     });
     opcodes[0x4E] = Some(&Instruction {
         opcode: 0x4E,
@@ -1232,10 +1036,10 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 2,
         size: 1,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.registers.set_c(cpu.read_memory(cpu.registers.get_hl()));
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::Main(MicroOp::Read8(Rhs8Bit::Z, AddressRegister::HL)),
+            MCycleOp::End(MicroOp::Ld8(Rhs8Bit::C, Rhs8Bit::Z)),
+        ],
     });
     opcodes[0x4F] = Some(&Instruction {
         opcode: 0x4F,
@@ -1243,10 +1047,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.registers.set_c(cpu.registers.get_a());
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Ld8(Rhs8Bit::C, Rhs8Bit::A)),
+        ],
     });
     opcodes[0x50] = Some(&Instruction {
         opcode: 0x50,
@@ -1254,10 +1057,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.registers.set_d(cpu.registers.get_b());
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Ld8(Rhs8Bit::D, Rhs8Bit::B)),
+        ],
     });
     opcodes[0x51] = Some(&Instruction {
         opcode: 0x51,
@@ -1265,10 +1067,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.registers.set_d(cpu.registers.get_c());
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Ld8(Rhs8Bit::D, Rhs8Bit::C)),
+        ],
     });
     opcodes[0x52] = Some(&Instruction {
         opcode: 0x52,
@@ -1276,10 +1077,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.registers.set_d(cpu.registers.get_d());
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Ld8(Rhs8Bit::D, Rhs8Bit::D)),
+        ],
     });
     opcodes[0x53] = Some(&Instruction {
         opcode: 0x53,
@@ -1287,10 +1087,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.registers.set_d(cpu.registers.get_e());
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Ld8(Rhs8Bit::D, Rhs8Bit::E)),
+        ],
     });
     opcodes[0x54] = Some(&Instruction {
         opcode: 0x54,
@@ -1298,10 +1097,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.registers.set_d(cpu.registers.get_h());
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Ld8(Rhs8Bit::D, Rhs8Bit::H)),
+        ],
     });
     opcodes[0x55] = Some(&Instruction {
         opcode: 0x55,
@@ -1309,10 +1107,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.registers.set_d(cpu.registers.get_l());
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Ld8(Rhs8Bit::D, Rhs8Bit::L)),
+        ],
     });
     opcodes[0x56] = Some(&Instruction {
         opcode: 0x56,
@@ -1320,10 +1117,10 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 2,
         size: 1,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.registers.set_d(cpu.read_memory(cpu.registers.get_hl()));
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::Main(MicroOp::Read8(Rhs8Bit::Z, AddressRegister::HL)),
+            MCycleOp::End(MicroOp::Ld8(Rhs8Bit::D, Rhs8Bit::Z)),
+        ],
     });
     opcodes[0x57] = Some(&Instruction {
         opcode: 0x57,
@@ -1331,10 +1128,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.registers.set_d(cpu.registers.get_a());
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Ld8(Rhs8Bit::D, Rhs8Bit::A)),
+        ],
     });
     opcodes[0x58] = Some(&Instruction {
         opcode: 0x58,
@@ -1342,10 +1138,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.registers.set_e(cpu.registers.get_b());
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Ld8(Rhs8Bit::E, Rhs8Bit::B)),
+        ],
     });
     opcodes[0x59] = Some(&Instruction {
         opcode: 0x59,
@@ -1353,10 +1148,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.registers.set_e(cpu.registers.get_c());
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Ld8(Rhs8Bit::E, Rhs8Bit::C)),
+        ],
     });
     opcodes[0x5A] = Some(&Instruction {
         opcode: 0x5A,
@@ -1364,21 +1158,19 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.registers.set_e(cpu.registers.get_d());
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Ld8(Rhs8Bit::E, Rhs8Bit::D)),
+        ],
     });
     opcodes[0x5B] = Some(&Instruction {
         opcode: 0x5B,
-        name: "LD D, E",
+        name: "LD E, E",
         cycles: 1,
         size: 1,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.registers.set_e(cpu.registers.get_e());
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Ld8(Rhs8Bit::E, Rhs8Bit::E)),
+        ],
     });
     opcodes[0x5C] = Some(&Instruction {
         opcode: 0x5C,
@@ -1386,10 +1178,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.registers.set_e(cpu.registers.get_h());
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Ld8(Rhs8Bit::E, Rhs8Bit::H)),
+        ],
     });
     opcodes[0x5D] = Some(&Instruction {
         opcode: 0x5D,
@@ -1397,10 +1188,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.registers.set_e(cpu.registers.get_l());
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Ld8(Rhs8Bit::E, Rhs8Bit::L)),
+        ],
     });
     opcodes[0x5E] = Some(&Instruction {
         opcode: 0x5E,
@@ -1408,10 +1198,10 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 2,
         size: 1,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.registers.set_e(cpu.read_memory(cpu.registers.get_hl()));
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::Main(MicroOp::Read8(Rhs8Bit::Z, AddressRegister::HL)),
+            MCycleOp::End(MicroOp::Ld8(Rhs8Bit::E, Rhs8Bit::Z)),
+        ],
     });
     opcodes[0x5F] = Some(&Instruction {
         opcode: 0x5F,
@@ -1419,10 +1209,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.registers.set_e(cpu.registers.get_a());
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Ld8(Rhs8Bit::E, Rhs8Bit::A)),
+        ],
     });
     opcodes[0x60] = Some(&Instruction {
         opcode: 0x60,
@@ -1430,10 +1219,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.registers.set_h(cpu.registers.get_b());
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Ld8(Rhs8Bit::H, Rhs8Bit::B)),
+        ],
     });
     opcodes[0x61] = Some(&Instruction {
         opcode: 0x61,
@@ -1441,10 +1229,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.registers.set_h(cpu.registers.get_c());
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Ld8(Rhs8Bit::H, Rhs8Bit::C)),
+        ],
     });
     opcodes[0x62] = Some(&Instruction {
         opcode: 0x62,
@@ -1452,10 +1239,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.registers.set_h(cpu.registers.get_d());
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Ld8(Rhs8Bit::H, Rhs8Bit::D)),
+        ],
     });
     opcodes[0x63] = Some(&Instruction {
         opcode: 0x63,
@@ -1463,10 +1249,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.registers.set_h(cpu.registers.get_e());
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Ld8(Rhs8Bit::H, Rhs8Bit::E)),
+        ],
     });
     opcodes[0x64] = Some(&Instruction {
         opcode: 0x64,
@@ -1474,10 +1259,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.registers.set_h(cpu.registers.get_h());
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Ld8(Rhs8Bit::H, Rhs8Bit::H)),
+        ],
     });
     opcodes[0x65] = Some(&Instruction {
         opcode: 0x65,
@@ -1485,10 +1269,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.registers.set_h(cpu.registers.get_l());
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Ld8(Rhs8Bit::H, Rhs8Bit::L)),
+        ],
     });
     opcodes[0x66] = Some(&Instruction {
         opcode: 0x66,
@@ -1496,10 +1279,10 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 2,
         size: 1,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.registers.set_h(cpu.read_memory(cpu.registers.get_hl()));
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::Main(MicroOp::Read8(Rhs8Bit::Z, AddressRegister::HL)),
+            MCycleOp::End(MicroOp::Ld8(Rhs8Bit::H, Rhs8Bit::Z)),
+        ],
     });
     opcodes[0x67] = Some(&Instruction {
         opcode: 0x67,
@@ -1507,10 +1290,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.registers.set_h(cpu.registers.get_a());
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Ld8(Rhs8Bit::H, Rhs8Bit::A)),
+        ],
     });
     opcodes[0x68] = Some(&Instruction {
         opcode: 0x68,
@@ -1518,10 +1300,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.registers.set_l(cpu.registers.get_b());
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Ld8(Rhs8Bit::L, Rhs8Bit::B)),
+        ],
     });
     opcodes[0x69] = Some(&Instruction {
         opcode: 0x69,
@@ -1529,10 +1310,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.registers.set_l(cpu.registers.get_c());
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Ld8(Rhs8Bit::L, Rhs8Bit::C)),
+        ],
     });
     opcodes[0x6A] = Some(&Instruction {
         opcode: 0x6A,
@@ -1540,10 +1320,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.registers.set_l(cpu.registers.get_d());
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Ld8(Rhs8Bit::L, Rhs8Bit::D)),
+        ],
     });
     opcodes[0x6B] = Some(&Instruction {
         opcode: 0x6B,
@@ -1551,10 +1330,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.registers.set_l(cpu.registers.get_e());
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Ld8(Rhs8Bit::L, Rhs8Bit::E)),
+        ],
     });
     opcodes[0x6C] = Some(&Instruction {
         opcode: 0x6C,
@@ -1562,10 +1340,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.registers.set_l(cpu.registers.get_h());
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Ld8(Rhs8Bit::L, Rhs8Bit::H)),
+        ],
     });
     opcodes[0x6D] = Some(&Instruction {
         opcode: 0x6D,
@@ -1573,10 +1350,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.registers.set_l(cpu.registers.get_l());
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Ld8(Rhs8Bit::L, Rhs8Bit::L)),
+        ],
     });
     opcodes[0x6E] = Some(&Instruction {
         opcode: 0x6E,
@@ -1584,10 +1360,10 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 2,
         size: 1,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.registers.set_l(cpu.read_memory(cpu.registers.get_hl()));
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::Main(MicroOp::Read8(Rhs8Bit::Z, AddressRegister::HL)),
+            MCycleOp::End(MicroOp::Ld8(Rhs8Bit::L, Rhs8Bit::Z)),
+        ],
     });
     opcodes[0x6F] = Some(&Instruction {
         opcode: 0x6F,
@@ -1595,10 +1371,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.registers.set_l(cpu.registers.get_a());
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Ld8(Rhs8Bit::L, Rhs8Bit::A)),
+        ],
     });
     opcodes[0x70] = Some(&Instruction {
         opcode: 0x70,
@@ -1606,13 +1381,10 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 2,
         size: 1,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.write_memory(cpu.registers.get_hl(), cpu.registers.get_b());
-            if cpu.registers.get_hl() == memory::registers::DMA {
-                cpu.dma_transfer = true;
-            }
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::Main(MicroOp::Write8(AddressRegister::HL, Rhs8Bit::B)),
+            MCycleOp::End(MicroOp::Idle),
+        ],
     });
     opcodes[0x71] = Some(&Instruction {
         opcode: 0x71,
@@ -1620,13 +1392,10 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 2,
         size: 1,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.write_memory(cpu.registers.get_hl(), cpu.registers.get_c());
-            if cpu.registers.get_hl() == memory::registers::DMA {
-                cpu.dma_transfer = true;
-            }
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::Main(MicroOp::Write8(AddressRegister::HL, Rhs8Bit::C)),
+            MCycleOp::End(MicroOp::Idle),
+        ],
     });
     opcodes[0x72] = Some(&Instruction {
         opcode: 0x72,
@@ -1634,13 +1403,10 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 2,
         size: 1,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.write_memory(cpu.registers.get_hl(), cpu.registers.get_d());
-            if cpu.registers.get_hl() == memory::registers::DMA {
-                cpu.dma_transfer = true;
-            }
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::Main(MicroOp::Write8(AddressRegister::HL, Rhs8Bit::D)),
+            MCycleOp::End(MicroOp::Idle),
+        ],
     });
     opcodes[0x73] = Some(&Instruction {
         opcode: 0x73,
@@ -1648,13 +1414,10 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 2,
         size: 1,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.write_memory(cpu.registers.get_hl(), cpu.registers.get_e());
-            if cpu.registers.get_hl() == memory::registers::DMA {
-                cpu.dma_transfer = true;
-            }
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::Main(MicroOp::Write8(AddressRegister::HL, Rhs8Bit::E)),
+            MCycleOp::End(MicroOp::Idle),
+        ],
     });
     opcodes[0x74] = Some(&Instruction {
         opcode: 0x74,
@@ -1662,13 +1425,10 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 2,
         size: 1,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.write_memory(cpu.registers.get_hl(), cpu.registers.get_h());
-            if cpu.registers.get_hl() == memory::registers::DMA {
-                cpu.dma_transfer = true;
-            }
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::Main(MicroOp::Write8(AddressRegister::HL, Rhs8Bit::H)),
+            MCycleOp::End(MicroOp::Idle),
+        ],
     });
     opcodes[0x75] = Some(&Instruction {
         opcode: 0x75,
@@ -1676,13 +1436,10 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 2,
         size: 1,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.write_memory(cpu.registers.get_hl(), cpu.registers.get_l());
-            if cpu.registers.get_hl() == memory::registers::DMA {
-                cpu.dma_transfer = true;
-            }
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::Main(MicroOp::Write8(AddressRegister::HL, Rhs8Bit::L)),
+            MCycleOp::End(MicroOp::Idle),
+        ],
     });
     opcodes[0x76] = Some(&Instruction {
         opcode: 0x76,
@@ -1690,10 +1447,10 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            // TODO: implement
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            // Todo: implement HALT microcode
+            MCycleOp::End(MicroOp::Idle),
+        ],
     });
     opcodes[0x77] = Some(&Instruction {
         opcode: 0x77,
@@ -1701,13 +1458,10 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 2,
         size: 1,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.write_memory(cpu.registers.get_hl(), cpu.registers.get_a());
-            if cpu.registers.get_hl() == memory::registers::DMA {
-                cpu.dma_transfer = true;
-            }
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::Main(MicroOp::Write8(AddressRegister::HL, Rhs8Bit::A)),
+            MCycleOp::End(MicroOp::Idle),
+        ],
     });
     opcodes[0x78] = Some(&Instruction {
         opcode: 0x78,
@@ -1715,10 +1469,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.registers.set_a(cpu.registers.get_b());
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Ld8(Rhs8Bit::A, Rhs8Bit::B)),
+        ],
     });
     opcodes[0x79] = Some(&Instruction {
         opcode: 0x79,
@@ -1726,10 +1479,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.registers.set_a(cpu.registers.get_c());
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Ld8(Rhs8Bit::A, Rhs8Bit::C)),
+        ],
     });
     opcodes[0x7A] = Some(&Instruction {
         opcode: 0x7A,
@@ -1737,10 +1489,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.registers.set_a(cpu.registers.get_d());
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Ld8(Rhs8Bit::A, Rhs8Bit::D)),
+        ],
     });
     opcodes[0x7B] = Some(&Instruction {
         opcode: 0x7B,
@@ -1748,10 +1499,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.registers.set_a(cpu.registers.get_e());
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Ld8(Rhs8Bit::A, Rhs8Bit::E)),
+        ],
     });
     opcodes[0x7C] = Some(&Instruction {
         opcode: 0x7C,
@@ -1759,10 +1509,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.registers.set_a(cpu.registers.get_h());
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Ld8(Rhs8Bit::A, Rhs8Bit::H)),
+        ],
     });
     opcodes[0x7D] = Some(&Instruction {
         opcode: 0x7D,
@@ -1770,10 +1519,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.registers.set_a(cpu.registers.get_l());
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Ld8(Rhs8Bit::A, Rhs8Bit::L)),
+        ],
     });
     opcodes[0x7E] = Some(&Instruction {
         opcode: 0x7E,
@@ -1781,10 +1529,10 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 2,
         size: 1,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.registers.set_a(cpu.read_memory(cpu.registers.get_hl()));
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::Main(MicroOp::Read8(Rhs8Bit::Z, AddressRegister::HL)),
+            MCycleOp::End(MicroOp::Ld8(Rhs8Bit::A, Rhs8Bit::Z)),
+        ],
     });
     opcodes[0x7F] = Some(&Instruction {
         opcode: 0x7F,
@@ -1792,10 +1540,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.registers.set_a(cpu.registers.get_a());
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Ld8(Rhs8Bit::A, Rhs8Bit::A)),
+        ],
     });
     opcodes[0x80] = Some(&Instruction {
         opcode: 0x80,
@@ -1803,16 +1550,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let old_value = cpu.registers.get_a();
-            let new_value = old_value.wrapping_add(cpu.registers.get_b());
-            cpu.registers.set_a(new_value);
-            cpu.registers.set_zero_flag(new_value == 0);
-            cpu.registers.set_negative_flag(false);
-            cpu.registers.set_half_carry_flag((new_value & 0x0F) < (old_value & 0x0F));
-            cpu.registers.set_carry_flag(new_value < old_value);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Alu(AluOp::Add(Rhs8Bit::A, Rhs8Bit::B))),
+        ],
     });
     opcodes[0x81] = Some(&Instruction {
         opcode: 0x81,
@@ -1820,16 +1560,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let old_value = cpu.registers.get_a();
-            let new_value = old_value.wrapping_add(cpu.registers.get_c());
-            cpu.registers.set_a(new_value);
-            cpu.registers.set_zero_flag(new_value == 0);
-            cpu.registers.set_negative_flag(false);
-            cpu.registers.set_half_carry_flag((new_value & 0x0F) < (old_value & 0x0F));
-            cpu.registers.set_carry_flag(new_value < old_value);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Alu(AluOp::Add(Rhs8Bit::A, Rhs8Bit::C))),
+        ],
     });
     opcodes[0x82] = Some(&Instruction {
         opcode: 0x82,
@@ -1837,16 +1570,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let old_value = cpu.registers.get_a();
-            let new_value = old_value.wrapping_add(cpu.registers.get_d());
-            cpu.registers.set_a(new_value);
-            cpu.registers.set_zero_flag(new_value == 0);
-            cpu.registers.set_negative_flag(false);
-            cpu.registers.set_half_carry_flag((new_value & 0x0F) < (old_value & 0x0F));
-            cpu.registers.set_carry_flag(new_value < old_value);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Alu(AluOp::Add(Rhs8Bit::A, Rhs8Bit::D))),
+        ],
     });
     opcodes[0x83] = Some(&Instruction {
         opcode: 0x83,
@@ -1854,16 +1580,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let old_value = cpu.registers.get_a();
-            let new_value = old_value.wrapping_add(cpu.registers.get_e());
-            cpu.registers.set_a(new_value);
-            cpu.registers.set_zero_flag(new_value == 0);
-            cpu.registers.set_negative_flag(false);
-            cpu.registers.set_half_carry_flag((new_value & 0x0F) < (old_value & 0x0F));
-            cpu.registers.set_carry_flag(new_value < old_value);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Alu(AluOp::Add(Rhs8Bit::A, Rhs8Bit::E))),
+        ],
     });
     opcodes[0x84] = Some(&Instruction {
         opcode: 0x84,
@@ -1871,16 +1590,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let old_value = cpu.registers.get_a();
-            let new_value = old_value.wrapping_add(cpu.registers.get_h());
-            cpu.registers.set_a(new_value);
-            cpu.registers.set_zero_flag(new_value == 0);
-            cpu.registers.set_negative_flag(false);
-            cpu.registers.set_half_carry_flag((new_value & 0x0F) < (old_value & 0x0F));
-            cpu.registers.set_carry_flag(new_value < old_value);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Alu(AluOp::Add(Rhs8Bit::A, Rhs8Bit::H))),
+        ],
     });
     opcodes[0x85] = Some(&Instruction {
         opcode: 0x85,
@@ -1888,16 +1600,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let old_value = cpu.registers.get_a();
-            let new_value = old_value.wrapping_add(cpu.registers.get_l());
-            cpu.registers.set_a(new_value);
-            cpu.registers.set_zero_flag(new_value == 0);
-            cpu.registers.set_negative_flag(false);
-            cpu.registers.set_half_carry_flag((new_value & 0x0F) < (old_value & 0x0F));
-            cpu.registers.set_carry_flag(new_value < old_value);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Alu(AluOp::Add(Rhs8Bit::A, Rhs8Bit::L))),
+        ],
     });
     opcodes[0x86] = Some(&Instruction {
         opcode: 0x86,
@@ -1905,16 +1610,10 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 2,
         size: 1,
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let old_value = cpu.registers.get_a();
-            let new_value = old_value.wrapping_add(cpu.read_memory(cpu.registers.get_hl()));
-            cpu.registers.set_a(new_value);
-            cpu.registers.set_zero_flag(new_value == 0);
-            cpu.registers.set_negative_flag(false);
-            cpu.registers.set_half_carry_flag((new_value & 0x0F) < (old_value & 0x0F));
-            cpu.registers.set_carry_flag(new_value < old_value);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Read8(Rhs8Bit::Z, AddressRegister::HL)),
+            MCycleOp::End(MicroOp::Alu(AluOp::Add(Rhs8Bit::A, Rhs8Bit::Z))),
+        ],
     });
     opcodes[0x87] = Some(&Instruction {
         opcode: 0x87,
@@ -1922,16 +1621,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let old_value = cpu.registers.get_a();
-            let new_value = old_value.wrapping_add(old_value);
-            cpu.registers.set_a(new_value);
-            cpu.registers.set_zero_flag(new_value == 0);
-            cpu.registers.set_negative_flag(false);
-            cpu.registers.set_half_carry_flag((new_value & 0x0F) < (old_value & 0x0F));
-            cpu.registers.set_carry_flag(new_value < old_value);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Alu(AluOp::Add(Rhs8Bit::A, Rhs8Bit::B))),
+        ],
     });
     opcodes[0x88] = Some(&Instruction {
         opcode: 0x88,
@@ -1939,17 +1631,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let old_value = cpu.registers.get_a();
-            let intermediate_value = old_value.wrapping_add(cpu.registers.get_b());
-            let new_value = intermediate_value.wrapping_add(cpu.registers.get_carry_flag() as u8);
-            cpu.registers.set_a(new_value);
-            cpu.registers.set_zero_flag(new_value == 0);
-            cpu.registers.set_negative_flag(false);
-            cpu.registers.set_half_carry_flag(((new_value & 0x0F) < (intermediate_value & 0x0F)) || ((intermediate_value & 0x0F) < (old_value & 0x0F)));
-            cpu.registers.set_carry_flag(new_value < old_value);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Alu(AluOp::Adc(Rhs8Bit::A, Rhs8Bit::B))),
+        ],
     });
     opcodes[0x89] = Some(&Instruction {
         opcode: 0x88,
@@ -1957,17 +1641,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let old_value = cpu.registers.get_a();
-            let intermediate_value = old_value.wrapping_add(cpu.registers.get_c());
-            let new_value = intermediate_value.wrapping_add(cpu.registers.get_carry_flag() as u8);
-            cpu.registers.set_a(new_value);
-            cpu.registers.set_zero_flag(new_value == 0);
-            cpu.registers.set_negative_flag(false);
-            cpu.registers.set_half_carry_flag(((new_value & 0x0F) < (intermediate_value & 0x0F)) || ((intermediate_value & 0x0F) < (old_value & 0x0F)));
-            cpu.registers.set_carry_flag(new_value < old_value);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Alu(AluOp::Adc(Rhs8Bit::A, Rhs8Bit::C))),
+        ],
     });
     opcodes[0x8A] = Some(&Instruction {
         opcode: 0x8A,
@@ -1975,17 +1651,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let old_value = cpu.registers.get_a();
-            let intermediate_value = old_value.wrapping_add(cpu.registers.get_d());
-            let new_value = intermediate_value.wrapping_add(cpu.registers.get_carry_flag() as u8);
-            cpu.registers.set_a(new_value);
-            cpu.registers.set_zero_flag(new_value == 0);
-            cpu.registers.set_negative_flag(false);
-            cpu.registers.set_half_carry_flag(((new_value & 0x0F) < (intermediate_value & 0x0F)) || ((intermediate_value & 0x0F) < (old_value & 0x0F)));
-            cpu.registers.set_carry_flag(new_value < old_value);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Alu(AluOp::Adc(Rhs8Bit::A, Rhs8Bit::D))),
+        ],
     });
     opcodes[0x8B] = Some(&Instruction {
         opcode: 0x8B,
@@ -1993,17 +1661,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let old_value = cpu.registers.get_a();
-            let intermediate_value = old_value.wrapping_add(cpu.registers.get_e());
-            let new_value = intermediate_value.wrapping_add(cpu.registers.get_carry_flag() as u8);
-            cpu.registers.set_a(new_value);
-            cpu.registers.set_zero_flag(new_value == 0);
-            cpu.registers.set_negative_flag(false);
-            cpu.registers.set_half_carry_flag(((new_value & 0x0F) < (intermediate_value & 0x0F)) || ((intermediate_value & 0x0F) < (old_value & 0x0F)));
-            cpu.registers.set_carry_flag(new_value < old_value);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Alu(AluOp::Adc(Rhs8Bit::A, Rhs8Bit::E))),
+        ],
     });
     opcodes[0x8C] = Some(&Instruction {
         opcode: 0x8C,
@@ -2011,17 +1671,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let old_value = cpu.registers.get_a();
-            let intermediate_value = old_value.wrapping_add(cpu.registers.get_h());
-            let new_value = intermediate_value.wrapping_add(cpu.registers.get_carry_flag() as u8);
-            cpu.registers.set_a(new_value);
-            cpu.registers.set_zero_flag(new_value == 0);
-            cpu.registers.set_negative_flag(false);
-            cpu.registers.set_half_carry_flag(((new_value & 0x0F) < (intermediate_value & 0x0F)) || ((intermediate_value & 0x0F) < (old_value & 0x0F)));
-            cpu.registers.set_carry_flag(new_value < old_value);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Alu(AluOp::Adc(Rhs8Bit::A, Rhs8Bit::H))),
+        ],
     });
     opcodes[0x8D] = Some(&Instruction {
         opcode: 0x8D,
@@ -2029,17 +1681,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let old_value = cpu.registers.get_a();
-            let intermediate_value = old_value.wrapping_add(cpu.registers.get_l());
-            let new_value = intermediate_value.wrapping_add(cpu.registers.get_carry_flag() as u8);
-            cpu.registers.set_a(new_value);
-            cpu.registers.set_zero_flag(new_value == 0);
-            cpu.registers.set_negative_flag(false);
-            cpu.registers.set_half_carry_flag(((new_value & 0x0F) < (intermediate_value & 0x0F)) || ((intermediate_value & 0x0F) < (old_value & 0x0F)));
-            cpu.registers.set_carry_flag(new_value < old_value);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Alu(AluOp::Adc(Rhs8Bit::A, Rhs8Bit::L))),
+        ],
     });
     opcodes[0x8E] = Some(&Instruction {
         opcode: 0x8E,
@@ -2047,17 +1691,10 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 2,
         size: 1,
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let old_value = cpu.registers.get_a();
-            let intermediate_value = old_value.wrapping_add(cpu.read_memory(cpu.registers.get_hl()));
-            let new_value = intermediate_value.wrapping_add(cpu.registers.get_carry_flag() as u8);
-            cpu.registers.set_a(new_value);
-            cpu.registers.set_zero_flag(new_value == 0);
-            cpu.registers.set_negative_flag(false);
-            cpu.registers.set_half_carry_flag(((new_value & 0x0F) < (intermediate_value & 0x0F)) || ((intermediate_value & 0x0F) < (old_value & 0x0F)));
-            cpu.registers.set_carry_flag(new_value < old_value);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Read8(Rhs8Bit::Z, AddressRegister::HL)),
+            MCycleOp::End(MicroOp::Alu(AluOp::Adc(Rhs8Bit::A, Rhs8Bit::Z))),
+        ],
     });
     opcodes[0x8F] = Some(&Instruction {
         opcode: 0x8F,
@@ -2065,17 +1702,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let old_value = cpu.registers.get_a();
-            let intermediate_value = old_value.wrapping_add(cpu.registers.get_a());
-            let new_value = intermediate_value.wrapping_add(cpu.registers.get_carry_flag() as u8);
-            cpu.registers.set_a(new_value);
-            cpu.registers.set_zero_flag(new_value == 0);
-            cpu.registers.set_negative_flag(false);
-            cpu.registers.set_half_carry_flag(((new_value & 0x0F) < (intermediate_value & 0x0F)) || ((intermediate_value & 0x0F) < (old_value & 0x0F)));
-            cpu.registers.set_carry_flag(new_value < old_value);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Alu(AluOp::Adc(Rhs8Bit::A, Rhs8Bit::A))),
+        ],
     });
     opcodes[0x90] = Some(&Instruction {
         opcode: 0x90,
@@ -2083,16 +1712,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let old_value = cpu.registers.get_a();
-            let new_value = old_value.wrapping_sub(cpu.registers.get_b());
-            cpu.registers.set_a(new_value);
-            cpu.registers.set_zero_flag(new_value == 0);
-            cpu.registers.set_negative_flag(true);
-            cpu.registers.set_half_carry_flag((new_value & 0x0F) > (old_value & 0x0F));
-            cpu.registers.set_carry_flag(new_value > old_value);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Alu(AluOp::Sub(Rhs8Bit::A, Rhs8Bit::B))),
+        ],
     });
     opcodes[0x91] = Some(&Instruction {
         opcode: 0x91,
@@ -2100,16 +1722,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let old_value = cpu.registers.get_a();
-            let new_value = old_value.wrapping_sub(cpu.registers.get_c());
-            cpu.registers.set_a(new_value);
-            cpu.registers.set_zero_flag(new_value == 0);
-            cpu.registers.set_negative_flag(true);
-            cpu.registers.set_half_carry_flag((new_value & 0x0F) > (old_value & 0x0F));
-            cpu.registers.set_carry_flag(new_value > old_value);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Alu(AluOp::Sub(Rhs8Bit::A, Rhs8Bit::C))),
+        ],
     });
     opcodes[0x92] = Some(&Instruction {
         opcode: 0x92,
@@ -2117,16 +1732,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let old_value = cpu.registers.get_a();
-            let new_value = old_value.wrapping_sub(cpu.registers.get_d());
-            cpu.registers.set_a(new_value);
-            cpu.registers.set_zero_flag(new_value == 0);
-            cpu.registers.set_negative_flag(true);
-            cpu.registers.set_half_carry_flag((new_value & 0x0F) > (old_value & 0x0F));
-            cpu.registers.set_carry_flag(new_value > old_value);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Alu(AluOp::Sub(Rhs8Bit::A, Rhs8Bit::D))),
+        ],
     });
     opcodes[0x93] = Some(&Instruction {
         opcode: 0x93,
@@ -2134,16 +1742,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let old_value = cpu.registers.get_a();
-            let new_value = old_value.wrapping_sub(cpu.registers.get_e());
-            cpu.registers.set_a(new_value);
-            cpu.registers.set_zero_flag(new_value == 0);
-            cpu.registers.set_negative_flag(true);
-            cpu.registers.set_half_carry_flag((new_value & 0x0F) > (old_value & 0x0F));
-            cpu.registers.set_carry_flag(new_value > old_value);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Alu(AluOp::Sub(Rhs8Bit::A, Rhs8Bit::E))),
+        ],
     });
     opcodes[0x94] = Some(&Instruction {
         opcode: 0x94,
@@ -2151,16 +1752,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let old_value = cpu.registers.get_a();
-            let new_value = old_value.wrapping_sub(cpu.registers.get_h());
-            cpu.registers.set_a(new_value);
-            cpu.registers.set_zero_flag(new_value == 0);
-            cpu.registers.set_negative_flag(true);
-            cpu.registers.set_half_carry_flag((new_value & 0x0F) > (old_value & 0x0F));
-            cpu.registers.set_carry_flag(new_value > old_value);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Alu(AluOp::Sub(Rhs8Bit::A, Rhs8Bit::H))),
+        ],
     });
     opcodes[0x95] = Some(&Instruction {
         opcode: 0x95,
@@ -2168,16 +1762,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let old_value = cpu.registers.get_a();
-            let new_value = old_value.wrapping_sub(cpu.registers.get_l());
-            cpu.registers.set_a(new_value);
-            cpu.registers.set_zero_flag(new_value == 0);
-            cpu.registers.set_negative_flag(true);
-            cpu.registers.set_half_carry_flag((new_value & 0x0F) > (old_value & 0x0F));
-            cpu.registers.set_carry_flag(new_value > old_value);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Alu(AluOp::Sub(Rhs8Bit::A, Rhs8Bit::L))),
+        ],
     });
     opcodes[0x96] = Some(&Instruction {
         opcode: 0x96,
@@ -2185,16 +1772,10 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 2,
         size: 1,
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let old_value = cpu.registers.get_a();
-            let new_value = old_value.wrapping_sub(cpu.read_memory(cpu.registers.get_hl()));
-            cpu.registers.set_a(new_value);
-            cpu.registers.set_zero_flag(new_value == 0);
-            cpu.registers.set_negative_flag(true);
-            cpu.registers.set_half_carry_flag((new_value & 0x0F) > (old_value & 0x0F));
-            cpu.registers.set_carry_flag(new_value > old_value);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Read8(Rhs8Bit::Z, AddressRegister::HL)),
+            MCycleOp::End(MicroOp::Alu(AluOp::Sub(Rhs8Bit::A, Rhs8Bit::Z))),
+        ],
     });
     opcodes[0x97] = Some(&Instruction {
         opcode: 0x97,
@@ -2202,16 +1783,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let old_value = cpu.registers.get_a();
-            let new_value = old_value.wrapping_sub(cpu.registers.get_a());
-            cpu.registers.set_a(new_value);
-            cpu.registers.set_zero_flag(new_value == 0);
-            cpu.registers.set_negative_flag(true);
-            cpu.registers.set_half_carry_flag((new_value & 0x0F) > (old_value & 0x0F));
-            cpu.registers.set_carry_flag(new_value > old_value);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Alu(AluOp::Sub(Rhs8Bit::A, Rhs8Bit::A))),
+        ],
     });
     opcodes[0x98] = Some(&Instruction {
         opcode: 0x98,
@@ -2219,18 +1793,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let old_value = cpu.registers.get_a();
-            let intra_value = old_value.wrapping_sub(cpu.registers.get_b());
-            let new_value = intra_value.wrapping_sub(cpu.registers.get_carry_flag() as u8);
-            cpu.registers.set_a(new_value);
-            cpu.registers.set_zero_flag(new_value == 0);
-            cpu.registers.set_negative_flag(true);
-            cpu.registers.set_half_carry_flag(
-                ((new_value & 0x0F) > (intra_value & 0x0F)) || ((intra_value & 0x0F) > (old_value & 0x0F)));
-            cpu.registers.set_carry_flag(new_value > old_value);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Alu(AluOp::Sbc(Rhs8Bit::A, Rhs8Bit::B))),
+        ],
     });
     opcodes[0x99] = Some(&Instruction {
         opcode: 0x99,
@@ -2238,18 +1803,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let old_value = cpu.registers.get_a();
-            let intra_value = old_value.wrapping_sub(cpu.registers.get_c());
-            let new_value = intra_value.wrapping_sub(cpu.registers.get_carry_flag() as u8);
-            cpu.registers.set_a(new_value);
-            cpu.registers.set_zero_flag(new_value == 0);
-            cpu.registers.set_negative_flag(true);
-            cpu.registers.set_half_carry_flag(
-                ((new_value & 0x0F) > (intra_value & 0x0F)) || ((intra_value & 0x0F) > (old_value & 0x0F)));
-            cpu.registers.set_carry_flag(new_value > old_value);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Alu(AluOp::Sbc(Rhs8Bit::A, Rhs8Bit::C))),
+        ],
     });
     opcodes[0x9A] = Some(&Instruction {
         opcode: 0x9A,
@@ -2257,18 +1813,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let old_value = cpu.registers.get_a();
-            let intra_value = old_value.wrapping_sub(cpu.registers.get_d());
-            let new_value = intra_value.wrapping_sub(cpu.registers.get_carry_flag() as u8);
-            cpu.registers.set_a(new_value);
-            cpu.registers.set_zero_flag(new_value == 0);
-            cpu.registers.set_negative_flag(true);
-            cpu.registers.set_half_carry_flag(
-                ((new_value & 0x0F) > (intra_value & 0x0F)) || ((intra_value & 0x0F) > (old_value & 0x0F)));
-            cpu.registers.set_carry_flag(new_value > old_value);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Alu(AluOp::Sbc(Rhs8Bit::A, Rhs8Bit::D))),
+        ],
     });
     opcodes[0x9B] = Some(&Instruction {
         opcode: 0x9B,
@@ -2276,18 +1823,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let old_value = cpu.registers.get_a();
-            let intra_value = old_value.wrapping_sub(cpu.registers.get_e());
-            let new_value = intra_value.wrapping_sub(cpu.registers.get_carry_flag() as u8);
-            cpu.registers.set_a(new_value);
-            cpu.registers.set_zero_flag(new_value == 0);
-            cpu.registers.set_negative_flag(true);
-            cpu.registers.set_half_carry_flag(
-                ((new_value & 0x0F) > (intra_value & 0x0F)) || ((intra_value & 0x0F) > (old_value & 0x0F)));
-            cpu.registers.set_carry_flag(new_value > old_value);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Alu(AluOp::Sbc(Rhs8Bit::A, Rhs8Bit::E))),
+        ],
     });
     opcodes[0x9C] = Some(&Instruction {
         opcode: 0x9C,
@@ -2295,18 +1833,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let old_value = cpu.registers.get_a();
-            let intra_value = old_value.wrapping_sub(cpu.registers.get_h());
-            let new_value = intra_value.wrapping_sub(cpu.registers.get_carry_flag() as u8);
-            cpu.registers.set_a(new_value);
-            cpu.registers.set_zero_flag(new_value == 0);
-            cpu.registers.set_negative_flag(true);
-            cpu.registers.set_half_carry_flag(
-                ((new_value & 0x0F) > (intra_value & 0x0F)) || ((intra_value & 0x0F) > (old_value & 0x0F)));
-            cpu.registers.set_carry_flag(new_value > old_value);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Alu(AluOp::Sbc(Rhs8Bit::A, Rhs8Bit::H))),
+        ],
     });
     opcodes[0x9D] = Some(&Instruction {
         opcode: 0x9D,
@@ -2314,18 +1843,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let old_value = cpu.registers.get_a();
-            let intra_value = old_value.wrapping_sub(cpu.registers.get_l());
-            let new_value = intra_value.wrapping_sub(cpu.registers.get_carry_flag() as u8);
-            cpu.registers.set_a(new_value);
-            cpu.registers.set_zero_flag(new_value == 0);
-            cpu.registers.set_negative_flag(true);
-            cpu.registers.set_half_carry_flag(
-                ((new_value & 0x0F) > (intra_value & 0x0F)) || ((intra_value & 0x0F) > (old_value & 0x0F)));
-            cpu.registers.set_carry_flag(new_value > old_value);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Alu(AluOp::Sbc(Rhs8Bit::A, Rhs8Bit::L))),
+        ],
     });
     opcodes[0x9E] = Some(&Instruction {
         opcode: 0x9E,
@@ -2333,18 +1853,10 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 2,
         size: 1,
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let old_value = cpu.registers.get_a();
-            let intra_value = old_value.wrapping_sub(cpu.read_memory(cpu.registers.get_hl()));
-            let new_value = intra_value.wrapping_sub(cpu.registers.get_carry_flag() as u8);
-            cpu.registers.set_a(new_value);
-            cpu.registers.set_zero_flag(new_value == 0);
-            cpu.registers.set_negative_flag(true);
-            cpu.registers.set_half_carry_flag(
-                ((new_value & 0x0F) > (intra_value & 0x0F)) || ((intra_value & 0x0F) > (old_value & 0x0F)));
-            cpu.registers.set_carry_flag(new_value > old_value);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Read8(Rhs8Bit::Z, AddressRegister::HL)),
+            MCycleOp::End(MicroOp::Alu(AluOp::Sbc(Rhs8Bit::A, Rhs8Bit::Z))),
+        ],
     });
     opcodes[0x9F] = Some(&Instruction {
         opcode: 0x9F,
@@ -2352,19 +1864,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let old_value = cpu.registers.get_a();
-            let intra_value = old_value.wrapping_sub(cpu.registers.get_a());
-            let new_value = intra_value.wrapping_sub(intra_value)
-                .wrapping_sub(cpu.registers.get_carry_flag() as u8);
-            cpu.registers.set_a(new_value);
-            cpu.registers.set_zero_flag(new_value == 0);
-            cpu.registers.set_negative_flag(true);
-            cpu.registers.set_half_carry_flag(
-                ((new_value & 0x0F) > (intra_value & 0x0F)) || ((intra_value & 0x0F) > (old_value & 0x0F)));
-            cpu.registers.set_carry_flag(new_value > old_value);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Alu(AluOp::Sbc(Rhs8Bit::A, Rhs8Bit::A))),
+        ],
     });
     opcodes[0xA0] = Some(&Instruction {
         opcode: 0xA0,
@@ -2372,16 +1874,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let old_value = cpu.registers.get_a();
-            let new_value = old_value & cpu.registers.get_b();
-            cpu.registers.set_a(new_value);
-            cpu.registers.set_zero_flag(new_value == 0);
-            cpu.registers.set_negative_flag(false);
-            cpu.registers.set_half_carry_flag(true);
-            cpu.registers.set_carry_flag(false);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Alu(AluOp::And(Rhs8Bit::A, Rhs8Bit::B))),
+        ],
     });
     opcodes[0xA1] = Some(&Instruction {
         opcode: 0xA1,
@@ -2389,16 +1884,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let old_value = cpu.registers.get_a();
-            let new_value = old_value & cpu.registers.get_c();
-            cpu.registers.set_a(new_value);
-            cpu.registers.set_zero_flag(new_value == 0);
-            cpu.registers.set_negative_flag(false);
-            cpu.registers.set_half_carry_flag(true);
-            cpu.registers.set_carry_flag(false);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Alu(AluOp::And(Rhs8Bit::A, Rhs8Bit::C))),
+        ],
     });
     opcodes[0xA2] = Some(&Instruction {
         opcode: 0xA2,
@@ -2406,16 +1894,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let old_value = cpu.registers.get_a();
-            let new_value = old_value & cpu.registers.get_d();
-            cpu.registers.set_a(new_value);
-            cpu.registers.set_zero_flag(new_value == 0);
-            cpu.registers.set_negative_flag(false);
-            cpu.registers.set_half_carry_flag(true);
-            cpu.registers.set_carry_flag(false);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Alu(AluOp::And(Rhs8Bit::A, Rhs8Bit::D))),
+        ],
     });
     opcodes[0xA3] = Some(&Instruction {
         opcode: 0xA3,
@@ -2423,16 +1904,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let old_value = cpu.registers.get_a();
-            let new_value = old_value & cpu.registers.get_e();
-            cpu.registers.set_a(new_value);
-            cpu.registers.set_zero_flag(new_value == 0);
-            cpu.registers.set_negative_flag(false);
-            cpu.registers.set_half_carry_flag(true);
-            cpu.registers.set_carry_flag(false);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Alu(AluOp::And(Rhs8Bit::A, Rhs8Bit::E))),
+        ],
     });
     opcodes[0xA4] = Some(&Instruction {
         opcode: 0xA4,
@@ -2440,16 +1914,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let old_value = cpu.registers.get_a();
-            let new_value = old_value & cpu.registers.get_h();
-            cpu.registers.set_a(new_value);
-            cpu.registers.set_zero_flag(new_value == 0);
-            cpu.registers.set_negative_flag(false);
-            cpu.registers.set_half_carry_flag(true);
-            cpu.registers.set_carry_flag(false);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Alu(AluOp::And(Rhs8Bit::A, Rhs8Bit::H))),
+        ],
     });
     opcodes[0xA5] = Some(&Instruction {
         opcode: 0xA5,
@@ -2457,16 +1924,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let old_value = cpu.registers.get_a();
-            let new_value = old_value & cpu.registers.get_l();
-            cpu.registers.set_a(new_value);
-            cpu.registers.set_zero_flag(new_value == 0);
-            cpu.registers.set_negative_flag(false);
-            cpu.registers.set_half_carry_flag(true);
-            cpu.registers.set_carry_flag(false);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Alu(AluOp::And(Rhs8Bit::A, Rhs8Bit::L))),
+        ],
     });
     opcodes[0xA6] = Some(&Instruction {
         opcode: 0xA6,
@@ -2474,16 +1934,10 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 2,
         size: 1,
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let old_value = cpu.registers.get_a();
-            let new_value = old_value & cpu.read_memory(cpu.registers.get_hl());
-            cpu.registers.set_a(new_value);
-            cpu.registers.set_zero_flag(new_value == 0);
-            cpu.registers.set_negative_flag(false);
-            cpu.registers.set_half_carry_flag(true);
-            cpu.registers.set_carry_flag(false);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Read8(Rhs8Bit::Z, AddressRegister::HL)),
+            MCycleOp::End(MicroOp::Alu(AluOp::And(Rhs8Bit::A, Rhs8Bit::Z))),
+        ],
     });
     opcodes[0xA7] = Some(&Instruction {
         opcode: 0xA7,
@@ -2491,16 +1945,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let old_value = cpu.registers.get_a();
-            let new_value = old_value & old_value;
-            cpu.registers.set_a(new_value);
-            cpu.registers.set_zero_flag(new_value == 0);
-            cpu.registers.set_negative_flag(false);
-            cpu.registers.set_half_carry_flag(true);
-            cpu.registers.set_carry_flag(false);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Alu(AluOp::And(Rhs8Bit::A, Rhs8Bit::A))),
+        ],
     });
     opcodes[0xA8] = Some(&Instruction {
         opcode: 0xA8,
@@ -2508,16 +1955,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let old_value = cpu.registers.get_a();
-            let new_value = old_value ^ cpu.registers.get_b();
-            cpu.registers.set_a(new_value);
-            cpu.registers.set_zero_flag(new_value == 0);
-            cpu.registers.set_negative_flag(false);
-            cpu.registers.set_half_carry_flag(false);
-            cpu.registers.set_carry_flag(false);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Alu(AluOp::Xor(Rhs8Bit::A, Rhs8Bit::B))),
+        ],
     });
     opcodes[0xA9] = Some(&Instruction {
         opcode: 0xA9,
@@ -2525,16 +1965,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let old_value = cpu.registers.get_a();
-            let new_value = old_value ^ cpu.registers.get_c();
-            cpu.registers.set_a(new_value);
-            cpu.registers.set_zero_flag(new_value == 0);
-            cpu.registers.set_negative_flag(false);
-            cpu.registers.set_half_carry_flag(false);
-            cpu.registers.set_carry_flag(false);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Alu(AluOp::Xor(Rhs8Bit::A, Rhs8Bit::C))),
+        ],
     });
     opcodes[0xAA] = Some(&Instruction {
         opcode: 0xAA,
@@ -2542,16 +1975,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let old_value = cpu.registers.get_a();
-            let new_value = old_value ^ cpu.registers.get_d();
-            cpu.registers.set_a(new_value);
-            cpu.registers.set_zero_flag(new_value == 0);
-            cpu.registers.set_negative_flag(false);
-            cpu.registers.set_half_carry_flag(false);
-            cpu.registers.set_carry_flag(false);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Alu(AluOp::Xor(Rhs8Bit::A, Rhs8Bit::D))),
+        ],
     });
     opcodes[0xAB] = Some(&Instruction {
         opcode: 0xAB,
@@ -2559,16 +1985,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let old_value = cpu.registers.get_a();
-            let new_value = old_value ^ cpu.registers.get_e();
-            cpu.registers.set_a(new_value);
-            cpu.registers.set_zero_flag(new_value == 0);
-            cpu.registers.set_negative_flag(false);
-            cpu.registers.set_half_carry_flag(false);
-            cpu.registers.set_carry_flag(false);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Alu(AluOp::Xor(Rhs8Bit::A, Rhs8Bit::E))),
+        ],
     });
     opcodes[0xAC] = Some(&Instruction {
         opcode: 0xAC,
@@ -2576,16 +1995,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let old_value = cpu.registers.get_a();
-            let new_value = old_value ^ cpu.registers.get_h();
-            cpu.registers.set_a(new_value);
-            cpu.registers.set_zero_flag(new_value == 0);
-            cpu.registers.set_negative_flag(false);
-            cpu.registers.set_half_carry_flag(false);
-            cpu.registers.set_carry_flag(false);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Alu(AluOp::Xor(Rhs8Bit::A, Rhs8Bit::H))),
+        ],
     });
     opcodes[0xAD] = Some(&Instruction {
         opcode: 0xAD,
@@ -2593,16 +2005,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let old_value = cpu.registers.get_a();
-            let new_value = old_value ^ cpu.registers.get_l();
-            cpu.registers.set_a(new_value);
-            cpu.registers.set_zero_flag(new_value == 0);
-            cpu.registers.set_negative_flag(false);
-            cpu.registers.set_half_carry_flag(false);
-            cpu.registers.set_carry_flag(false);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Alu(AluOp::Xor(Rhs8Bit::A, Rhs8Bit::L))),
+        ],
     });
     opcodes[0xAE] = Some(&Instruction {
         opcode: 0xAE,
@@ -2610,16 +2015,10 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 2,
         size: 1,
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let old_value = cpu.registers.get_a();
-            let new_value = old_value ^ cpu.read_memory(cpu.registers.get_hl());
-            cpu.registers.set_a(new_value);
-            cpu.registers.set_zero_flag(new_value == 0);
-            cpu.registers.set_negative_flag(false);
-            cpu.registers.set_half_carry_flag(false);
-            cpu.registers.set_carry_flag(false);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Read8(Rhs8Bit::Z, AddressRegister::HL)),
+            MCycleOp::End(MicroOp::Alu(AluOp::Xor(Rhs8Bit::A, Rhs8Bit::Z))),
+        ],
     });
     opcodes[0xAF] = Some(&Instruction {
         opcode: 0xAF,
@@ -2627,16 +2026,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let old_value = cpu.registers.get_a();
-            let new_value = old_value ^ old_value;
-            cpu.registers.set_a(new_value);
-            cpu.registers.set_zero_flag(new_value == 0);
-            cpu.registers.set_negative_flag(false);
-            cpu.registers.set_half_carry_flag(false);
-            cpu.registers.set_carry_flag(false);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Alu(AluOp::Xor(Rhs8Bit::A, Rhs8Bit::A))),
+        ],
     });
     opcodes[0xB0] = Some(&Instruction {
         opcode: 0xB0,
@@ -2644,16 +2036,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let old_value = cpu.registers.get_a();
-            let new_value = old_value | cpu.registers.get_b();
-            cpu.registers.set_a(new_value);
-            cpu.registers.set_zero_flag(new_value == 0);
-            cpu.registers.set_negative_flag(false);
-            cpu.registers.set_half_carry_flag(false);
-            cpu.registers.set_carry_flag(false);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Alu(AluOp::Or(Rhs8Bit::A, Rhs8Bit::B))),
+        ],
     });
     opcodes[0xB1] = Some(&Instruction {
         opcode: 0xB1,
@@ -2661,16 +2046,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let old_value = cpu.registers.get_a();
-            let new_value = old_value | cpu.registers.get_c();
-            cpu.registers.set_a(new_value);
-            cpu.registers.set_zero_flag(new_value == 0);
-            cpu.registers.set_negative_flag(false);
-            cpu.registers.set_half_carry_flag(false);
-            cpu.registers.set_carry_flag(false);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Alu(AluOp::Or(Rhs8Bit::A, Rhs8Bit::C))),
+        ],
     });
     opcodes[0xB2] = Some(&Instruction {
         opcode: 0xB2,
@@ -2678,16 +2056,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let old_value = cpu.registers.get_a();
-            let new_value = old_value | cpu.registers.get_d();
-            cpu.registers.set_a(new_value);
-            cpu.registers.set_zero_flag(new_value == 0);
-            cpu.registers.set_negative_flag(false);
-            cpu.registers.set_half_carry_flag(false);
-            cpu.registers.set_carry_flag(false);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Alu(AluOp::Or(Rhs8Bit::A, Rhs8Bit::D))),
+        ],
     });
     opcodes[0xB3] = Some(&Instruction {
         opcode: 0xB3,
@@ -2695,16 +2066,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let old_value = cpu.registers.get_a();
-            let new_value = old_value | cpu.registers.get_e();
-            cpu.registers.set_a(new_value);
-            cpu.registers.set_zero_flag(new_value == 0);
-            cpu.registers.set_negative_flag(false);
-            cpu.registers.set_half_carry_flag(false);
-            cpu.registers.set_carry_flag(false);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Alu(AluOp::Or(Rhs8Bit::A, Rhs8Bit::E))),
+        ],
     });
     opcodes[0xB4] = Some(&Instruction {
         opcode: 0xB4,
@@ -2712,16 +2076,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let old_value = cpu.registers.get_a();
-            let new_value = old_value | cpu.registers.get_h();
-            cpu.registers.set_a(new_value);
-            cpu.registers.set_zero_flag(new_value == 0);
-            cpu.registers.set_negative_flag(false);
-            cpu.registers.set_half_carry_flag(false);
-            cpu.registers.set_carry_flag(false);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Alu(AluOp::Or(Rhs8Bit::A, Rhs8Bit::H))),
+        ],
     });
     opcodes[0xB5] = Some(&Instruction {
         opcode: 0xB5,
@@ -2729,16 +2086,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let old_value = cpu.registers.get_a();
-            let new_value = old_value | cpu.registers.get_l();
-            cpu.registers.set_a(new_value);
-            cpu.registers.set_zero_flag(new_value == 0);
-            cpu.registers.set_negative_flag(false);
-            cpu.registers.set_half_carry_flag(false);
-            cpu.registers.set_carry_flag(false);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Alu(AluOp::Or(Rhs8Bit::A, Rhs8Bit::L))),
+        ],
     });
     opcodes[0xB6] = Some(&Instruction {
         opcode: 0xB6,
@@ -2746,16 +2096,10 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 2,
         size: 1,
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let old_value = cpu.registers.get_a();
-            let new_value = old_value | cpu.read_memory(cpu.registers.get_hl());
-            cpu.registers.set_a(new_value);
-            cpu.registers.set_zero_flag(new_value == 0);
-            cpu.registers.set_negative_flag(false);
-            cpu.registers.set_half_carry_flag(false);
-            cpu.registers.set_carry_flag(false);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Read8(Rhs8Bit::Z, AddressRegister::HL)),
+            MCycleOp::End(MicroOp::Alu(AluOp::Or(Rhs8Bit::A, Rhs8Bit::Z))),
+        ],
     });
     opcodes[0xB7] = Some(&Instruction {
         opcode: 0xB7,
@@ -2763,16 +2107,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let old_value = cpu.registers.get_a();
-            let new_value = old_value | old_value;
-            cpu.registers.set_a(new_value);
-            cpu.registers.set_zero_flag(new_value == 0);
-            cpu.registers.set_negative_flag(false);
-            cpu.registers.set_half_carry_flag(false);
-            cpu.registers.set_carry_flag(false);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Alu(AluOp::Or(Rhs8Bit::A, Rhs8Bit::A))),
+        ],
     });
     opcodes[0xB8] = Some(&Instruction {
         opcode: 0xB8,
@@ -2780,15 +2117,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let old_value = cpu.registers.get_a();
-            let new_value = old_value.wrapping_sub(cpu.registers.get_b());
-            cpu.registers.set_zero_flag(new_value == 0);
-            cpu.registers.set_negative_flag(true);
-            cpu.registers.set_half_carry_flag((new_value & 0x0F) > (old_value & 0x0F));
-            cpu.registers.set_carry_flag(new_value > old_value);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Alu(AluOp::Cp(Rhs8Bit::A, Rhs8Bit::B))),
+        ],
     });
     opcodes[0xB9] = Some(&Instruction {
         opcode: 0xB9,
@@ -2796,15 +2127,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let old_value = cpu.registers.get_a();
-            let new_value = old_value.wrapping_sub(cpu.registers.get_c());
-            cpu.registers.set_zero_flag(new_value == 0);
-            cpu.registers.set_negative_flag(true);
-            cpu.registers.set_half_carry_flag((new_value & 0x0F) > (old_value & 0x0F));
-            cpu.registers.set_carry_flag(new_value > old_value);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Alu(AluOp::Cp(Rhs8Bit::A, Rhs8Bit::C))),
+        ],
     });
     opcodes[0xBA] = Some(&Instruction {
         opcode: 0xBA,
@@ -2812,15 +2137,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let old_value = cpu.registers.get_a();
-            let new_value = old_value.wrapping_sub(cpu.registers.get_d());
-            cpu.registers.set_zero_flag(new_value == 0);
-            cpu.registers.set_negative_flag(true);
-            cpu.registers.set_half_carry_flag((new_value & 0x0F) > (old_value & 0x0F));
-            cpu.registers.set_carry_flag(new_value > old_value);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Alu(AluOp::Cp(Rhs8Bit::A, Rhs8Bit::D))),
+        ],
     });
     opcodes[0xBB] = Some(&Instruction {
         opcode: 0xBB,
@@ -2828,15 +2147,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let old_value = cpu.registers.get_a();
-            let new_value = old_value.wrapping_sub(cpu.registers.get_e());
-            cpu.registers.set_zero_flag(new_value == 0);
-            cpu.registers.set_negative_flag(true);
-            cpu.registers.set_half_carry_flag((new_value & 0x0F) > (old_value & 0x0F));
-            cpu.registers.set_carry_flag(new_value > old_value);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Alu(AluOp::Cp(Rhs8Bit::A, Rhs8Bit::E))),
+        ],
     });
     opcodes[0xBC] = Some(&Instruction {
         opcode: 0xBC,
@@ -2844,15 +2157,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let old_value = cpu.registers.get_a();
-            let new_value = old_value.wrapping_sub(cpu.registers.get_h());
-            cpu.registers.set_zero_flag(new_value == 0);
-            cpu.registers.set_negative_flag(true);
-            cpu.registers.set_half_carry_flag((new_value & 0x0F) > (old_value & 0x0F));
-            cpu.registers.set_carry_flag(new_value > old_value);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Alu(AluOp::Cp(Rhs8Bit::A, Rhs8Bit::H))),
+        ],
     });
     opcodes[0xBD] = Some(&Instruction {
         opcode: 0xBD,
@@ -2860,15 +2167,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let old_value = cpu.registers.get_a();
-            let new_value = old_value.wrapping_sub(cpu.registers.get_l());
-            cpu.registers.set_zero_flag(new_value == 0);
-            cpu.registers.set_negative_flag(true);
-            cpu.registers.set_half_carry_flag((new_value & 0x0F) > (old_value & 0x0F));
-            cpu.registers.set_carry_flag(new_value > old_value);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Alu(AluOp::Cp(Rhs8Bit::A, Rhs8Bit::L))),
+        ],
     });
     opcodes[0xBE] = Some(&Instruction {
         opcode: 0xBE,
@@ -2876,15 +2177,10 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 2,
         size: 1,
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let old_value = cpu.registers.get_a();
-            let new_value = old_value.wrapping_sub(cpu.read_memory(cpu.registers.get_hl()));
-            cpu.registers.set_zero_flag(new_value == 0);
-            cpu.registers.set_negative_flag(true);
-            cpu.registers.set_half_carry_flag((new_value & 0x0F) > (old_value & 0x0F));
-            cpu.registers.set_carry_flag(new_value > old_value);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Read8(Rhs8Bit::Z, AddressRegister::HL)),
+            MCycleOp::End(MicroOp::Alu(AluOp::Cp(Rhs8Bit::A, Rhs8Bit::Z))),
+        ],
     });
     opcodes[0xBF] = Some(&Instruction {
         opcode: 0xBF,
@@ -2892,15 +2188,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let old_value = cpu.registers.get_a();
-            let new_value = old_value.wrapping_sub(cpu.registers.get_a());
-            cpu.registers.set_zero_flag(new_value == 0);
-            cpu.registers.set_negative_flag(true);
-            cpu.registers.set_half_carry_flag((new_value & 0x0F) > (old_value & 0x0F));
-            cpu.registers.set_carry_flag(new_value > old_value);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Alu(AluOp::Cp(Rhs8Bit::A, Rhs8Bit::A))),
+        ],
     });
     opcodes[0xC0] = Some(&Instruction {
         opcode: 0xC0,
@@ -2908,16 +2198,14 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 5,
         size: 1,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            if !cpu.registers.get_zero_flag() {
-                let mut return_address: u16 = 0x00;
-                return_address |= cpu.pop() as u16;
-                return_address |= (cpu.pop() as u16) << 8;
-                cpu.registers.set_pc(return_address);
-                return opcode.cycles as u64
-            }
-            2
-        },
+        micro_ops: &[
+            MCycleOp::Cc(MicroOp::Idle, CheckCondition::NZ, 2),
+            MCycleOp::End(MicroOp::Idle),
+            MCycleOp::Main(MicroOp::Read16lsbInc(Rhs16Bit::WZ, AddressRegister::SP)),
+            MCycleOp::Main(MicroOp::Read16msbInc(Rhs16Bit::WZ, AddressRegister::SP)),
+            MCycleOp::Main(MicroOp::Ld16(Rhs16Bit::PC, Rhs16Bit::WZ)),
+            MCycleOp::End(MicroOp::Idle), // Restoring address buffer to PC
+        ],
     });
     opcodes[0xC1] = Some(&Instruction {
         opcode: 0xC1,
@@ -2925,13 +2213,11 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 3,
         size: 1,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let mut byte = cpu.pop();
-            cpu.registers.set_c(byte);
-            byte = cpu.pop();
-            cpu.registers.set_b(byte);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::Main(MicroOp::Read8Inc(Rhs8Bit::Z, AddressRegister::SP)), // lsb
+            MCycleOp::Main(MicroOp::Read8Inc(Rhs8Bit::W, AddressRegister::SP)), // MSB
+            MCycleOp::End(MicroOp::Ld16(Rhs16Bit::BC, Rhs16Bit::WZ)),
+        ],
     });
     opcodes[0xC2] = Some(&Instruction {
         opcode: 0xC2,
@@ -2939,16 +2225,13 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 4,
         size: 3,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let mut return_address: u16 = 0x00;
-            return_address |= cpu.fetch_next() as u16;
-            return_address |= (cpu.fetch_next() as u16) << 8;
-            if !cpu.registers.get_zero_flag() {
-                cpu.registers.set_pc(return_address);
-                return opcode.cycles as u64
-            }
-            3
-        },
+        micro_ops: &[
+            MCycleOp::Main(MicroOp::Fetch8(Rhs8Bit::Z)),
+            MCycleOp::Cc(MicroOp::Fetch8(Rhs8Bit::W), CheckCondition::NZ, 3),
+            MCycleOp::End(MicroOp::Idle), // Restoring address buffer to PC
+            MCycleOp::Main(MicroOp::Ld16(Rhs16Bit::PC, Rhs16Bit::WZ)),
+            MCycleOp::End(MicroOp::Idle), // Restoring address buffer to PC
+        ],
     });
     opcodes[0xC3] = Some(&Instruction {
         opcode: 0xC3,
@@ -2956,13 +2239,12 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 4,
         size: 3,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let mut return_address: u16 = 0x00;
-            return_address |= cpu.fetch_next() as u16;
-            return_address |= (cpu.fetch_next() as u16) << 8;
-            cpu.registers.set_pc(return_address);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::Main(MicroOp::Fetch8(Rhs8Bit::Z)),
+            MCycleOp::Main(MicroOp::Fetch8(Rhs8Bit::W)),
+            MCycleOp::Main(MicroOp::Ld16(Rhs16Bit::PC, Rhs16Bit::WZ)),
+            MCycleOp::End(MicroOp::Idle), // Restoring address buffer to PC
+        ],
     });
     opcodes[0xC4] = Some(&Instruction {
         opcode: 0xC4,
@@ -2970,31 +2252,28 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 6,
         size: 3,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let mut call_address: u16 = 0x00;
-            call_address |= cpu.fetch_next() as u16;
-            call_address |= (cpu.fetch_next() as u16) << 8;
-            if !cpu.registers.get_zero_flag() {
-                let return_address = cpu.registers.get_pc();
-                cpu.push((return_address >> 8) as u8);
-                cpu.push((return_address & 0xFF) as u8);
-                cpu.registers.set_pc(call_address);
-                return opcode.cycles as u64
-            }
-            3
-        },
+        micro_ops: &[
+            MCycleOp::Main(MicroOp::Fetch8(Rhs8Bit::Z)),
+            MCycleOp::Cc(MicroOp::Fetch8(Rhs8Bit::W), CheckCondition::NZ, 3),
+            MCycleOp::End(MicroOp::Idle),
+            MCycleOp::Main(MicroOp::Dec16(Rhs16Bit::SP)),
+            MCycleOp::Main(MicroOp::Write16msbDec(AddressRegister::SP, Rhs16Bit::PC)),
+            MCycleOp::Main(MicroOp::Write16lsb(AddressRegister::SP, Rhs16Bit::PC)),
+            MCycleOp::End(MicroOp::Ld16(Rhs16Bit::PC, Rhs16Bit::WZ)), // TODO Refactor: This action is in the previous M-Cycle in parallel with the PC lsb push
+        ],
     });
     opcodes[0xC5] = Some(&Instruction {
         opcode: 0xC5,
         name: "PUSH BC",
-        cycles: 3,
+        cycles: 4,
         size: 1,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.push(cpu.registers.get_b());
-            cpu.push(cpu.registers.get_c());
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::Main(MicroOp::Dec16(Rhs16Bit::SP)),
+            MCycleOp::Main(MicroOp::Write8Inc(AddressRegister::SP, Rhs8Bit::B)), // MSB
+            MCycleOp::Main(MicroOp::Write8(AddressRegister::SP, Rhs8Bit::C)), // lsb
+            MCycleOp::End(MicroOp::Idle),
+        ],
     });
     opcodes[0xC6] = Some(&Instruction {
         opcode: 0xC6,
@@ -3002,17 +2281,10 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 2,
         size: 2,
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let byte = cpu.fetch_next();
-            let old_value = cpu.registers.get_a();
-            let new_value = old_value.wrapping_add(byte);
-            cpu.registers.set_a(new_value);
-            cpu.registers.set_zero_flag(new_value == 0);
-            cpu.registers.set_negative_flag(false);
-            cpu.registers.set_half_carry_flag((new_value & 0x0F) < (old_value & 0x0F));
-            cpu.registers.set_carry_flag(new_value < old_value);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Fetch8(Rhs8Bit::Z)),
+            MCycleOp::End(MicroOp::Alu(AluOp::Add(Rhs8Bit::A, Rhs8Bit::Z))),
+        ],
     });
     opcodes[0xC7] = Some(&Instruction {
         opcode: 0xC7,
@@ -3020,14 +2292,12 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 4,
         size: 1,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let return_addr = cpu.registers.get_pc();
-            let interrupt_addr = ((opcode.opcode & 0b00_111_000) >> 3) as u16 * 8;
-            cpu.push((return_addr >> 8) as u8);
-            cpu.push((return_addr & 0xFF) as u8);
-            cpu.registers.set_pc(interrupt_addr);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::Main(MicroOp::Dec16(Rhs16Bit::SP)),
+            MCycleOp::Main(MicroOp::Write16msbDec(AddressRegister::SP, Rhs16Bit::PC)),
+            MCycleOp::Main(MicroOp::Write16lsb(AddressRegister::SP, Rhs16Bit::PC)),
+            MCycleOp::End(MicroOp::JumpVector(VectorAddress::V0)), // TODO Refactor: This action is in the previous M-Cycle in parallel with the PC lsb push
+        ],
     });
     opcodes[0xC8] = Some(&Instruction {
         opcode: 0xC8,
@@ -3035,15 +2305,14 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 5,
         size: 1,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            if cpu.registers.get_zero_flag() {
-                let mut return_addr = cpu.pop() as u16;
-                return_addr |= (cpu.pop() as u16) << 8;
-                cpu.registers.set_pc(return_addr);
-                return opcode.cycles as u64
-            }
-            2
-        },
+        micro_ops: &[
+            MCycleOp::Cc(MicroOp::Idle, CheckCondition::Z, 2),
+            MCycleOp::End(MicroOp::Idle),
+            MCycleOp::Main(MicroOp::Read16lsbInc(Rhs16Bit::WZ, AddressRegister::SP)),
+            MCycleOp::Main(MicroOp::Read16msbInc(Rhs16Bit::WZ, AddressRegister::SP)),
+            MCycleOp::Main(MicroOp::Ld16(Rhs16Bit::PC, Rhs16Bit::WZ)),
+            MCycleOp::End(MicroOp::Idle), // Restoring address buffer to PC
+        ],
     });
     opcodes[0xC9] = Some(&Instruction {
         opcode: 0xC9,
@@ -3051,12 +2320,12 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 4,
         size: 1,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let mut return_addr = cpu.pop() as u16;
-            return_addr |= (cpu.pop() as u16) << 8;
-            cpu.registers.set_pc(return_addr);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::Main(MicroOp::Read16lsbInc(Rhs16Bit::WZ, AddressRegister::SP)),
+            MCycleOp::Main(MicroOp::Read16msbInc(Rhs16Bit::WZ, AddressRegister::SP)),
+            MCycleOp::Main(MicroOp::Ld16(Rhs16Bit::PC, Rhs16Bit::WZ)),
+            MCycleOp::End(MicroOp::Idle), // Restoring address buffer to PC
+        ],
     });
     opcodes[0xCA] = Some(&Instruction {
         opcode: 0xCA,
@@ -3064,16 +2333,13 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 4,
         size: 3,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let mut return_address: u16 = 0x00;
-            return_address |= cpu.fetch_next() as u16;
-            return_address |= (cpu.fetch_next() as u16) << 8;
-            if cpu.registers.get_zero_flag() {
-                cpu.registers.set_pc(return_address);
-                return opcode.cycles as u64
-            }
-            3
-        },
+        micro_ops: &[
+            MCycleOp::Main(MicroOp::Fetch8(Rhs8Bit::Z)),
+            MCycleOp::Cc(MicroOp::Fetch8(Rhs8Bit::W), CheckCondition::Z, 3),
+            MCycleOp::End(MicroOp::Idle), // Restoring address buffer to PC
+            MCycleOp::Main(MicroOp::Ld16(Rhs16Bit::PC, Rhs16Bit::WZ)),
+            MCycleOp::End(MicroOp::Idle), // Restoring address buffer to PC
+        ],
     });
     opcodes[0xCB] = Some(&Instruction {
         opcode: 0xCB,
@@ -3081,10 +2347,9 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 0,
         size: 0,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            // Implement CB subset will be executed on next fetching & execute
-            cpu.execute_next()
-        },
+        micro_ops: &[
+            MCycleOp::Main(MicroOp::PrefixCB), // Restoring address buffer to PC
+        ],
     });
     opcodes[0xCC] = Some(&Instruction {
         opcode: 0xCC,
@@ -3092,18 +2357,15 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 6,
         size: 3,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let mut call_address: u16 = 0x00;
-            call_address |= cpu.fetch_next() as u16;
-            call_address |= (cpu.fetch_next() as u16) << 8;
-            if cpu.registers.get_zero_flag() {
-                cpu.push((cpu.registers.get_pc() >> 8) as u8);
-                cpu.push((cpu.registers.get_pc() & 0xFF) as u8);
-                cpu.registers.set_pc(call_address);
-                return opcode.cycles as u64
-            }
-            3
-        },
+        micro_ops: &[
+            MCycleOp::Main(MicroOp::Fetch8(Rhs8Bit::Z)),
+            MCycleOp::Cc(MicroOp::Fetch8(Rhs8Bit::W), CheckCondition::Z, 3),
+            MCycleOp::End(MicroOp::Idle),
+            MCycleOp::Main(MicroOp::Dec16(Rhs16Bit::SP)),
+            MCycleOp::Main(MicroOp::Write16msbDec(AddressRegister::SP, Rhs16Bit::PC)),
+            MCycleOp::Main(MicroOp::Write16lsb(AddressRegister::SP, Rhs16Bit::PC)),
+            MCycleOp::End(MicroOp::Ld16(Rhs16Bit::PC, Rhs16Bit::WZ)), // TODO Refactor: This action is in the previous M-Cycle in parallel with the PC lsb push
+        ],
     });
     opcodes[0xCD] = Some(&Instruction {
         opcode: 0xCD,
@@ -3111,15 +2373,14 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 6,
         size: 3,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let mut call_address: u16 = 0x00;
-            call_address |= cpu.fetch_next() as u16;
-            call_address |= (cpu.fetch_next() as u16) << 8;
-            cpu.push((cpu.registers.get_pc() >> 8) as u8);
-            cpu.push((cpu.registers.get_pc() & 0xFF) as u8);
-            cpu.registers.set_pc(call_address);
-            return opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::Main(MicroOp::Fetch8(Rhs8Bit::Z)),
+            MCycleOp::Main(MicroOp::Fetch8(Rhs8Bit::W)),
+            MCycleOp::Main(MicroOp::Dec16(Rhs16Bit::SP)),
+            MCycleOp::Main(MicroOp::Write16msbDec(AddressRegister::SP, Rhs16Bit::PC)), // MSB
+            MCycleOp::Main(MicroOp::Write16lsb(AddressRegister::SP, Rhs16Bit::PC)), // lsb
+            MCycleOp::End(MicroOp::Ld16(Rhs16Bit::PC, Rhs16Bit::WZ)), // TODO Future-Refactor: not the exact timing, this happen in the previous M-Cycle after stored PC lsb
+        ],
     });
     opcodes[0xCE] = Some(&Instruction {
         opcode: 0xCE,
@@ -3127,18 +2388,10 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 2,
         size: 2,
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let byte = cpu.fetch_next();
-            let old_value = cpu.registers.get_a();
-            let intermediate_value = old_value.wrapping_add(byte);
-            let new_value = intermediate_value.wrapping_add(cpu.registers.get_carry_flag() as u8);
-            cpu.registers.set_a(new_value);
-            cpu.registers.set_zero_flag(new_value == 0);
-            cpu.registers.set_negative_flag(false);
-            cpu.registers.set_half_carry_flag(((new_value & 0x0F) < (intermediate_value & 0x0F)) || ((intermediate_value & 0x0F) < (old_value & 0x0F)));
-            cpu.registers.set_carry_flag(new_value < old_value);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Fetch8(Rhs8Bit::Z)),
+            MCycleOp::End(MicroOp::Alu(AluOp::Adc(Rhs8Bit::A, Rhs8Bit::Z))),
+        ],
     });
     opcodes[0xCF] = Some(&Instruction {
         opcode: 0xCF,
@@ -3146,31 +2399,27 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 4,
         size: 1,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let return_addr = cpu.registers.get_pc();
-            let interrupt_addr = ((opcode.opcode & 0b00_111_000) >> 3) as u16 * 8;
-            cpu.push((return_addr >> 8) as u8);
-            cpu.push((return_addr & 0xFF) as u8);
-            cpu.registers.set_pc(interrupt_addr);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::Main(MicroOp::Dec16(Rhs16Bit::SP)),
+            MCycleOp::Main(MicroOp::Write16msbDec(AddressRegister::SP, Rhs16Bit::PC)),
+            MCycleOp::Main(MicroOp::Write16lsb(AddressRegister::SP, Rhs16Bit::PC)),
+            MCycleOp::End(MicroOp::JumpVector(VectorAddress::V1)), // TODO Refactor: This action is in the previous M-Cycle in parallel with the PC lsb push
+        ],
     });
     opcodes[0xD0] = Some(&Instruction {
         opcode: 0xD0,
-        name: "RET CZ",
+        name: "RET NC",
         cycles: 5,
         size: 1,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            if !cpu.registers.get_carry_flag() {
-                let mut return_address: u16 = 0x00;
-                return_address |= cpu.pop() as u16;
-                return_address |= (cpu.pop() as u16) << 8;
-                cpu.registers.set_pc(return_address);
-                return opcode.cycles as u64
-            }
-            2
-        },
+        micro_ops: &[
+            MCycleOp::Cc(MicroOp::Idle, CheckCondition::NC, 2),
+            MCycleOp::End(MicroOp::Idle),
+            MCycleOp::Main(MicroOp::Read16lsbInc(Rhs16Bit::WZ, AddressRegister::SP)),
+            MCycleOp::Main(MicroOp::Read16msbInc(Rhs16Bit::WZ, AddressRegister::SP)),
+            MCycleOp::Main(MicroOp::Ld16(Rhs16Bit::PC, Rhs16Bit::WZ)),
+            MCycleOp::End(MicroOp::Idle), // Restoring address buffer to PC
+        ],
     });
     opcodes[0xD1] = Some(&Instruction {
         opcode: 0xD1,
@@ -3178,13 +2427,11 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 3,
         size: 1,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let mut byte = cpu.pop();
-            cpu.registers.set_e(byte);
-            byte = cpu.pop();
-            cpu.registers.set_d(byte);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::Main(MicroOp::Read8Inc(Rhs8Bit::Z, AddressRegister::SP)), // lsb
+            MCycleOp::Main(MicroOp::Read8Inc(Rhs8Bit::W, AddressRegister::SP)), // MSB
+            MCycleOp::End(MicroOp::Ld16(Rhs16Bit::DE, Rhs16Bit::WZ)),
+        ],
     });
     opcodes[0xD2] = Some(&Instruction {
         opcode: 0xD2,
@@ -3192,16 +2439,13 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 4,
         size: 3,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let mut return_address: u16 = 0x00;
-            return_address |= cpu.fetch_next() as u16;
-            return_address |= (cpu.fetch_next() as u16) << 8;
-            if !cpu.registers.get_carry_flag() {
-                cpu.registers.set_pc(return_address);
-                return opcode.cycles as u64
-            }
-            3
-        },
+        micro_ops: &[
+            MCycleOp::Main(MicroOp::Fetch8(Rhs8Bit::Z)),
+            MCycleOp::Cc(MicroOp::Fetch8(Rhs8Bit::W), CheckCondition::NC, 3),
+            MCycleOp::End(MicroOp::Idle), // Restoring address buffer to PC
+            MCycleOp::Main(MicroOp::Ld16(Rhs16Bit::PC, Rhs16Bit::WZ)),
+            MCycleOp::End(MicroOp::Idle), // Restoring address buffer to PC
+        ],
     });
     opcodes[0xD4] = Some(&Instruction {
         opcode: 0xD4,
@@ -3209,31 +2453,28 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 6,
         size: 3,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let mut call_address: u16 = 0x00;
-            call_address |= cpu.fetch_next() as u16;
-            call_address |= (cpu.fetch_next() as u16) << 8;
-            if !cpu.registers.get_carry_flag() {
-                let return_address = cpu.registers.get_pc();
-                cpu.push((return_address >> 8) as u8);
-                cpu.push((return_address & 0xFF) as u8);
-                cpu.registers.set_pc(call_address);
-                return opcode.cycles as u64
-            }
-            3
-        },
+        micro_ops: &[
+            MCycleOp::Main(MicroOp::Fetch8(Rhs8Bit::Z)),
+            MCycleOp::Cc(MicroOp::Fetch8(Rhs8Bit::W), CheckCondition::NC, 3),
+            MCycleOp::End(MicroOp::Idle),
+            MCycleOp::Main(MicroOp::Dec16(Rhs16Bit::SP)),
+            MCycleOp::Main(MicroOp::Write16msbDec(AddressRegister::SP, Rhs16Bit::PC)),
+            MCycleOp::Main(MicroOp::Write16lsb(AddressRegister::SP, Rhs16Bit::PC)),
+            MCycleOp::End(MicroOp::Ld16(Rhs16Bit::PC, Rhs16Bit::WZ)), // TODO Refactor: This action is in the previous M-Cycle in parallel with the PC lsb push
+        ],
     });
     opcodes[0xD5] = Some(&Instruction {
         opcode: 0xD5,
         name: "PUSH DE",
-        cycles: 3,
+        cycles: 4,
         size: 1,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.push(cpu.registers.get_d());
-            cpu.push(cpu.registers.get_e());
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::Main(MicroOp::Dec16(Rhs16Bit::SP)),
+            MCycleOp::Main(MicroOp::Write8Inc(AddressRegister::SP, Rhs8Bit::D)), // MSB
+            MCycleOp::Main(MicroOp::Write8(AddressRegister::SP, Rhs8Bit::E)), // lsb
+            MCycleOp::End(MicroOp::Idle),
+        ],
     });
     opcodes[0xD6] = Some(&Instruction {
         opcode: 0xD6,
@@ -3241,17 +2482,10 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 2,
         size: 2,
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let byte = cpu.fetch_next();
-            let old_value = cpu.registers.get_a();
-            let new_value = old_value.wrapping_sub(byte);
-            cpu.registers.set_a(new_value);
-            cpu.registers.set_zero_flag(new_value == 0);
-            cpu.registers.set_negative_flag(true);
-            cpu.registers.set_half_carry_flag((new_value & 0x0F) > (old_value & 0x0F));
-            cpu.registers.set_carry_flag(new_value > old_value);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Fetch8(Rhs8Bit::Z)),
+            MCycleOp::End(MicroOp::Alu(AluOp::Sub(Rhs8Bit::A, Rhs8Bit::Z))),
+        ],
     });
     opcodes[0xD7] = Some(&Instruction {
         opcode: 0xD7,
@@ -3259,14 +2493,12 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 4,
         size: 1,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let return_addr = cpu.registers.get_pc();
-            let interrupt_addr = ((opcode.opcode & 0b00_111_000) >> 3) as u16 * 8;
-            cpu.push((return_addr >> 8) as u8);
-            cpu.push((return_addr & 0xFF) as u8);
-            cpu.registers.set_pc(interrupt_addr);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::Main(MicroOp::Dec16(Rhs16Bit::SP)),
+            MCycleOp::Main(MicroOp::Write16msbDec(AddressRegister::SP, Rhs16Bit::PC)),
+            MCycleOp::Main(MicroOp::Write16lsb(AddressRegister::SP, Rhs16Bit::PC)),
+            MCycleOp::End(MicroOp::JumpVector(VectorAddress::V2)), // TODO Refactor: This action is in the previous M-Cycle in parallel with the PC lsb push
+        ],
     });
     opcodes[0xD8] = Some(&Instruction {
         opcode: 0xD8,
@@ -3274,15 +2506,14 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 5,
         size: 1,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            if cpu.registers.get_carry_flag() {
-                let mut return_addr = cpu.pop() as u16;
-                return_addr |= (cpu.pop() as u16) << 8;
-                cpu.registers.set_pc(return_addr);
-                return opcode.cycles as u64
-            }
-            2
-        },
+        micro_ops: &[
+            MCycleOp::Cc(MicroOp::Idle, CheckCondition::C, 2),
+            MCycleOp::End(MicroOp::Idle),
+            MCycleOp::Main(MicroOp::Read16lsbInc(Rhs16Bit::WZ, AddressRegister::SP)),
+            MCycleOp::Main(MicroOp::Read16msbInc(Rhs16Bit::WZ, AddressRegister::SP)),
+            MCycleOp::Main(MicroOp::Ld16(Rhs16Bit::PC, Rhs16Bit::WZ)),
+            MCycleOp::End(MicroOp::Idle), // Restoring address buffer to PC
+        ],
     });
     opcodes[0xD9] = Some(&Instruction {
         opcode: 0xD9,
@@ -3290,13 +2521,12 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 4,
         size: 1,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let mut return_addr = cpu.pop() as u16;
-            return_addr |= (cpu.pop() as u16) << 8;
-            cpu.registers.set_pc(return_addr);
-            cpu.ime = true;
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::Main(MicroOp::Read16lsbInc(Rhs16Bit::WZ, AddressRegister::SP)),
+            MCycleOp::Main(MicroOp::Read16msbInc(Rhs16Bit::WZ, AddressRegister::SP)),
+            MCycleOp::Main(MicroOp::Ld16(Rhs16Bit::PC, Rhs16Bit::WZ)),
+            MCycleOp::End(MicroOp::ImeEnabled(true)), // TODO Refactor: This action is in the previous M-Cycle in parallel with Ld16
+        ],
     });
     opcodes[0xDA] = Some(&Instruction {
         opcode: 0xDA,
@@ -3304,16 +2534,13 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 4,
         size: 3,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let mut return_address: u16 = 0x00;
-            return_address |= cpu.fetch_next() as u16;
-            return_address |= (cpu.fetch_next() as u16) << 8;
-            if cpu.registers.get_carry_flag() {
-                cpu.registers.set_pc(return_address);
-                return opcode.cycles as u64
-            }
-            3
-        },
+        micro_ops: &[
+            MCycleOp::Main(MicroOp::Fetch8(Rhs8Bit::Z)),
+            MCycleOp::Cc(MicroOp::Fetch8(Rhs8Bit::W), CheckCondition::C, 3),
+            MCycleOp::End(MicroOp::Idle), // Restoring address buffer to PC
+            MCycleOp::Main(MicroOp::Ld16(Rhs16Bit::PC, Rhs16Bit::WZ)),
+            MCycleOp::End(MicroOp::Idle), // Restoring address buffer to PC
+        ],
     });
     opcodes[0xDC] = Some(&Instruction {
         opcode: 0xDC,
@@ -3321,18 +2548,15 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 6,
         size: 3,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let mut call_address: u16 = 0x00;
-            call_address |= cpu.fetch_next() as u16;
-            call_address |= (cpu.fetch_next() as u16) << 8;
-            if cpu.registers.get_carry_flag() {
-                cpu.push((cpu.registers.get_pc() >> 8) as u8);
-                cpu.push((cpu.registers.get_pc() & 0xFF) as u8);
-                cpu.registers.set_pc(call_address);
-                return opcode.cycles as u64
-            }
-            3
-        },
+        micro_ops: &[
+            MCycleOp::Main(MicroOp::Fetch8(Rhs8Bit::Z)),
+            MCycleOp::Cc(MicroOp::Fetch8(Rhs8Bit::W), CheckCondition::C, 3),
+            MCycleOp::End(MicroOp::Idle),
+            MCycleOp::Main(MicroOp::Dec16(Rhs16Bit::SP)),
+            MCycleOp::Main(MicroOp::Write16msbDec(AddressRegister::SP, Rhs16Bit::PC)),
+            MCycleOp::Main(MicroOp::Write16lsb(AddressRegister::SP, Rhs16Bit::PC)),
+            MCycleOp::End(MicroOp::Ld16(Rhs16Bit::PC, Rhs16Bit::WZ)), // TODO Refactor: This action is in the previous M-Cycle in parallel with the PC lsb push
+        ],
     });
     opcodes[0xDE] = Some(&Instruction {
         opcode: 0xDE,
@@ -3340,18 +2564,10 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 2,
         size: 2,
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let byte = cpu.fetch_next();
-            let old_value = cpu.registers.get_a();
-            let intermediate_value = old_value.wrapping_sub(byte);
-            let new_value = intermediate_value.wrapping_sub(cpu.registers.get_carry_flag() as u8);
-            cpu.registers.set_a(new_value);
-            cpu.registers.set_zero_flag(new_value == 0);
-            cpu.registers.set_negative_flag(true);
-            cpu.registers.set_half_carry_flag(((new_value & 0x0F) > (intermediate_value & 0x0F)) || ((intermediate_value & 0x0F) > (old_value & 0x0F)));
-            cpu.registers.set_carry_flag(new_value > old_value);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Fetch8(Rhs8Bit::Z)),
+            MCycleOp::End(MicroOp::Alu(AluOp::Sbc(Rhs8Bit::A, Rhs8Bit::Z))),
+        ],
     });
     opcodes[0xDF] = Some(&Instruction {
         opcode: 0xDF,
@@ -3359,14 +2575,12 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 4,
         size: 1,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let return_addr = cpu.registers.get_pc();
-            let interrupt_addr = ((opcode.opcode & 0b00_111_000) >> 3) as u16 * 8;
-            cpu.push((return_addr >> 8) as u8);
-            cpu.push((return_addr & 0xFF) as u8);
-            cpu.registers.set_pc(interrupt_addr);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::Main(MicroOp::Dec16(Rhs16Bit::SP)),
+            MCycleOp::Main(MicroOp::Write16msbDec(AddressRegister::SP, Rhs16Bit::PC)),
+            MCycleOp::Main(MicroOp::Write16lsb(AddressRegister::SP, Rhs16Bit::PC)),
+            MCycleOp::End(MicroOp::JumpVector(VectorAddress::V3)), // TODO Refactor: This action is in the previous M-Cycle in parallel with the PC lsb push
+        ],
     });
     opcodes[0xE0] = Some(&Instruction {
         opcode: 0xE0,
@@ -3374,15 +2588,11 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 3,
         size: 2,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let byte = (cpu.fetch_next() as u16) & 0xFF;
-            let mem_addr = 0xFF00 | byte;
-            cpu.write_memory(mem_addr, cpu.registers.get_a());
-            if mem_addr == memory::registers::DMA {
-                cpu.dma_transfer = true;
-            }
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::Main(MicroOp::Fetch8(Rhs8Bit::Z)),
+            MCycleOp::Main(MicroOp::Write8H(Rhs8Bit::Z, Rhs8Bit::A)),
+            MCycleOp::End(MicroOp::Idle), // Restore Address Buffer with PC
+        ],
     });
     opcodes[0xE1] = Some(&Instruction {
         opcode: 0xE1,
@@ -3390,13 +2600,11 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 3,
         size: 1,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let mut byte = cpu.pop();
-            cpu.registers.set_l(byte);
-            byte = cpu.pop();
-            cpu.registers.set_h(byte);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::Main(MicroOp::Read8Inc(Rhs8Bit::Z, AddressRegister::SP)), // lsb
+            MCycleOp::Main(MicroOp::Read8Inc(Rhs8Bit::W, AddressRegister::SP)), // MSB
+            MCycleOp::End(MicroOp::Ld16(Rhs16Bit::HL, Rhs16Bit::WZ)),
+        ],
     });
     opcodes[0xE2] = Some(&Instruction {
         opcode: 0xE2,
@@ -3404,27 +2612,23 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 2,
         size: 1,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let byte = (cpu.registers.get_c() as u16) & 0xFF;
-            let mem_addr = 0xFF00 | byte;
-            cpu.write_memory(mem_addr, cpu.registers.get_a());
-            if mem_addr == memory::registers::DMA {
-                cpu.dma_transfer = true;
-            }
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::Main(MicroOp::Write8H(Rhs8Bit::C, Rhs8Bit::A)),
+            MCycleOp::End(MicroOp::Idle), // Restore Address Buffer with PC
+        ],
     });
     opcodes[0xE5] = Some(&Instruction {
         opcode: 0xE5,
         name: "PUSH HL",
-        cycles: 3,
+        cycles: 4,
         size: 1,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.push(cpu.registers.get_h());
-            cpu.push(cpu.registers.get_l());
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::Main(MicroOp::Dec16(Rhs16Bit::SP)),
+            MCycleOp::Main(MicroOp::Write8Inc(AddressRegister::SP, Rhs8Bit::H)), // MSB
+            MCycleOp::Main(MicroOp::Write8(AddressRegister::SP, Rhs8Bit::L)), // lsb
+            MCycleOp::End(MicroOp::Idle),
+        ],
     });
     opcodes[0xE6] = Some(&Instruction {
         opcode: 0xE6,
@@ -3449,14 +2653,12 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 4,
         size: 1,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let return_addr = cpu.registers.get_pc();
-            let interrupt_addr = ((opcode.opcode & 0b00_111_000) >> 3) as u16 * 8;
-            cpu.push((return_addr >> 8) as u8);
-            cpu.push((return_addr & 0xFF) as u8);
-            cpu.registers.set_pc(interrupt_addr);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::Main(MicroOp::Dec16(Rhs16Bit::SP)),
+            MCycleOp::Main(MicroOp::Write16msbDec(AddressRegister::SP, Rhs16Bit::PC)),
+            MCycleOp::Main(MicroOp::Write16lsb(AddressRegister::SP, Rhs16Bit::PC)),
+            MCycleOp::End(MicroOp::JumpVector(VectorAddress::V4)), // TODO Refactor: This action is in the previous M-Cycle in parallel with the PC lsb push
+        ],
     });
     opcodes[0xE8] = Some(&Instruction {
         opcode: 0xE8,
@@ -3532,14 +2734,12 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 4,
         size: 1,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let return_addr = cpu.registers.get_pc();
-            let interrupt_addr = ((opcode.opcode & 0b00_111_000) >> 3) as u16 * 8;
-            cpu.push((return_addr >> 8) as u8);
-            cpu.push((return_addr & 0xFF) as u8);
-            cpu.registers.set_pc(interrupt_addr);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::Main(MicroOp::Dec16(Rhs16Bit::SP)),
+            MCycleOp::Main(MicroOp::Write16msbDec(AddressRegister::SP, Rhs16Bit::PC)),
+            MCycleOp::Main(MicroOp::Write16lsb(AddressRegister::SP, Rhs16Bit::PC)),
+            MCycleOp::End(MicroOp::JumpVector(VectorAddress::V5)), // TODO Refactor: This action is in the previous M-Cycle in parallel with the PC lsb push
+        ],
     });
     opcodes[0xF0] = Some(&Instruction {
         opcode: 0xF0,
@@ -3547,15 +2747,11 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 3,
         size: 2,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let byte = (cpu.fetch_next() as u16) & 0xFF;
-            let mem_addr = 0xFF00 | byte;
-            cpu.registers.set_a(cpu.read_memory(mem_addr));
-            if mem_addr == memory::registers::DMA {
-                cpu.dma_transfer = true;
-            }
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::Main(MicroOp::Fetch8(Rhs8Bit::Z)),
+            MCycleOp::Main(MicroOp::Read8H(Rhs8Bit::A, Rhs8Bit::Z)),
+            MCycleOp::End(MicroOp::Idle), // Restore Address Buffer with PC
+        ],
     });
     opcodes[0xF1] = Some(&Instruction {
         opcode: 0xF1,
@@ -3563,13 +2759,11 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 3,
         size: 1,
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let mut byte = cpu.pop();
-            cpu.registers.set_f(byte);
-            byte = cpu.pop();
-            cpu.registers.set_a(byte);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::Main(MicroOp::Read8Inc(Rhs8Bit::Z, AddressRegister::SP)), // lsb
+            MCycleOp::Main(MicroOp::Read8Inc(Rhs8Bit::W, AddressRegister::SP)), // MSB
+            MCycleOp::End(MicroOp::Ld16(Rhs16Bit::AF, Rhs16Bit::WZ)),
+        ],
     });
     opcodes[0xF2] = Some(&Instruction {
         opcode: 0xF2,
@@ -3577,15 +2771,10 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 2,
         size: 1,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let byte = (cpu.registers.get_c() as u16) & 0xFF;
-            let mem_addr = 0xFF00 | byte;
-            cpu.registers.set_a(cpu.read_memory(mem_addr));
-            if mem_addr == memory::registers::DMA {
-                cpu.dma_transfer = true;
-            }
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::Main(MicroOp::Read8H(Rhs8Bit::A, Rhs8Bit::C)),
+            MCycleOp::End(MicroOp::Idle), // Restore Address Buffer with PC
+        ],
     });
     opcodes[0xF3] = Some(&Instruction {
         opcode: 0xF3,
@@ -3593,22 +2782,22 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 1,
         size: 1,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.ime = false;
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::ImeEnabled(false)),
+        ],
     });
     opcodes[0xF5] = Some(&Instruction {
         opcode: 0xF5,
         name: "PUSH AF",
-        cycles: 3,
+        cycles: 4,
         size: 1,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.push(cpu.registers.get_a());
-            cpu.push(cpu.registers.get_f());
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::Main(MicroOp::Dec16(Rhs16Bit::SP)),
+            MCycleOp::Main(MicroOp::Write8Inc(AddressRegister::SP, Rhs8Bit::A)), // MSB
+            MCycleOp::Main(MicroOp::Write8(AddressRegister::SP, Rhs8Bit::F)), // lsb
+            MCycleOp::End(MicroOp::Idle),
+        ],
     });
     opcodes[0xF6] = Some(&Instruction {
         opcode: 0xF6,
@@ -3616,16 +2805,10 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 2,
         size: 2,
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let old_value = cpu.registers.get_a();
-            let new_value = old_value | cpu.fetch_next();
-            cpu.registers.set_a(new_value);
-            cpu.registers.set_zero_flag(new_value == 0);
-            cpu.registers.set_negative_flag(false);
-            cpu.registers.set_half_carry_flag(false);
-            cpu.registers.set_carry_flag(false);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Fetch8(Rhs8Bit::Z)),
+            MCycleOp::End(MicroOp::Alu(AluOp::Or(Rhs8Bit::A, Rhs8Bit::Z))),
+        ],
     });
     opcodes[0xF7] = Some(&Instruction {
         opcode: 0xF7,
@@ -3633,14 +2816,12 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 4,
         size: 1,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let return_addr = cpu.registers.get_pc();
-            let interrupt_addr = ((opcode.opcode & 0b00_111_000) >> 3) as u16 * 8;
-            cpu.push((return_addr >> 8) as u8);
-            cpu.push((return_addr & 0xFF) as u8);
-            cpu.registers.set_pc(interrupt_addr);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::Main(MicroOp::Dec16(Rhs16Bit::SP)),
+            MCycleOp::Main(MicroOp::Write16msbDec(AddressRegister::SP, Rhs16Bit::PC)),
+            MCycleOp::Main(MicroOp::Write16lsb(AddressRegister::SP, Rhs16Bit::PC)),
+            MCycleOp::End(MicroOp::JumpVector(VectorAddress::V6)), // TODO Refactor: This action is in the previous M-Cycle in parallel with the PC lsb push
+        ],
     });
     opcodes[0xF8] = Some(&Instruction {
         opcode: 0xF8,
@@ -3672,10 +2853,10 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 2,
         size: 1,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.registers.set_sp(cpu.registers.get_hl());
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::Main(MicroOp::Ld16(Rhs16Bit::SP, Rhs16Bit::HL)), // This latch address buffer with HL
+            MCycleOp::End(MicroOp::Idle), // Restore Address Buffer with PC
+        ],
     });
     opcodes[0xFA] = Some(&Instruction {
         opcode: 0xFA,
@@ -3696,11 +2877,10 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         name: "EI",
         cycles: 1,
         size: 1,
+        micro_ops: &[
+            MCycleOp::End(MicroOp::ImeEnabled(true)),
+        ],
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            cpu.ime = true;
-            opcode.cycles as u64
-        },
     });
     opcodes[0xFE] = Some(&Instruction {
         opcode: 0xFE,
@@ -3708,31 +2888,23 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         cycles: 2,
         size: 2,
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let byte = cpu.fetch_next();
-            let old_value = cpu.registers.get_a();
-            let new_value = old_value.wrapping_sub(byte);
-            cpu.registers.set_zero_flag(new_value == 0);
-            cpu.registers.set_negative_flag(true);
-            cpu.registers.set_half_carry_flag((new_value & 0x0F) > (old_value & 0x0F));
-            cpu.registers.set_carry_flag(new_value > old_value);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::End(MicroOp::Fetch8(Rhs8Bit::Z)),
+            MCycleOp::End(MicroOp::Alu(AluOp::Cp(Rhs8Bit::A, Rhs8Bit::Z))),
+        ],
     });
     opcodes[0xFF] = Some(&Instruction {
         opcode: 0xFF,
-        name: "RST $30",
+        name: "RST $38",
         cycles: 4,
         size: 1,
         flags: &[],
-        execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-            let return_addr = cpu.registers.get_pc();
-            let interrupt_addr = ((opcode.opcode & 0b00_111_000) >> 3) as u16 * 8;
-            cpu.push((return_addr >> 8) as u8);
-            cpu.push((return_addr & 0xFF) as u8);
-            cpu.registers.set_pc(interrupt_addr);
-            opcode.cycles as u64
-        },
+        micro_ops: &[
+            MCycleOp::Main(MicroOp::Dec16(Rhs16Bit::SP)),
+            MCycleOp::Main(MicroOp::Write16msbDec(AddressRegister::SP, Rhs16Bit::PC)),
+            MCycleOp::Main(MicroOp::Write16lsb(AddressRegister::SP, Rhs16Bit::PC)),
+            MCycleOp::End(MicroOp::JumpVector(VectorAddress::V7)), // TODO Refactor: This action is in the previous M-Cycle in parallel with the PC lsb push
+        ],
     });
     opcodes
 }
