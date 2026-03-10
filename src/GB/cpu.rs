@@ -4,7 +4,7 @@ pub mod cpu_mmio;
 
 use crate::GB::bus::{Bus, MmioContext, BusDevice};
 use crate::GB::types::{address::Address, Byte};
-use crate::GB::cpu::instructions::microcode::{CheckCondition, IduOp, MicroFlow};
+use crate::GB::cpu::instructions::microcode::{CheckCondition, IduOp, MicroFlow, SetFlag, SetFlagZ};
 use crate::GB::cpu::instructions::{Instruction, InstructionMicroOpIndex};
 use crate::GB::cpu::registers::core_registers::Flags;
 use crate::GB::{bus, GB};
@@ -423,8 +423,33 @@ impl CPU {
             MicroOp::JumpVector(jump_addr) => {
                 self.registers.set_pc(jump_addr as u16);
             }
-            MicroOp::SumSignedByte16(lhs, rhs) => {
-                todo!("Add sum of rhs 8-bit as signed to lhs 16-bit");
+            MicroOp::SumSignedByte16(lhs, rhs, use_flags) => {
+                // RHS contains e8 on lsb, value should be added to LHS but stored as tmp on RHS
+                let old_lhs_msb = self.registers.get_word_msb(lhs);
+                let old_lhs_lsb = self.registers.get_word_lsb(lhs);
+                let byte = self.registers.get_word_lsb(rhs);
+
+                let new_rhs_lsb = old_lhs_lsb.wrapping_add(byte);
+                let carry = Flags::add_carry(old_lhs_lsb, byte, false);
+                let half_carry = Flags::add_half_carry(old_lhs_lsb, byte, false);
+
+                // sign extension
+                let adj: u8 = if (byte & 0x80) != 0 { 0xFF } else { 0x00 };
+
+                let new_rhs_msb = old_lhs_msb
+                    .wrapping_add(adj)
+                    .wrapping_add(if carry { 1 } else { 0 });
+
+                self.registers.set_word_lsb(rhs, new_rhs_lsb);
+                self.registers.set_word_msb(rhs, new_rhs_msb);
+
+                // Hardcoded - At least it works for a first version
+                if use_flags {
+                    self.registers.set_zero_flag(false);
+                    self.registers.set_negative_flag(false);
+                    self.registers.set_carry_flag(carry);
+                    self.registers.set_half_carry_flag(half_carry);
+                }
             }
             MicroOp::Alu(alu_op) => {
                 self.alu_operation(alu_op);
@@ -747,6 +772,33 @@ impl CPU {
             AluOp::Set(bit, rhs) => {
                 self.registers
                     .set_byte(rhs, self.registers.get_byte(rhs) | (1 << bit as u8));
+            }
+            AluOp::SetFlags(z, n, h, c) => {
+                let zero = match z {
+                    SetFlag::Same => flags.z(),
+                    SetFlag::On => true,
+                    SetFlag::Off => false,
+                    SetFlag::Cpl => !flags.z(),
+                };
+                let negative = match n {
+                    SetFlag::Same => flags.n(),
+                    SetFlag::On => true,
+                    SetFlag::Off => false,
+                    SetFlag::Cpl => !flags.n(),
+                };
+                let half = match h {
+                    SetFlag::Same => flags.h(),
+                    SetFlag::On => true,
+                    SetFlag::Off => false,
+                    SetFlag::Cpl => !flags.h(),
+                };
+                let carry = match c {
+                    SetFlag::Same => flags.c(),
+                    SetFlag::On => true,
+                    SetFlag::Off => false,
+                    SetFlag::Cpl => !flags.c(),
+                };
+                self.registers.set_flags(Flags::new(zero, negative, half, carry));
             }
         }
     }

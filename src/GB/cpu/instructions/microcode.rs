@@ -60,6 +60,19 @@ pub enum IduOp {
 }
 
 #[derive(Debug, Clone, Copy)]
+pub enum SetFlag {
+    Same,
+    On,
+    Off,
+    Cpl, // "Complement"
+}
+
+pub type SetFlagZ = SetFlag;
+pub type SetFlagN = SetFlag;
+pub type SetFlagH = SetFlag;
+pub type SetFlagC = SetFlag;
+
+#[derive(Debug, Clone, Copy)]
 pub enum AluOp {
     Add(Lhs8Bit, Rhs8Bit),
     AddMsb(Lhs16Bit, Lhs16Bit), // For MSB of 16-bit registers: Z flag is not latched and propagated
@@ -93,6 +106,7 @@ pub enum AluOp {
     Bit(ByteBit, Rhs8Bit),
     Res(ByteBit, Rhs8Bit),
     Set(ByteBit, Rhs8Bit),
+    SetFlags(SetFlagZ, SetFlagN, SetFlagH, SetFlagC),
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -121,7 +135,7 @@ pub enum MicroOp {
     Inc16(Rhs16Bit),
     Dec16(Rhs16Bit),
     JumpVector(VectorAddress), // To immediate set PC during interrupts and RST
-    SumSignedByte16(Rhs16Bit, Rhs8Bit),
+    SumSignedByte16(Rhs16Bit, Rhs16Bit, bool),
     Alu(AluOp),
     Idu(IduOp),
     AluAndWrite8(AluOp, AddressRegister, Rhs8Bit),
