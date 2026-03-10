@@ -2,11 +2,8 @@
 mod test;
 pub mod microcode;
 
-use crate::GB::cpu::CPU;
-use crate::GB::debug_print;
-use super::registers::core_registers::{FlagBits, Flags};
+use super::registers::core_registers::{FlagBits};
 use microcode::{*};
-use crate::GB::memory;
 
 pub type InstructionMicroOpIndex = usize;
 
@@ -59,13 +56,13 @@ const fn daa(mut a: u8, mut flags: u8) -> (u8, u8) {
 
     // Impostare i flag appropriati
     if carry_flag {
-        flags |= (FlagBits::C as u8);
+        flags |= FlagBits::C as u8;
     } else {
         flags &= !(FlagBits::C as u8);
     }
 
     if zero_flag {
-        flags |= (FlagBits::Z as u8);
+        flags |= FlagBits::Z as u8;
     } else {
         flags &= !(FlagBits::Z as u8);
     }
@@ -2631,7 +2628,7 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
             // Todo Refactor: Well, this is not too accurate, but it should work by now
             MCycleOp::Main(MicroOp::Fetch8(Rhs8Bit::Z)),
             MCycleOp::Main(MicroOp::SumSignedByte16(Lhs16Bit::SP, Rhs16Bit::WZ, true)),
-            MCycleOp::Main(MicroOp::Idle), // Yeah i know this is not accurate
+            MCycleOp::Main(MicroOp::Idle), // Yeah, I know this is not accurate
             MCycleOp::End(MicroOp::Idu(IduOp::None(Lhs16Bit::SP, Lhs16Bit::WZ))),
         ],
     });
@@ -2839,723 +2836,610 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
 
 const fn create_cb_opcodes() -> [Option<&'static Instruction>; 256] {
     macro_rules! rlc {
-        ($opcode:expr, $name:expr, r8, $set_reg:ident, $get_reg:ident) => {
+        ($opcode:expr, $name:expr, $rhs8bit:expr) => {
             Some(&Instruction {
                 opcode: $opcode,
                 name: $name,
                 cycles: 2,
                 size: 2,
                 flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
-                execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-                    let old_val = cpu.registers.$get_reg();
-                    cpu.registers.set_carry_flag((old_val & 0b1000_0000) != 0);
-                    let new_val = old_val.wrapping_shl(1) | cpu.registers.get_carry_flag() as u8;
-                    cpu.registers.$set_reg(new_val);
-                    cpu.registers.set_zero_flag(new_val == 0);
-                    cpu.registers.set_negative_flag(false);
-                    cpu.registers.set_half_carry_flag(false);
-                    opcode.cycles as u64
-                }
+                micro_ops: &[
+                    MCycleOp::End(MicroOp::Alu(AluOp::Rlc($rhs8bit))),
+                ],
             })
         };
-        ($opcode:expr, $name:expr, ar16, $set_reg:ident, $get_reg:ident) => {
+        ($opcode:expr, $name:expr, $address_register:expr, $rhs8bit:expr) => {
             Some(&Instruction {
                 opcode: $opcode,
                 name: $name,
                 cycles: 4,
                 size: 2,
                 flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
-                execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-                    let old_val = cpu.read_memory(cpu.registers.$get_reg());
-                    cpu.registers.set_carry_flag((old_val & 0b1000_0000) != 0);
-                    let new_val = old_val.wrapping_shl(1) | cpu.registers.get_carry_flag() as u8;
-                    cpu.write_memory(cpu.registers.$get_reg(), new_val);
-                    cpu.registers.set_zero_flag(new_val == 0);
-                    cpu.registers.set_negative_flag(false);
-                    cpu.registers.set_half_carry_flag(false);
-                    opcode.cycles as u64
-                }
-            })
-        };
-    }
-    macro_rules! rl {
-        ($opcode:expr, $name:expr, r8, $set_reg:ident, $get_reg:ident) => {
-            Some(&Instruction {
-                opcode: $opcode,
-                name: $name,
-                cycles: 2,
-                size: 2,
-                flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
-                execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-                    let old_val = cpu.registers.$get_reg();
-                    let old_carry = cpu.registers.get_carry_flag() as u8;
-                    cpu.registers.set_carry_flag((old_val & 0b1000_0000) != 0);
-                    let new_val = old_val.wrapping_shl(1) | old_carry;
-                    cpu.registers.$set_reg(new_val);
-                    cpu.registers.set_zero_flag(new_val == 0);
-                    cpu.registers.set_negative_flag(false);
-                    cpu.registers.set_half_carry_flag(false);
-                    opcode.cycles as u64
-                }
-            })
-        };
-        ($opcode:expr, $name:expr, ar16, $set_reg:ident, $get_reg:ident) => {
-            Some(&Instruction {
-                opcode: $opcode,
-                name: $name,
-                cycles: 4,
-                size: 2,
-                flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
-                execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-                    let old_val = cpu.read_memory(cpu.registers.$get_reg());
-                    let old_carry = cpu.registers.get_carry_flag() as u8;
-                    cpu.registers.set_carry_flag((old_val & 0b1000_0000) != 0);
-                    let new_val = old_val.wrapping_shl(1) | old_carry as u8;
-                    cpu.write_memory(cpu.registers.$get_reg(), new_val);
-                    cpu.registers.set_zero_flag(new_val == 0);
-                    cpu.registers.set_negative_flag(false);
-                    cpu.registers.set_half_carry_flag(false);
-                    opcode.cycles as u64
-                }
-            })
-        };
-    }
-    macro_rules! sla {
-        ($opcode:expr, $name:expr, r8, $set_reg:ident, $get_reg:ident) => {
-            Some(&Instruction {
-                opcode: $opcode,
-                name: $name,
-                cycles: 2,
-                size: 2,
-                flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
-                execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-                    let old_val = cpu.registers.$get_reg();
-                    cpu.registers.set_carry_flag((old_val & 0b1000_0000) != 0);
-                    let new_val = old_val.wrapping_shl(1);
-                    cpu.registers.$set_reg(new_val);
-                    cpu.registers.set_zero_flag(new_val == 0);
-                    cpu.registers.set_negative_flag(false);
-                    cpu.registers.set_half_carry_flag(false);
-                    opcode.cycles as u64
-                }
-            })
-        };
-        ($opcode:expr, $name:expr, ar16, $set_reg:ident, $get_reg:ident) => {
-            Some(&Instruction {
-                opcode: $opcode,
-                name: $name,
-                cycles: 4,
-                size: 2,
-                flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
-                execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-                    let old_val = cpu.read_memory(cpu.registers.$get_reg());
-                    cpu.registers.set_carry_flag((old_val & 0b1000_0000) != 0);
-                    let new_val = old_val.wrapping_shl(1);
-                    cpu.write_memory(cpu.registers.$get_reg(), new_val);
-                    cpu.registers.set_zero_flag(new_val == 0);
-                    cpu.registers.set_negative_flag(false);
-                    cpu.registers.set_half_carry_flag(false);
-                    opcode.cycles as u64
-                }
+                micro_ops: &[
+                    MCycleOp::Main(MicroOp::Read8($rhs8bit, $address_register)),
+                    MCycleOp::Main(MicroOp::Alu(AluOp::Rlc($rhs8bit))),
+                    MCycleOp::End(MicroOp::Write8($address_register, $rhs8bit)), // TODO refactor: not 100% M-Cycle accurate. This is done in the previous and this just reset PC as buffer address
+                ],
             })
         };
     }
 
     macro_rules! rrc {
-        ($opcode:expr, $name:expr, r8, $set_reg:ident, $get_reg:ident) => {
+        ($opcode:expr, $name:expr, $rhs8bit:expr) => {
             Some(&Instruction {
                 opcode: $opcode,
                 name: $name,
                 cycles: 2,
                 size: 2,
                 flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
-                execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-                    let old_val = cpu.registers.$get_reg();
-                    cpu.registers.set_carry_flag((old_val & 0b0000_0001) != 0);
-                    let new_val = old_val.wrapping_shr(1) | ((cpu.registers.get_carry_flag() as u8) << 7);
-                    cpu.registers.$set_reg(new_val);
-                    cpu.registers.set_zero_flag(new_val == 0);
-                    cpu.registers.set_negative_flag(false);
-                    cpu.registers.set_half_carry_flag(false);
-                    opcode.cycles as u64
-                }
+                micro_ops: &[
+                    MCycleOp::End(MicroOp::Alu(AluOp::Rrc($rhs8bit))),
+                ],
             })
         };
-        ($opcode:expr, $name:expr, ar16, $set_reg:ident, $get_reg:ident) => {
+        ($opcode:expr, $name:expr, $address_register:expr, $rhs8bit:expr) => {
             Some(&Instruction {
                 opcode: $opcode,
                 name: $name,
                 cycles: 4,
                 size: 2,
                 flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
-                execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-                    let old_val = cpu.read_memory(cpu.registers.$get_reg());
-                    cpu.registers.set_carry_flag((old_val & 0b0000_0001) != 0);
-                    let new_val = old_val.wrapping_shr(1) | ((cpu.registers.get_carry_flag() as u8) << 7);
-                    cpu.write_memory(cpu.registers.$get_reg(), new_val);
-                    cpu.registers.set_zero_flag(new_val == 0);
-                    cpu.registers.set_negative_flag(false);
-                    cpu.registers.set_half_carry_flag(false);
-                    opcode.cycles as u64
-                }
+                micro_ops: &[
+                    MCycleOp::Main(MicroOp::Read8($rhs8bit, $address_register)),
+                    MCycleOp::Main(MicroOp::Alu(AluOp::Rlc($rhs8bit))),
+                    MCycleOp::End(MicroOp::Write8($address_register, $rhs8bit)), // TODO refactor: not 100% M-Cycle accurate. This is done in the previous and this just reset PC as buffer address
+                ],
             })
         };
     }
-    macro_rules! rr {
-        ($opcode:expr, $name:expr, r8, $set_reg:ident, $get_reg:ident) => {
+
+    macro_rules! rl {
+        ($opcode:expr, $name:expr, $rhs8bit:expr) => {
             Some(&Instruction {
                 opcode: $opcode,
                 name: $name,
                 cycles: 2,
                 size: 2,
                 flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
-                execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-                    let old_val = cpu.registers.$get_reg();
-                    let old_carry = cpu.registers.get_carry_flag() as u8;
-                    cpu.registers.set_carry_flag((old_val & 0b0000_0001) != 0);
-                    let new_val = old_val.wrapping_shr(1) | (old_carry << 7);
-                    cpu.registers.$set_reg(new_val);
-                    cpu.registers.set_zero_flag(new_val == 0);
-                    cpu.registers.set_negative_flag(false);
-                    cpu.registers.set_half_carry_flag(false);
-                    opcode.cycles as u64
-                }
+                micro_ops: &[
+                    MCycleOp::End(MicroOp::Alu(AluOp::Rl($rhs8bit))),
+                ],
             })
         };
-        ($opcode:expr, $name:expr, ar16, $set_reg:ident, $get_reg:ident) => {
+        ($opcode:expr, $name:expr, $address_register:expr, $rhs8bit:expr) => {
             Some(&Instruction {
                 opcode: $opcode,
                 name: $name,
                 cycles: 4,
                 size: 2,
                 flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
-                execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-                    let old_val = cpu.read_memory(cpu.registers.$get_reg());
-                    let old_carry = cpu.registers.get_carry_flag() as u8;
-                    cpu.registers.set_carry_flag((old_val & 0b0000_0001) != 0);
-                    let new_val = old_val.wrapping_shr(1) | (old_carry << 7);
-                    cpu.write_memory(cpu.registers.$get_reg(), new_val);
-                    cpu.registers.set_zero_flag(new_val == 0);
-                    cpu.registers.set_negative_flag(false);
-                    cpu.registers.set_half_carry_flag(false);
-                    opcode.cycles as u64
-                }
+                micro_ops: &[
+                    MCycleOp::Main(MicroOp::Read8($rhs8bit, $address_register)),
+                    MCycleOp::Main(MicroOp::Alu(AluOp::Rl($rhs8bit))),
+                    MCycleOp::End(MicroOp::Write8($address_register, $rhs8bit)), // TODO refactor: not 100% M-Cycle accurate. This is done in the previous and this just reset PC as buffer address
+                ],
+            })
+        };
+    }
+    macro_rules! sla {
+        ($opcode:expr, $name:expr, $rhs8bit:expr) => {
+            Some(&Instruction {
+                opcode: $opcode,
+                name: $name,
+                cycles: 2,
+                size: 2,
+                flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
+                micro_ops: &[
+                    MCycleOp::End(MicroOp::Alu(AluOp::Sla($rhs8bit))),
+                ],
+            })
+        };
+        ($opcode:expr, $name:expr, $address_register:expr, $rhs8bit:expr) => {
+            Some(&Instruction {
+                opcode: $opcode,
+                name: $name,
+                cycles: 4,
+                size: 2,
+                flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
+                micro_ops: &[
+                    MCycleOp::Main(MicroOp::Read8($rhs8bit, $address_register)),
+                    MCycleOp::Main(MicroOp::Alu(AluOp::Sla($rhs8bit))),
+                    MCycleOp::End(MicroOp::Write8($address_register, $rhs8bit)), // TODO refactor: not 100% M-Cycle accurate. This is done in the previous and this just reset PC as buffer address
+                ],
+            })
+        };
+    }
+
+    macro_rules! rr {
+        ($opcode:expr, $name:expr, $rhs8bit:expr) => {
+            Some(&Instruction {
+                opcode: $opcode,
+                name: $name,
+                cycles: 2,
+                size: 2,
+                flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
+                micro_ops: &[
+                    MCycleOp::End(MicroOp::Alu(AluOp::Rr($rhs8bit))),
+                ],
+            })
+        };
+        ($opcode:expr, $name:expr, $address_register:expr, $rhs8bit:expr) => {
+            Some(&Instruction {
+                opcode: $opcode,
+                name: $name,
+                cycles: 4,
+                size: 2,
+                flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
+                micro_ops: &[
+                    MCycleOp::Main(MicroOp::Read8($rhs8bit, $address_register)),
+                    MCycleOp::Main(MicroOp::Alu(AluOp::Rr($rhs8bit))),
+                    MCycleOp::End(MicroOp::Write8($address_register, $rhs8bit)), // TODO refactor: not 100% M-Cycle accurate. This is done in the previous and this just reset PC as buffer address
+                ],
             })
         };
     }
     macro_rules! sra {
-        ($opcode:expr, $name:expr, r8, $set_reg:ident, $get_reg:ident) => {
+        ($opcode:expr, $name:expr, $rhs8bit:expr) => {
             Some(&Instruction {
                 opcode: $opcode,
                 name: $name,
                 cycles: 2,
                 size: 2,
                 flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
-                execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-                    let old_val = cpu.registers.$get_reg();
-                    cpu.registers.set_carry_flag((old_val & 0b0000_0001) != 0);
-                    let new_val = old_val.wrapping_shr(1) | (old_val & 0b1000_0000);
-                    cpu.registers.$set_reg(new_val);
-                    cpu.registers.set_zero_flag(new_val == 0);
-                    cpu.registers.set_negative_flag(false);
-                    cpu.registers.set_half_carry_flag(false);
-                    opcode.cycles as u64
-                }
+                micro_ops: &[
+                    MCycleOp::End(MicroOp::Alu(AluOp::Sra($rhs8bit))),
+                ],
             })
         };
-        ($opcode:expr, $name:expr, ar16, $set_reg:ident, $get_reg:ident) => {
+        ($opcode:expr, $name:expr, $address_register:expr, $rhs8bit:expr) => {
             Some(&Instruction {
                 opcode: $opcode,
                 name: $name,
                 cycles: 4,
                 size: 2,
                 flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
-                execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-                    let old_val = cpu.read_memory(cpu.registers.$get_reg());
-                    cpu.registers.set_carry_flag((old_val & 0b0000_0001) != 0);
-                    let new_val = old_val.wrapping_shr(1) | (old_val & 0b1000_0000);
-                    cpu.write_memory(cpu.registers.$get_reg(), new_val);
-                    cpu.registers.set_zero_flag(new_val == 0);
-                    cpu.registers.set_negative_flag(false);
-                    cpu.registers.set_half_carry_flag(false);
-                    opcode.cycles as u64
-                }
+                micro_ops: &[
+                    MCycleOp::Main(MicroOp::Read8($rhs8bit, $address_register)),
+                    MCycleOp::Main(MicroOp::Alu(AluOp::Sra($rhs8bit))),
+                    MCycleOp::End(MicroOp::Write8($address_register, $rhs8bit)), // TODO refactor: not 100% M-Cycle accurate. This is done in the previous and this just reset PC as buffer address
+                ],
             })
         };
     }
+
     macro_rules! srl {
-        ($opcode:expr, $name:expr, r8, $set_reg:ident, $get_reg:ident) => {
+        ($opcode:expr, $name:expr, $rhs8bit:expr) => {
             Some(&Instruction {
                 opcode: $opcode,
                 name: $name,
                 cycles: 2,
                 size: 2,
                 flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
-                execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-                    let old_val = cpu.registers.$get_reg();
-                    cpu.registers.set_carry_flag((old_val & 0b0000_0001) != 0);
-                    let new_val = old_val.wrapping_shr(1);
-                    cpu.registers.$set_reg(new_val);
-                    cpu.registers.set_zero_flag(new_val == 0);
-                    cpu.registers.set_negative_flag(false);
-                    cpu.registers.set_half_carry_flag(false);
-                    opcode.cycles as u64
-                }
+                micro_ops: &[
+                    MCycleOp::End(MicroOp::Alu(AluOp::Srl($rhs8bit))),
+                ],
             })
         };
-        ($opcode:expr, $name:expr, ar16, $set_reg:ident, $get_reg:ident) => {
+        ($opcode:expr, $name:expr, $address_register:expr, $rhs8bit:expr) => {
             Some(&Instruction {
                 opcode: $opcode,
                 name: $name,
                 cycles: 4,
                 size: 2,
                 flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
-                execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-                    let old_val = cpu.read_memory(cpu.registers.$get_reg());
-                    cpu.registers.set_carry_flag((old_val & 0b0000_0001) != 0);
-                    let new_val = old_val.wrapping_shr(1);
-                    cpu.write_memory(cpu.registers.$get_reg(), new_val);
-                    cpu.registers.set_zero_flag(new_val == 0);
-                    cpu.registers.set_negative_flag(false);
-                    cpu.registers.set_half_carry_flag(false);
-                    opcode.cycles as u64
-                }
+                micro_ops: &[
+                    MCycleOp::Main(MicroOp::Read8($rhs8bit, $address_register)),
+                    MCycleOp::Main(MicroOp::Alu(AluOp::Srl($rhs8bit))),
+                    MCycleOp::End(MicroOp::Write8($address_register, $rhs8bit)), // TODO refactor: not 100% M-Cycle accurate. This is done in the previous and this just reset PC as buffer address
+                ],
             })
         };
     }
 
     macro_rules! swap {
-        ($opcode:expr, $name:expr, r8, $set_reg:ident, $get_reg:ident) => {
+        ($opcode:expr, $name:expr, $rhs8bit:expr) => {
             Some(&Instruction {
                 opcode: $opcode,
                 name: $name,
                 cycles: 2,
                 size: 2,
                 flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
-                execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-                    let old_val = cpu.registers.$get_reg();
-                    let old_low_nibble =  old_val & 0x0F;
-                    let old_high_nibble =  old_val & 0xF0;
-                    let new_val = (old_low_nibble << 4) | (old_high_nibble >> 4);
-                    cpu.registers.$set_reg(new_val);
-                    cpu.registers.set_zero_flag(new_val == 0);
-                    cpu.registers.set_negative_flag(false);
-                    cpu.registers.set_half_carry_flag(false);
-                    cpu.registers.set_carry_flag(false);
-                    opcode.cycles as u64
-                }
+                micro_ops: &[
+                    MCycleOp::End(MicroOp::Alu(AluOp::Swap($rhs8bit))),
+                ],
             })
         };
-        ($opcode:expr, $name:expr, ar16, $set_reg:ident, $get_reg:ident) => {
+        ($opcode:expr, $name:expr, $address_register:expr, $rhs8bit:expr) => {
             Some(&Instruction {
                 opcode: $opcode,
                 name: $name,
                 cycles: 4,
                 size: 2,
                 flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
-                execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-                    let old_val = cpu.read_memory(cpu.registers.$get_reg());
-                    let old_low_nibble =  old_val & 0x0F;
-                    let old_high_nibble =  old_val & 0xF0;
-                    let new_val = (old_low_nibble << 4) | (old_high_nibble >> 4);
-                    cpu.write_memory(cpu.registers.$get_reg(), new_val);
-                    cpu.registers.set_zero_flag(new_val == 0);
-                    cpu.registers.set_negative_flag(false);
-                    cpu.registers.set_half_carry_flag(false);
-                    cpu.registers.set_carry_flag(false);
-                    opcode.cycles as u64
-                }
+                micro_ops: &[
+                    MCycleOp::Main(MicroOp::Read8($rhs8bit, $address_register)),
+                    MCycleOp::Main(MicroOp::Alu(AluOp::Swap($rhs8bit))),
+                    MCycleOp::End(MicroOp::Write8($address_register, $rhs8bit)), // TODO refactor: not 100% M-Cycle accurate. This is done in the previous and this just reset PC as buffer address
+                ],
             })
         };
     }
 
     macro_rules! bit {
-        ($opcode:expr, $name:expr, r8, $bit:expr, $get_reg:ident) => {
+        ($opcode:expr, $name:expr, $bit:expr, $rhs8bit:expr) => {
             Some(&Instruction {
                 opcode: $opcode,
                 name: $name,
                 cycles: 2,
                 size: 2,
                 flags: &[FlagBits::Z, FlagBits::N, FlagBits::H],
-                execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-                    let val = cpu.registers.$get_reg() & (1 << $bit);
-                    cpu.registers.set_zero_flag(val == 0);
-                    cpu.registers.set_negative_flag(false);
-                    cpu.registers.set_half_carry_flag(true);
-                    cpu.registers.set_carry_flag(false);
-                    opcode.cycles as u64
-                }
+                micro_ops: &[
+                    MCycleOp::End(MicroOp::Alu(AluOp::Bit($bit, $rhs8bit))),
+                ],
             })
         };
-        ($opcode:expr, $name:expr, ar16, $bit:expr, $get_reg:ident) => {
+        ($opcode:expr, $name:expr, $bit:expr, $address_register:expr, $rhs8bit:expr) => {
             Some(&Instruction {
                 opcode: $opcode,
                 name: $name,
                 cycles: 4,
                 size: 2,
                 flags: &[FlagBits::Z, FlagBits::N, FlagBits::H],
-                execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-                    let val = cpu.read_memory(cpu.registers.$get_reg()) & (1 << $bit);
-                    cpu.registers.set_zero_flag(val == 0);
-                    cpu.registers.set_negative_flag(false);
-                    cpu.registers.set_half_carry_flag(true);
-                    cpu.registers.set_carry_flag(false);
-                    opcode.cycles as u64
-                }
+                micro_ops: &[
+                    MCycleOp::Main(MicroOp::Read8($rhs8bit, $address_register)),
+                    MCycleOp::Main(MicroOp::Alu(AluOp::Bit($bit, $rhs8bit))),
+                    MCycleOp::End(MicroOp::Write8($address_register, $rhs8bit)), // TODO refactor: not 100% M-Cycle accurate. This is done in the previous and this just reset PC as buffer address
+                ],
             })
         };
     }
 
     macro_rules! res {
-        ($opcode:expr, $name:expr, r8, $bit:expr, $set_reg:ident, $get_reg:ident) => {
+        ($opcode:expr, $name:expr, $bit:expr, $rhs8bit:expr) => {
             Some(&Instruction {
                 opcode: $opcode,
                 name: $name,
                 cycles: 2,
                 size: 2,
                 flags: &[],
-                execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-                    let mask: u8 = !(1 << $bit);
-                    cpu.registers.$set_reg(cpu.registers.$get_reg() & mask);
-                    opcode.cycles as u64
-                }
+                micro_ops: &[
+                    MCycleOp::End(MicroOp::Alu(AluOp::Res($bit, $rhs8bit))),
+                ],
             })
         };
-        ($opcode:expr, $name:expr, ar16, $bit:expr, $get_reg:ident) => {
+        ($opcode:expr, $name:expr, $bit:expr, $address_register:expr, $rhs8bit:expr) => {
             Some(&Instruction {
                 opcode: $opcode,
                 name: $name,
                 cycles: 4,
                 size: 2,
                 flags: &[],
-                execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-                    let mask: u8 = !(1 << $bit);
-                    cpu.write_memory(cpu.registers.$get_reg(), cpu.read_memory(cpu.registers.$get_reg()) & mask);
-                    opcode.cycles as u64
-                }
+                micro_ops: &[
+                    MCycleOp::Main(MicroOp::Read8($rhs8bit, $address_register)),
+                    MCycleOp::Main(MicroOp::Alu(AluOp::Res($bit, $rhs8bit))),
+                    MCycleOp::End(MicroOp::Write8($address_register, $rhs8bit)), // TODO refactor: not 100% M-Cycle accurate. This is done in the previous and this just reset PC as buffer address
+                ],
             })
         };
     }
 
     macro_rules! set {
-        ($opcode:expr, $name:expr, r8, $bit:expr, $set_reg:ident, $get_reg:ident) => {
+        ($opcode:expr, $name:expr, $bit:expr, $rhs8bit:expr) => {
             Some(&Instruction {
                 opcode: $opcode,
                 name: $name,
                 cycles: 2,
                 size: 2,
                 flags: &[],
-                execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-                    let mask: u8 = (1 << $bit);
-                    cpu.registers.$set_reg(cpu.registers.$get_reg() | mask);
-                    opcode.cycles as u64
-                }
+                micro_ops: &[
+                    MCycleOp::End(MicroOp::Alu(AluOp::Set($bit, $rhs8bit))),
+                ],
             })
         };
-        ($opcode:expr, $name:expr, ar16, $bit:expr, $get_reg:ident) => {
+        ($opcode:expr, $name:expr, $bit:expr, $address_register:expr, $rhs8bit:expr) => {
             Some(&Instruction {
                 opcode: $opcode,
                 name: $name,
                 cycles: 4,
                 size: 2,
                 flags: &[],
-                execute: |opcode: &Instruction, cpu: &mut CPU| -> u64 {
-                    let mask: u8 = (1 << $bit);
-                    cpu.write_memory(cpu.registers.$get_reg(), cpu.read_memory(cpu.registers.$get_reg()) | mask);
-                    opcode.cycles as u64
-                }
+                micro_ops: &[
+                    MCycleOp::Main(MicroOp::Read8($rhs8bit, $address_register)),
+                    MCycleOp::Main(MicroOp::Alu(AluOp::Set($bit, $rhs8bit))),
+                    MCycleOp::End(MicroOp::Write8($address_register, $rhs8bit)), // TODO refactor: not 100% M-Cycle accurate. This is done in the previous and this just reset PC as buffer address
+                ],
             })
         };
     }
 
     let mut opcodes = [None; 256];
-    opcodes[0x00] = rlc!(0x00, "RLC B", r8, set_b, get_b);
-    opcodes[0x01] = rlc!(0x01, "RLC C", r8, set_c, get_c);
-    opcodes[0x02] = rlc!(0x02, "RLC D", r8, set_d, get_d);
-    opcodes[0x03] = rlc!(0x03, "RLC E", r8, set_e, get_e);
-    opcodes[0x04] = rlc!(0x04, "RLC H", r8, set_h, get_h);
-    opcodes[0x05] = rlc!(0x05, "RLC L", r8, set_l, get_l);
-    opcodes[0x06] = rlc!(0x06, "RLC [HL]", ar16, set_hl, get_hl);
-    opcodes[0x07] = rlc!(0x07, "RLC A", r8, set_a, get_a);
+    opcodes[0x00] = rlc!(0x00, "RLC B", Rhs8Bit::B);
+    opcodes[0x01] = rlc!(0x01, "RLC C", Rhs8Bit::C);
+    opcodes[0x02] = rlc!(0x02, "RLC D", Rhs8Bit::D);
+    opcodes[0x03] = rlc!(0x03, "RLC E", Rhs8Bit::E);
+    opcodes[0x04] = rlc!(0x04, "RLC H", Rhs8Bit::H);
+    opcodes[0x05] = rlc!(0x05, "RLC L", Rhs8Bit::L);
+    opcodes[0x06] = rlc!(0x06, "RLC [HL]", AddressRegister::HL, Rhs8Bit::Z);
+    opcodes[0x07] = rlc!(0x07, "RLC A", Rhs8Bit::A);
 
-    opcodes[0x08] = rrc!(0x08, "RRC B", r8, set_b, get_b);
-    opcodes[0x09] = rrc!(0x09, "RRC C", r8, set_c, get_c);
-    opcodes[0x0A] = rrc!(0x0a, "RRC D", r8, set_d, get_d);
-    opcodes[0x0B] = rrc!(0x0b, "RRC E", r8, set_e, get_e);
-    opcodes[0x0C] = rrc!(0x0c, "RRC H", r8, set_h, get_h);
-    opcodes[0x0D] = rrc!(0x0d, "RRC L", r8, set_l, get_l);
-    opcodes[0x0E] = rrc!(0x0e, "RRC [HL]", ar16, set_hl, get_hl);
-    opcodes[0x0F] = rrc!(0x0f, "RRC A", r8, set_a, get_a);
+    opcodes[0x08] = rrc!(0x08, "RRC B", Rhs8Bit::B);
+    opcodes[0x09] = rrc!(0x09, "RRC C", Rhs8Bit::C);
+    opcodes[0x0A] = rrc!(0x0a, "RRC D", Rhs8Bit::D);
+    opcodes[0x0B] = rrc!(0x0b, "RRC E", Rhs8Bit::E);
+    opcodes[0x0C] = rrc!(0x0c, "RRC H", Rhs8Bit::H);
+    opcodes[0x0D] = rrc!(0x0d, "RRC L", Rhs8Bit::L);
+    opcodes[0x0E] = rrc!(0x0e, "RRC [HL]", AddressRegister::HL, Rhs8Bit::Z);
+    opcodes[0x0F] = rrc!(0x0f, "RRC A", Rhs8Bit::A);
 
-    opcodes[0x10] = rl!(0x10, "RL B", r8, set_b, get_b);
-    opcodes[0x11] = rl!(0x11, "RL C", r8, set_c, get_c);
-    opcodes[0x12] = rl!(0x12, "RL D", r8, set_d, get_d);
-    opcodes[0x13] = rl!(0x13, "RL E", r8, set_e, get_e);
-    opcodes[0x14] = rl!(0x14, "RL H", r8, set_h, get_h);
-    opcodes[0x15] = rl!(0x15, "RL L", r8, set_l, get_l);
-    opcodes[0x16] = rl!(0x16, "RL [HL]", ar16, set_hl, get_hl);
-    opcodes[0x17] = rl!(0x17, "RL A", r8, set_a, get_a);
+    opcodes[0x10] = rl!(0x10, "RL B", Rhs8Bit::B);
+    opcodes[0x11] = rl!(0x11, "RL C", Rhs8Bit::C);
+    opcodes[0x12] = rl!(0x12, "RL D", Rhs8Bit::D);
+    opcodes[0x13] = rl!(0x13, "RL E", Rhs8Bit::E);
+    opcodes[0x14] = rl!(0x14, "RL H", Rhs8Bit::H);
+    opcodes[0x15] = rl!(0x15, "RL L", Rhs8Bit::L);
+    opcodes[0x16] = rl!(0x16, "RL [HL]", AddressRegister::HL, Rhs8Bit::Z);
+    opcodes[0x17] = rl!(0x17, "RL A", Rhs8Bit::A);
 
-    opcodes[0x18] = rr!(0x18, "RR B", r8, set_b, get_b);
-    opcodes[0x19] = rr!(0x19, "RR C", r8, set_c, get_c);
-    opcodes[0x1A] = rr!(0x1a, "RR D", r8, set_d, get_d);
-    opcodes[0x1B] = rr!(0x1b, "RR E", r8, set_e, get_e);
-    opcodes[0x1C] = rr!(0x1c, "RR H", r8, set_h, get_h);
-    opcodes[0x1D] = rr!(0x1d, "RR L", r8, set_l, get_l);
-    opcodes[0x1E] = rr!(0x1e, "RR [HL]", ar16, set_hl, get_hl);
-    opcodes[0x1F] = rr!(0x1f, "RR A", r8, set_a, get_a);
+    opcodes[0x18] = rr!(0x18, "RR B",Rhs8Bit::B);
+    opcodes[0x19] = rr!(0x19, "RR C",Rhs8Bit::C);
+    opcodes[0x1A] = rr!(0x1a, "RR D",Rhs8Bit::D);
+    opcodes[0x1B] = rr!(0x1b, "RR E",Rhs8Bit::E);
+    opcodes[0x1C] = rr!(0x1c, "RR H",Rhs8Bit::H);
+    opcodes[0x1D] = rr!(0x1d, "RR L",Rhs8Bit::L);
+    opcodes[0x1E] = rr!(0x1e, "RR [HL]", AddressRegister::HL, Rhs8Bit::Z);
+    opcodes[0x1F] = rr!(0x1f, "RR A", Rhs8Bit::A);
 
-    opcodes[0x20] = sla!(0x20, "SLA B", r8, set_b, get_b);
-    opcodes[0x21] = sla!(0x21, "SLA C", r8, set_c, get_c);
-    opcodes[0x22] = sla!(0x22, "SLA D", r8, set_d, get_d);
-    opcodes[0x23] = sla!(0x23, "SLA E", r8, set_e, get_e);
-    opcodes[0x24] = sla!(0x24, "SLA H", r8, set_h, get_h);
-    opcodes[0x25] = sla!(0x25, "SLA L", r8, set_l, get_l);
-    opcodes[0x26] = sla!(0x26, "SLA [HL]", ar16, set_hl, get_hl);
-    opcodes[0x27] = sla!(0x27, "SLA A", r8, set_a, get_a);
+    opcodes[0x20] = sla!(0x20, "SLA B", Rhs8Bit::B);
+    opcodes[0x21] = sla!(0x21, "SLA C", Rhs8Bit::C);
+    opcodes[0x22] = sla!(0x22, "SLA D", Rhs8Bit::D);
+    opcodes[0x23] = sla!(0x23, "SLA E", Rhs8Bit::E);
+    opcodes[0x24] = sla!(0x24, "SLA H", Rhs8Bit::H);
+    opcodes[0x25] = sla!(0x25, "SLA L", Rhs8Bit::L);
+    opcodes[0x26] = sla!(0x26, "SLA [HL]", AddressRegister::HL, Rhs8Bit::Z);
+    opcodes[0x27] = sla!(0x27, "SLA A", Rhs8Bit::A);
 
-    opcodes[0x28] = sra!(0x28, "SRA B", r8, set_b, get_b);
-    opcodes[0x29] = sra!(0x29, "SRA C", r8, set_c, get_c);
-    opcodes[0x2A] = sra!(0x2a, "SRA D", r8, set_d, get_d);
-    opcodes[0x2B] = sra!(0x2b, "SRA E", r8, set_e, get_e);
-    opcodes[0x2C] = sra!(0x2c, "SRA H", r8, set_h, get_h);
-    opcodes[0x2D] = sra!(0x2d, "SRA L", r8, set_l, get_l);
-    opcodes[0x2E] = sra!(0x2e, "SRA [HL]", ar16, set_hl, get_hl);
-    opcodes[0x2F] = sra!(0x2f, "SRA A", r8, set_a, get_a);
+    opcodes[0x28] = sra!(0x28, "SRA B", Rhs8Bit::B);
+    opcodes[0x29] = sra!(0x29, "SRA C", Rhs8Bit::C);
+    opcodes[0x2A] = sra!(0x2a, "SRA D", Rhs8Bit::D);
+    opcodes[0x2B] = sra!(0x2b, "SRA E", Rhs8Bit::E);
+    opcodes[0x2C] = sra!(0x2c, "SRA H", Rhs8Bit::H);
+    opcodes[0x2D] = sra!(0x2d, "SRA L", Rhs8Bit::L);
+    opcodes[0x2E] = sra!(0x2e, "SRA [HL]", AddressRegister::HL, Rhs8Bit::Z);
+    opcodes[0x2F] = sra!(0x2f, "SRA A", Rhs8Bit::A);
 
-    opcodes[0x30] = swap!(0x30, "SWAP B", r8, set_b, get_b);
-    opcodes[0x31] = swap!(0x31, "SWAP C", r8, set_c, get_c);
-    opcodes[0x32] = swap!(0x32, "SWAP D", r8, set_d, get_d);
-    opcodes[0x33] = swap!(0x33, "SWAP E", r8, set_e, get_e);
-    opcodes[0x34] = swap!(0x34, "SWAP H", r8, set_h, get_h);
-    opcodes[0x35] = swap!(0x35, "SWAP L", r8, set_l, get_l);
-    opcodes[0x36] = swap!(0x36, "SWAP [HL]", ar16, set_hl, get_hl);
-    opcodes[0x37] = swap!(0x37, "SWAP A", r8, set_a, get_a);
+    opcodes[0x30] = swap!(0x30, "SWAP B", Rhs8Bit::B);
+    opcodes[0x31] = swap!(0x31, "SWAP C", Rhs8Bit::C);
+    opcodes[0x32] = swap!(0x32, "SWAP D", Rhs8Bit::D);
+    opcodes[0x33] = swap!(0x33, "SWAP E", Rhs8Bit::E);
+    opcodes[0x34] = swap!(0x34, "SWAP H", Rhs8Bit::H);
+    opcodes[0x35] = swap!(0x35, "SWAP L", Rhs8Bit::L);
+    opcodes[0x36] = swap!(0x36, "SWAP [HL]", AddressRegister::HL, Rhs8Bit::Z);
+    opcodes[0x37] = swap!(0x37, "SWAP A", Rhs8Bit::A);
 
-    opcodes[0x38] = srl!(0x38, "SRL B", r8, set_b, get_b);
-    opcodes[0x39] = srl!(0x39, "SRL C", r8, set_c, get_c);
-    opcodes[0x3A] = srl!(0x3a, "SRL D", r8, set_d, get_d);
-    opcodes[0x3B] = srl!(0x3b, "SRL E", r8, set_e, get_e);
-    opcodes[0x3C] = srl!(0x3c, "SRL H", r8, set_h, get_h);
-    opcodes[0x3D] = srl!(0x3d, "SRL L", r8, set_l, get_l);
-    opcodes[0x3E] = srl!(0x3e, "SRL [HL]", ar16, set_hl, get_hl);
-    opcodes[0x3F] = srl!(0x3f, "SRL A", r8, set_a, get_a);
+    opcodes[0x38] = srl!(0x38, "SRL B", Rhs8Bit::B);
+    opcodes[0x39] = srl!(0x39, "SRL C", Rhs8Bit::C);
+    opcodes[0x3A] = srl!(0x3a, "SRL D", Rhs8Bit::D);
+    opcodes[0x3B] = srl!(0x3b, "SRL E", Rhs8Bit::E);
+    opcodes[0x3C] = srl!(0x3c, "SRL H", Rhs8Bit::H);
+    opcodes[0x3D] = srl!(0x3d, "SRL L", Rhs8Bit::L);
+    opcodes[0x3E] = srl!(0x3e, "SRL [HL]", AddressRegister::HL, Rhs8Bit::Z);
+    opcodes[0x3F] = srl!(0x3f, "SRL A", Rhs8Bit::A);
 
-    opcodes[0x40] = bit!(0x40, "BIT 0, B", r8, 0, get_b);
-    opcodes[0x41] = bit!(0x41, "BIT 0, C", r8, 0, get_c);
-    opcodes[0x42] = bit!(0x42, "BIT 0, D", r8, 0, get_d);
-    opcodes[0x43] = bit!(0x43, "BIT 0, E", r8, 0, get_e);
-    opcodes[0x44] = bit!(0x44, "BIT 0, H", r8, 0, get_h);
-    opcodes[0x45] = bit!(0x45, "BIT 0, L", r8, 0, get_l);
-    opcodes[0x46] = bit!(0x46, "BIT 0, [HL]", ar16, 0, get_hl);
-    opcodes[0x47] = bit!(0x47, "BIT 0, A", r8, 0, get_a);
+    opcodes[0x40] = bit!(0x40, "BIT 0, B", ByteBit::Zero, Rhs8Bit::B);
+    opcodes[0x41] = bit!(0x41, "BIT 0, C", ByteBit::Zero, Rhs8Bit::C);
+    opcodes[0x42] = bit!(0x42, "BIT 0, D", ByteBit::Zero, Rhs8Bit::D);
+    opcodes[0x43] = bit!(0x43, "BIT 0, E", ByteBit::Zero, Rhs8Bit::E);
+    opcodes[0x44] = bit!(0x44, "BIT 0, H", ByteBit::Zero, Rhs8Bit::H);
+    opcodes[0x45] = bit!(0x45, "BIT 0, L", ByteBit::Zero, Rhs8Bit::L);
+    opcodes[0x46] = bit!(0x46, "BIT 0, [HL]", ByteBit::Zero, AddressRegister::HL, Rhs8Bit::Z);
+    opcodes[0x47] = bit!(0x47, "BIT 0, A", ByteBit::Zero, Rhs8Bit::C);
 
-    opcodes[0x48] = bit!(0x48, "BIT 1, B", r8, 1, get_b);
-    opcodes[0x49] = bit!(0x49, "BIT 1, C", r8, 1, get_c);
-    opcodes[0x4A] = bit!(0x4a, "BIT 1, D", r8, 1, get_d);
-    opcodes[0x4B] = bit!(0x4b, "BIT 1, E", r8, 1, get_e);
-    opcodes[0x4C] = bit!(0x4c, "BIT 1, H", r8, 1, get_h);
-    opcodes[0x4D] = bit!(0x4d, "BIT 1, L", r8, 1, get_l);
-    opcodes[0x4E] = bit!(0x4e, "BIT 1, [HL]", ar16, 1, get_hl);
-    opcodes[0x4F] = bit!(0x4f, "BIT 1, A", r8, 1, get_a);
+    opcodes[0x48] = bit!(0x48, "BIT 1, B", ByteBit::One, Rhs8Bit::B);
+    opcodes[0x49] = bit!(0x49, "BIT 1, C", ByteBit::One, Rhs8Bit::C);
+    opcodes[0x4A] = bit!(0x4a, "BIT 1, D", ByteBit::One, Rhs8Bit::D);
+    opcodes[0x4B] = bit!(0x4b, "BIT 1, E", ByteBit::One, Rhs8Bit::E);
+    opcodes[0x4C] = bit!(0x4c, "BIT 1, H", ByteBit::One, Rhs8Bit::H);
+    opcodes[0x4D] = bit!(0x4d, "BIT 1, L", ByteBit::One, Rhs8Bit::L);
+    opcodes[0x4E] = bit!(0x4e, "BIT 1, [HL]", ByteBit::One, AddressRegister::HL, Rhs8Bit::Z);
+    opcodes[0x4F] = bit!(0x4f, "BIT 1, A", ByteBit::One, Rhs8Bit::C);
 
-    opcodes[0x50] = bit!(0x50, "BIT 2, B", r8, 2, get_b);
-    opcodes[0x51] = bit!(0x51, "BIT 2, C", r8, 2, get_c);
-    opcodes[0x52] = bit!(0x52, "BIT 2, D", r8, 2, get_d);
-    opcodes[0x53] = bit!(0x53, "BIT 2, E", r8, 2, get_e);
-    opcodes[0x54] = bit!(0x54, "BIT 2, H", r8, 2, get_h);
-    opcodes[0x55] = bit!(0x55, "BIT 2, L", r8, 2, get_l);
-    opcodes[0x56] = bit!(0x56, "BIT 2, [HL]", ar16, 2, get_hl);
-    opcodes[0x57] = bit!(0x57, "BIT 2, A", r8, 2, get_a);
+    opcodes[0x50] = bit!(0x50, "BIT 2, B", ByteBit::Two, Rhs8Bit::B);
+    opcodes[0x51] = bit!(0x51, "BIT 2, C", ByteBit::Two, Rhs8Bit::C);
+    opcodes[0x52] = bit!(0x52, "BIT 2, D", ByteBit::Two, Rhs8Bit::D);
+    opcodes[0x53] = bit!(0x53, "BIT 2, E", ByteBit::Two, Rhs8Bit::E);
+    opcodes[0x54] = bit!(0x54, "BIT 2, H", ByteBit::Two, Rhs8Bit::H);
+    opcodes[0x55] = bit!(0x55, "BIT 2, L", ByteBit::Two, Rhs8Bit::L);
+    opcodes[0x56] = bit!(0x56, "BIT 2, [HL]", ByteBit::Two, AddressRegister::HL, Rhs8Bit::Z);
+    opcodes[0x57] = bit!(0x57, "BIT 2, A", ByteBit::Two, Rhs8Bit::C);
 
-    opcodes[0x58] = bit!(0x58, "BIT 3, B", r8, 3, get_b);
-    opcodes[0x59] = bit!(0x59, "BIT 3, C", r8, 3, get_c);
-    opcodes[0x5A] = bit!(0x5a, "BIT 3, D", r8, 3, get_d);
-    opcodes[0x5B] = bit!(0x5b, "BIT 3, E", r8, 3, get_e);
-    opcodes[0x5C] = bit!(0x5c, "BIT 3, H", r8, 3, get_h);
-    opcodes[0x5D] = bit!(0x5d, "BIT 3, L", r8, 3, get_l);
-    opcodes[0x5E] = bit!(0x5e, "BIT 3, [HL]", ar16, 3, get_hl);
-    opcodes[0x5F] = bit!(0x5f, "BIT 3, A", r8, 3, get_a);
+    opcodes[0x58] = bit!(0x58, "BIT 3, B", ByteBit::Three, Rhs8Bit::B);
+    opcodes[0x59] = bit!(0x59, "BIT 3, C", ByteBit::Three, Rhs8Bit::C);
+    opcodes[0x5A] = bit!(0x5a, "BIT 3, D", ByteBit::Three, Rhs8Bit::D);
+    opcodes[0x5B] = bit!(0x5b, "BIT 3, E", ByteBit::Three, Rhs8Bit::E);
+    opcodes[0x5C] = bit!(0x5c, "BIT 3, H", ByteBit::Three, Rhs8Bit::H);
+    opcodes[0x5D] = bit!(0x5d, "BIT 3, L", ByteBit::Three, Rhs8Bit::L);
+    opcodes[0x5E] = bit!(0x5e, "BIT 3, [HL]", ByteBit::Three, AddressRegister::HL, Rhs8Bit::Z);
+    opcodes[0x5F] = bit!(0x5f, "BIT 3, A", ByteBit::Three, Rhs8Bit::C);
 
-    opcodes[0x60] = bit!(0x60, "BIT 4, B", r8, 4, get_b);
-    opcodes[0x61] = bit!(0x61, "BIT 4, C", r8, 4, get_c);
-    opcodes[0x62] = bit!(0x62, "BIT 4, D", r8, 4, get_d);
-    opcodes[0x63] = bit!(0x63, "BIT 4, E", r8, 4, get_e);
-    opcodes[0x64] = bit!(0x64, "BIT 4, H", r8, 4, get_h);
-    opcodes[0x65] = bit!(0x65, "BIT 4, L", r8, 4, get_l);
-    opcodes[0x66] = bit!(0x66, "BIT 4, [HL]", ar16, 4, get_hl);
-    opcodes[0x67] = bit!(0x67, "BIT 4, A", r8, 4, get_a);
+    opcodes[0x60] = bit!(0x60, "BIT 4, B", ByteBit::Four, Rhs8Bit::B);
+    opcodes[0x61] = bit!(0x61, "BIT 4, C", ByteBit::Four, Rhs8Bit::C);
+    opcodes[0x62] = bit!(0x62, "BIT 4, D", ByteBit::Four, Rhs8Bit::D);
+    opcodes[0x63] = bit!(0x63, "BIT 4, E", ByteBit::Four, Rhs8Bit::E);
+    opcodes[0x64] = bit!(0x64, "BIT 4, H", ByteBit::Four, Rhs8Bit::H);
+    opcodes[0x65] = bit!(0x65, "BIT 4, L", ByteBit::Four, Rhs8Bit::L);
+    opcodes[0x66] = bit!(0x66, "BIT 4, [HL]", ByteBit::Four, AddressRegister::HL, Rhs8Bit::Z);
+    opcodes[0x67] = bit!(0x67, "BIT 4, A", ByteBit::Four, Rhs8Bit::C);
 
-    opcodes[0x68] = bit!(0x68, "BIT 5, B", r8, 5, get_b);
-    opcodes[0x69] = bit!(0x69, "BIT 5, C", r8, 5, get_c);
-    opcodes[0x6A] = bit!(0x6a, "BIT 5, D", r8, 5, get_d);
-    opcodes[0x6B] = bit!(0x6b, "BIT 5, E", r8, 5, get_e);
-    opcodes[0x6C] = bit!(0x6c, "BIT 5, H", r8, 5, get_h);
-    opcodes[0x6D] = bit!(0x6d, "BIT 5, L", r8, 5, get_l);
-    opcodes[0x6E] = bit!(0x6e, "BIT 5, [HL]", ar16, 5, get_hl);
-    opcodes[0x6F] = bit!(0x6f, "BIT 5, A", r8, 5, get_a);
+    opcodes[0x68] = bit!(0x68, "BIT 5, B", ByteBit::Five, Rhs8Bit::B);
+    opcodes[0x69] = bit!(0x69, "BIT 5, C", ByteBit::Five, Rhs8Bit::C);
+    opcodes[0x6A] = bit!(0x6a, "BIT 5, D", ByteBit::Five, Rhs8Bit::D);
+    opcodes[0x6B] = bit!(0x6b, "BIT 5, E", ByteBit::Five, Rhs8Bit::E);
+    opcodes[0x6C] = bit!(0x6c, "BIT 5, H", ByteBit::Five, Rhs8Bit::H);
+    opcodes[0x6D] = bit!(0x6d, "BIT 5, L", ByteBit::Five, Rhs8Bit::L);
+    opcodes[0x6E] = bit!(0x6e, "BIT 5, [HL]", ByteBit::Five, AddressRegister::HL, Rhs8Bit::Z);
+    opcodes[0x6F] = bit!(0x6f, "BIT 5, A", ByteBit::Five, Rhs8Bit::C);
 
-    opcodes[0x70] = bit!(0x70, "BIT 6, B", r8, 6, get_b);
-    opcodes[0x71] = bit!(0x71, "BIT 6, C", r8, 6, get_c);
-    opcodes[0x72] = bit!(0x72, "BIT 6, D", r8, 6, get_d);
-    opcodes[0x73] = bit!(0x73, "BIT 6, E", r8, 6, get_e);
-    opcodes[0x74] = bit!(0x74, "BIT 6, H", r8, 6, get_h);
-    opcodes[0x75] = bit!(0x75, "BIT 6, L", r8, 6, get_l);
-    opcodes[0x76] = bit!(0x76, "BIT 6, [HL]", ar16, 6, get_hl);
-    opcodes[0x77] = bit!(0x77, "BIT 6, A", r8, 6, get_a);
+    opcodes[0x70] = bit!(0x70, "BIT 6, B", ByteBit::Six, Rhs8Bit::B);
+    opcodes[0x71] = bit!(0x71, "BIT 6, C", ByteBit::Six, Rhs8Bit::C);
+    opcodes[0x72] = bit!(0x72, "BIT 6, D", ByteBit::Six, Rhs8Bit::D);
+    opcodes[0x73] = bit!(0x73, "BIT 6, E", ByteBit::Six, Rhs8Bit::E);
+    opcodes[0x74] = bit!(0x74, "BIT 6, H", ByteBit::Six, Rhs8Bit::H);
+    opcodes[0x75] = bit!(0x75, "BIT 6, L", ByteBit::Six, Rhs8Bit::L);
+    opcodes[0x76] = bit!(0x76, "BIT 6, [HL]", ByteBit::Six, AddressRegister::HL, Rhs8Bit::Z);
+    opcodes[0x77] = bit!(0x77, "BIT 6, A", ByteBit::Six, Rhs8Bit::C);
 
-    opcodes[0x78] = bit!(0x78, "BIT 7, B", r8, 7, get_b);
-    opcodes[0x79] = bit!(0x79, "BIT 7, C", r8, 7, get_c);
-    opcodes[0x7A] = bit!(0x7a, "BIT 7, D", r8, 7, get_d);
-    opcodes[0x7B] = bit!(0x7b, "BIT 7, E", r8, 7, get_e);
-    opcodes[0x7C] = bit!(0x7c, "BIT 7, H", r8, 7, get_h);
-    opcodes[0x7D] = bit!(0x7d, "BIT 7, L", r8, 7, get_l);
-    opcodes[0x7E] = bit!(0x7e, "BIT 7, [HL]", ar16, 7, get_hl);
-    opcodes[0x7F] = bit!(0x7f, "BIT 7, A", r8, 7, get_a);
+    opcodes[0x78] = bit!(0x78, "BIT 7, B", ByteBit::Seven, Rhs8Bit::B);
+    opcodes[0x79] = bit!(0x79, "BIT 7, C", ByteBit::Seven, Rhs8Bit::C);
+    opcodes[0x7A] = bit!(0x7a, "BIT 7, D", ByteBit::Seven, Rhs8Bit::D);
+    opcodes[0x7B] = bit!(0x7b, "BIT 7, E", ByteBit::Seven, Rhs8Bit::E);
+    opcodes[0x7C] = bit!(0x7c, "BIT 7, H", ByteBit::Seven, Rhs8Bit::H);
+    opcodes[0x7D] = bit!(0x7d, "BIT 7, L", ByteBit::Seven, Rhs8Bit::L);
+    opcodes[0x7E] = bit!(0x7e, "BIT 7, [HL]", ByteBit::Seven, AddressRegister::HL, Rhs8Bit::Z);
+    opcodes[0x7F] = bit!(0x7f, "BIT 7, A", ByteBit::Seven, Rhs8Bit::C);
 
-    opcodes[0x80] = res!(0x80, "RES 0, B", r8, 0, set_b, get_b);
-    opcodes[0x81] = res!(0x81, "RES 0, C", r8, 0, set_c, get_c);
-    opcodes[0x82] = res!(0x82, "RES 0, D", r8, 0, set_d, get_d);
-    opcodes[0x83] = res!(0x83, "RES 0, E", r8, 0, set_e, get_e);
-    opcodes[0x84] = res!(0x84, "RES 0, H", r8, 0, set_h, get_h);
-    opcodes[0x85] = res!(0x85, "RES 0, L", r8, 0, set_l, get_l);
-    opcodes[0x86] = res!(0x86, "RES 0, [HL]", ar16, 0, get_hl);
-    opcodes[0x87] = res!(0x87, "RES 0, A", r8, 0, set_a, get_a);
+    opcodes[0x80] = res!(0x80, "RES 0, B", ByteBit::Zero, Rhs8Bit::B);
+    opcodes[0x81] = res!(0x81, "RES 0, C", ByteBit::Zero, Rhs8Bit::C);
+    opcodes[0x82] = res!(0x82, "RES 0, D", ByteBit::Zero, Rhs8Bit::D);
+    opcodes[0x83] = res!(0x83, "RES 0, E", ByteBit::Zero, Rhs8Bit::E);
+    opcodes[0x84] = res!(0x84, "RES 0, H", ByteBit::Zero, Rhs8Bit::H);
+    opcodes[0x85] = res!(0x85, "RES 0, L", ByteBit::Zero, Rhs8Bit::L);
+    opcodes[0x86] = res!(0x86, "RES 0, [HL]", ByteBit::Zero, AddressRegister::HL, Rhs8Bit::Z);
+    opcodes[0x87] = res!(0x87, "RES 0, A", ByteBit::Zero, Rhs8Bit::C);
 
-    opcodes[0x88] = res!(0x88, "RES 1, B", r8, 1, set_b, get_b);
-    opcodes[0x89] = res!(0x89, "RES 1, C", r8, 1, set_c, get_c);
-    opcodes[0x8A] = res!(0x8a, "RES 1, D", r8, 1, set_d, get_d);
-    opcodes[0x8B] = res!(0x8b, "RES 1, E", r8, 1, set_e, get_e);
-    opcodes[0x8C] = res!(0x8c, "RES 1, H", r8, 1, set_h, get_h);
-    opcodes[0x8D] = res!(0x8d, "RES 1, L", r8, 1, set_l, get_l);
-    opcodes[0x8E] = res!(0x8e, "RES 1, [HL]", ar16, 1, get_hl);
-    opcodes[0x8F] = res!(0x8f, "RES 1, A", r8, 1, set_a, get_a);
+    opcodes[0x88] = res!(0x88, "RES 1, B", ByteBit::One, Rhs8Bit::B);
+    opcodes[0x89] = res!(0x89, "RES 1, C", ByteBit::One, Rhs8Bit::C);
+    opcodes[0x8A] = res!(0x8a, "RES 1, D", ByteBit::One, Rhs8Bit::D);
+    opcodes[0x8B] = res!(0x8b, "RES 1, E", ByteBit::One, Rhs8Bit::E);
+    opcodes[0x8C] = res!(0x8c, "RES 1, H", ByteBit::One, Rhs8Bit::H);
+    opcodes[0x8D] = res!(0x8d, "RES 1, L", ByteBit::One, Rhs8Bit::L);
+    opcodes[0x8E] = res!(0x8e, "RES 1, [HL]", ByteBit::One, AddressRegister::HL, Rhs8Bit::Z);
+    opcodes[0x8F] = res!(0x8f, "RES 1, A", ByteBit::One, Rhs8Bit::C);
 
-    opcodes[0x90] = res!(0x90, "RES 2, B", r8, 2, set_b, get_b);
-    opcodes[0x91] = res!(0x91, "RES 2, C", r8, 2, set_c, get_c);
-    opcodes[0x92] = res!(0x92, "RES 2, D", r8, 2, set_d, get_d);
-    opcodes[0x93] = res!(0x93, "RES 2, E", r8, 2, set_e, get_e);
-    opcodes[0x94] = res!(0x94, "RES 2, H", r8, 2, set_h, get_h);
-    opcodes[0x95] = res!(0x95, "RES 2, L", r8, 2, set_l, get_l);
-    opcodes[0x96] = res!(0x96, "RES 2, [HL]", ar16, 2, get_hl);
-    opcodes[0x97] = res!(0x97, "RES 2, A", r8, 2, set_a, get_a);
+    opcodes[0x90] = res!(0x90, "RES 2, B", ByteBit::Two, Rhs8Bit::B);
+    opcodes[0x91] = res!(0x91, "RES 2, C", ByteBit::Two, Rhs8Bit::C);
+    opcodes[0x92] = res!(0x92, "RES 2, D", ByteBit::Two, Rhs8Bit::D);
+    opcodes[0x93] = res!(0x93, "RES 2, E", ByteBit::Two, Rhs8Bit::E);
+    opcodes[0x94] = res!(0x94, "RES 2, H", ByteBit::Two, Rhs8Bit::H);
+    opcodes[0x95] = res!(0x95, "RES 2, L", ByteBit::Two, Rhs8Bit::L);
+    opcodes[0x96] = res!(0x96, "RES 2, [HL]", ByteBit::Two, AddressRegister::HL, Rhs8Bit::Z);
+    opcodes[0x97] = res!(0x97, "RES 2, A", ByteBit::Two, Rhs8Bit::C);
 
-    opcodes[0x98] = res!(0x98, "RES 3, B", r8, 3, set_b, get_b);
-    opcodes[0x99] = res!(0x99, "RES 3, C", r8, 3, set_c, get_c);
-    opcodes[0x9A] = res!(0x9a, "RES 3, D", r8, 3, set_d, get_d);
-    opcodes[0x9B] = res!(0x9b, "RES 3, E", r8, 3, set_e, get_e);
-    opcodes[0x9C] = res!(0x9c, "RES 3, H", r8, 3, set_h, get_h);
-    opcodes[0x9D] = res!(0x9d, "RES 3, L", r8, 3, set_l, get_l);
-    opcodes[0x9E] = res!(0x9e, "RES 3, [HL]", ar16, 3, get_hl);
-    opcodes[0x9F] = res!(0x9f, "RES 3, A", r8, 3, set_a, get_a);
+    opcodes[0x98] = res!(0x98, "RES 3, B", ByteBit::Three, Rhs8Bit::B);
+    opcodes[0x99] = res!(0x99, "RES 3, C", ByteBit::Three, Rhs8Bit::C);
+    opcodes[0x9A] = res!(0x9a, "RES 3, D", ByteBit::Three, Rhs8Bit::D);
+    opcodes[0x9B] = res!(0x9b, "RES 3, E", ByteBit::Three, Rhs8Bit::E);
+    opcodes[0x9C] = res!(0x9c, "RES 3, H", ByteBit::Three, Rhs8Bit::H);
+    opcodes[0x9D] = res!(0x9d, "RES 3, L", ByteBit::Three, Rhs8Bit::L);
+    opcodes[0x9E] = res!(0x9e, "RES 3, [HL]", ByteBit::Three, AddressRegister::HL, Rhs8Bit::Z);
+    opcodes[0x9F] = res!(0x9f, "RES 3, A", ByteBit::Three, Rhs8Bit::C);
 
-    opcodes[0xA0] = res!(0xA0, "RES 4, B", r8, 4, set_b, get_b);
-    opcodes[0xA1] = res!(0xA1, "RES 4, C", r8, 4, set_c, get_c);
-    opcodes[0xA2] = res!(0xA2, "RES 4, D", r8, 4, set_d, get_d);
-    opcodes[0xA3] = res!(0xA3, "RES 4, E", r8, 4, set_e, get_e);
-    opcodes[0xA4] = res!(0xA4, "RES 4, H", r8, 4, set_h, get_h);
-    opcodes[0xA5] = res!(0xA5, "RES 4, L", r8, 4, set_l, get_l);
-    opcodes[0xA6] = res!(0xA6, "RES 4, [HL]", ar16, 4, get_hl);
-    opcodes[0xA7] = res!(0xA7, "RES 4, A", r8, 4, set_a, get_a);
+    opcodes[0xA0] = res!(0xA0, "RES 4, B", ByteBit::Four, Rhs8Bit::B);
+    opcodes[0xA1] = res!(0xA1, "RES 4, C", ByteBit::Four, Rhs8Bit::C);
+    opcodes[0xA2] = res!(0xA2, "RES 4, D", ByteBit::Four, Rhs8Bit::D);
+    opcodes[0xA3] = res!(0xA3, "RES 4, E", ByteBit::Four, Rhs8Bit::E);
+    opcodes[0xA4] = res!(0xA4, "RES 4, H", ByteBit::Four, Rhs8Bit::H);
+    opcodes[0xA5] = res!(0xA5, "RES 4, L", ByteBit::Four, Rhs8Bit::L);
+    opcodes[0xA6] = res!(0xA6, "RES 4, [HL]", ByteBit::Four, AddressRegister::HL, Rhs8Bit::Z);
+    opcodes[0xA7] = res!(0xA7, "RES 4, A", ByteBit::Four, Rhs8Bit::C);
 
-    opcodes[0xA8] = res!(0xA8, "RES 5, B", r8, 5, set_b, get_b);
-    opcodes[0xA9] = res!(0xA9, "RES 5, C", r8, 5, set_c, get_c);
-    opcodes[0xAA] = res!(0xAa, "RES 5, D", r8, 5, set_d, get_d);
-    opcodes[0xAB] = res!(0xAb, "RES 5, E", r8, 5, set_e, get_e);
-    opcodes[0xAC] = res!(0xAc, "RES 5, H", r8, 5, set_h, get_h);
-    opcodes[0xAD] = res!(0xAd, "RES 5, L", r8, 5, set_l, get_l);
-    opcodes[0xAE] = res!(0xAe, "RES 5, [HL]", ar16, 5, get_hl);
-    opcodes[0xAF] = res!(0xAf, "RES 5, A", r8, 5, set_a, get_a);
+    opcodes[0xA8] = res!(0xA8, "RES 5, B", ByteBit::Five, Rhs8Bit::B);
+    opcodes[0xA9] = res!(0xA9, "RES 5, C", ByteBit::Five, Rhs8Bit::C);
+    opcodes[0xAA] = res!(0xAa, "RES 5, D", ByteBit::Five, Rhs8Bit::D);
+    opcodes[0xAB] = res!(0xAb, "RES 5, E", ByteBit::Five, Rhs8Bit::E);
+    opcodes[0xAC] = res!(0xAc, "RES 5, H", ByteBit::Five, Rhs8Bit::H);
+    opcodes[0xAD] = res!(0xAd, "RES 5, L", ByteBit::Five, Rhs8Bit::L);
+    opcodes[0xAE] = res!(0xAe, "RES 5, [HL]", ByteBit::Five, AddressRegister::HL, Rhs8Bit::Z);
+    opcodes[0xAF] = res!(0xAf, "RES 5, A", ByteBit::Five, Rhs8Bit::C);
 
-    opcodes[0xB0] = res!(0xB0, "RES 6, B", r8, 6, set_b, get_b);
-    opcodes[0xB1] = res!(0xB1, "RES 6, C", r8, 6, set_c, get_c);
-    opcodes[0xB2] = res!(0xB2, "RES 6, D", r8, 6, set_d, get_d);
-    opcodes[0xB3] = res!(0xB3, "RES 6, E", r8, 6, set_e, get_e);
-    opcodes[0xB4] = res!(0xB4, "RES 6, H", r8, 6, set_h, get_h);
-    opcodes[0xB5] = res!(0xB5, "RES 6, L", r8, 6, set_l, get_l);
-    opcodes[0xB6] = res!(0xB6, "RES 6, [HL]", ar16, 6, get_hl);
-    opcodes[0xB7] = res!(0xB7, "RES 6, A", r8, 6, set_a, get_a);
+    opcodes[0xB0] = res!(0xB0, "RES 6, B", ByteBit::Six, Rhs8Bit::B);
+    opcodes[0xB1] = res!(0xB1, "RES 6, C", ByteBit::Six, Rhs8Bit::C);
+    opcodes[0xB2] = res!(0xB2, "RES 6, D", ByteBit::Six, Rhs8Bit::D);
+    opcodes[0xB3] = res!(0xB3, "RES 6, E", ByteBit::Six, Rhs8Bit::E);
+    opcodes[0xB4] = res!(0xB4, "RES 6, H", ByteBit::Six, Rhs8Bit::H);
+    opcodes[0xB5] = res!(0xB5, "RES 6, L", ByteBit::Six, Rhs8Bit::L);
+    opcodes[0xB6] = res!(0xB6, "RES 6, [HL]", ByteBit::Six, AddressRegister::HL, Rhs8Bit::Z);
+    opcodes[0xB7] = res!(0xB7, "RES 6, A", ByteBit::Six, Rhs8Bit::C);
 
-    opcodes[0xB8] = res!(0xB8, "RES 7, B", r8, 7, set_b, get_b);
-    opcodes[0xB9] = res!(0xB9, "RES 7, C", r8, 7, set_c, get_c);
-    opcodes[0xBA] = res!(0xBa, "RES 7, D", r8, 7, set_d, get_d);
-    opcodes[0xBB] = res!(0xBb, "RES 7, E", r8, 7, set_e, get_e);
-    opcodes[0xBC] = res!(0xBc, "RES 7, H", r8, 7, set_h, get_h);
-    opcodes[0xBD] = res!(0xBd, "RES 7, L", r8, 7, set_l, get_l);
-    opcodes[0xBE] = res!(0xBe, "RES 7, [HL]", ar16, 7, get_hl);
-    opcodes[0xBF] = res!(0xBf, "RES 7, A", r8, 7, set_a, get_a);
+    opcodes[0xB8] = res!(0xB8, "RES 7, B", ByteBit::Seven, Rhs8Bit::B);
+    opcodes[0xB9] = res!(0xB9, "RES 7, C", ByteBit::Seven, Rhs8Bit::C);
+    opcodes[0xBA] = res!(0xBa, "RES 7, D", ByteBit::Seven, Rhs8Bit::D);
+    opcodes[0xBB] = res!(0xBb, "RES 7, E", ByteBit::Seven, Rhs8Bit::E);
+    opcodes[0xBC] = res!(0xBc, "RES 7, H", ByteBit::Seven, Rhs8Bit::H);
+    opcodes[0xBD] = res!(0xBd, "RES 7, L", ByteBit::Seven, Rhs8Bit::L);
+    opcodes[0xBE] = res!(0xBe, "RES 7, [HL]", ByteBit::Seven, AddressRegister::HL, Rhs8Bit::Z);
+    opcodes[0xBF] = res!(0xBf, "RES 7, A", ByteBit::Seven, Rhs8Bit::C);
 
-    opcodes[0xC0] = set!(0xC0, "SET 0, B", r8, 0, set_b, get_b);
-    opcodes[0xC1] = set!(0xC1, "SET 0, C", r8, 0, set_c, get_c);
-    opcodes[0xC2] = set!(0xC2, "SET 0, D", r8, 0, set_d, get_d);
-    opcodes[0xC3] = set!(0xC3, "SET 0, E", r8, 0, set_e, get_e);
-    opcodes[0xC4] = set!(0xC4, "SET 0, H", r8, 0, set_h, get_h);
-    opcodes[0xC5] = set!(0xC5, "SET 0, L", r8, 0, set_l, get_l);
-    opcodes[0xC6] = set!(0xC6, "SET 0, [HL]", ar16, 0, get_hl);
-    opcodes[0xC7] = set!(0xC7, "SET 0, A", r8, 0, set_a, get_a);
+    opcodes[0xC0] = set!(0xC0, "SET 0, B", ByteBit::Zero, Rhs8Bit::B);
+    opcodes[0xC1] = set!(0xC1, "SET 0, C", ByteBit::Zero, Rhs8Bit::C);
+    opcodes[0xC2] = set!(0xC2, "SET 0, D", ByteBit::Zero, Rhs8Bit::D);
+    opcodes[0xC3] = set!(0xC3, "SET 0, E", ByteBit::Zero, Rhs8Bit::E);
+    opcodes[0xC4] = set!(0xC4, "SET 0, H", ByteBit::Zero, Rhs8Bit::H);
+    opcodes[0xC5] = set!(0xC5, "SET 0, L", ByteBit::Zero, Rhs8Bit::L);
+    opcodes[0xC6] = set!(0xC6, "SET 0, [HL]", ByteBit::Zero, AddressRegister::HL, Rhs8Bit::Z);
+    opcodes[0xC7] = set!(0xC7, "SET 0, A", ByteBit::Zero, Rhs8Bit::C);
 
-    opcodes[0xC8] = set!(0xc8, "SET 1, B", r8, 1, set_b, get_b);
-    opcodes[0xC9] = set!(0xc9, "SET 1, C", r8, 1, set_c, get_c);
-    opcodes[0xCA] = set!(0xca, "SET 1, D", r8, 1, set_d, get_d);
-    opcodes[0xCB] = set!(0xcb, "SET 1, E", r8, 1, set_e, get_e);
-    opcodes[0xCC] = set!(0xcc, "SET 1, H", r8, 1, set_h, get_h);
-    opcodes[0xCD] = set!(0xcd, "SET 1, L", r8, 1, set_l, get_l);
-    opcodes[0xCE] = set!(0xce, "SET 1, [HL]", ar16, 1, get_hl);
-    opcodes[0xCF] = set!(0xcf, "SET 1, A", r8, 1, set_a, get_a);
+    opcodes[0xC8] = set!(0xc8, "SET 1, B", ByteBit::One, Rhs8Bit::B);
+    opcodes[0xC9] = set!(0xc9, "SET 1, C", ByteBit::One, Rhs8Bit::C);
+    opcodes[0xCA] = set!(0xca, "SET 1, D", ByteBit::One, Rhs8Bit::D);
+    opcodes[0xCB] = set!(0xcb, "SET 1, E", ByteBit::One, Rhs8Bit::E);
+    opcodes[0xCC] = set!(0xcc, "SET 1, H", ByteBit::One, Rhs8Bit::H);
+    opcodes[0xCD] = set!(0xcd, "SET 1, L", ByteBit::One, Rhs8Bit::L);
+    opcodes[0xCE] = set!(0xce, "SET 1, [HL ", ByteBit::One, AddressRegister::HL, Rhs8Bit::Z);
+    opcodes[0xCF] = set!(0xcf, "SET 1, A", ByteBit::One, Rhs8Bit::C);
 
-    opcodes[0xD0] = set!(0xd0, "SET 2, B", r8, 2, set_b, get_b);
-    opcodes[0xD1] = set!(0xd1, "SET 2, C", r8, 2, set_c, get_c);
-    opcodes[0xD2] = set!(0xd2, "SET 2, D", r8, 2, set_d, get_d);
-    opcodes[0xD3] = set!(0xd3, "SET 2, E", r8, 2, set_e, get_e);
-    opcodes[0xD4] = set!(0xd4, "SET 2, H", r8, 2, set_h, get_h);
-    opcodes[0xD5] = set!(0xd5, "SET 2, L", r8, 2, set_l, get_l);
-    opcodes[0xD6] = set!(0xd6, "SET 2, [HL]", ar16, 2, get_hl);
-    opcodes[0xD7] = set!(0xd7, "SET 2, A", r8, 2, set_a, get_a);
+    opcodes[0xD0] = set!(0xd0, "SET 2, B", ByteBit::Two, Rhs8Bit::B);
+    opcodes[0xD1] = set!(0xd1, "SET 2, C", ByteBit::Two, Rhs8Bit::C);
+    opcodes[0xD2] = set!(0xd2, "SET 2, D", ByteBit::Two, Rhs8Bit::D);
+    opcodes[0xD3] = set!(0xd3, "SET 2, E", ByteBit::Two, Rhs8Bit::E);
+    opcodes[0xD4] = set!(0xd4, "SET 2, H", ByteBit::Two, Rhs8Bit::H);
+    opcodes[0xD5] = set!(0xd5, "SET 2, L", ByteBit::Two, Rhs8Bit::L);
+    opcodes[0xD6] = set!(0xd6, "SET 2, [HL]", ByteBit::Two, AddressRegister::HL, Rhs8Bit::Z);
+    opcodes[0xD7] = set!(0xd7, "SET 2, A", ByteBit::Two, Rhs8Bit::C);
 
-    opcodes[0xD8] = set!(0xd8, "SET 3, B", r8, 3, set_b, get_b);
-    opcodes[0xD9] = set!(0xd9, "SET 3, C", r8, 3, set_c, get_c);
-    opcodes[0xDA] = set!(0xda, "SET 3, D", r8, 3, set_d, get_d);
-    opcodes[0xDB] = set!(0xdb, "SET 3, E", r8, 3, set_e, get_e);
-    opcodes[0xDC] = set!(0xdc, "SET 3, H", r8, 3, set_h, get_h);
-    opcodes[0xDD] = set!(0xdd, "SET 3, L", r8, 3, set_l, get_l);
-    opcodes[0xDE] = set!(0xde, "SET 3, [HL]", ar16, 3, get_hl);
-    opcodes[0xDF] = set!(0xdf, "SET 3, A", r8, 3, set_a, get_a);
+    opcodes[0xD8] = set!(0xd8, "SET 3, B", ByteBit::Three, Rhs8Bit::B);
+    opcodes[0xD9] = set!(0xd9, "SET 3, C", ByteBit::Three, Rhs8Bit::C);
+    opcodes[0xDA] = set!(0xda, "SET 3, D", ByteBit::Three, Rhs8Bit::D);
+    opcodes[0xDB] = set!(0xdb, "SET 3, E", ByteBit::Three, Rhs8Bit::E);
+    opcodes[0xDC] = set!(0xdc, "SET 3, H", ByteBit::Three, Rhs8Bit::H);
+    opcodes[0xDD] = set!(0xdd, "SET 3, L", ByteBit::Three, Rhs8Bit::L);
+    opcodes[0xDE] = set!(0xde, "SET 3, [HL]", ByteBit::Three, AddressRegister::HL, Rhs8Bit::Z);
+    opcodes[0xDF] = set!(0xdf, "SET 3, A", ByteBit::Three, Rhs8Bit::C);
 
-    opcodes[0xE0] = set!(0xe0, "SET 4, B", r8, 4, set_b, get_b);
-    opcodes[0xE1] = set!(0xe1, "SET 4, C", r8, 4, set_c, get_c);
-    opcodes[0xE2] = set!(0xe2, "SET 4, D", r8, 4, set_d, get_d);
-    opcodes[0xE3] = set!(0xe3, "SET 4, E", r8, 4, set_e, get_e);
-    opcodes[0xE4] = set!(0xe4, "SET 4, H", r8, 4, set_h, get_h);
-    opcodes[0xE5] = set!(0xe5, "SET 4, L", r8, 4, set_l, get_l);
-    opcodes[0xE6] = set!(0xe6, "SET 4, [HL]", ar16, 4, get_hl);
-    opcodes[0xE7] = set!(0xe7, "SET 4, A", r8, 4, set_a, get_a);
+    opcodes[0xE0] = set!(0xe0, "SET 4, B", ByteBit::Four, Rhs8Bit::B);
+    opcodes[0xE1] = set!(0xe1, "SET 4, C", ByteBit::Four, Rhs8Bit::C);
+    opcodes[0xE2] = set!(0xe2, "SET 4, D", ByteBit::Four, Rhs8Bit::D);
+    opcodes[0xE3] = set!(0xe3, "SET 4, E", ByteBit::Four, Rhs8Bit::E);
+    opcodes[0xE4] = set!(0xe4, "SET 4, H", ByteBit::Four, Rhs8Bit::H);
+    opcodes[0xE5] = set!(0xe5, "SET 4, L", ByteBit::Four, Rhs8Bit::L);
+    opcodes[0xE6] = set!(0xe6, "SET 4, [HL]", ByteBit::Four, AddressRegister::HL, Rhs8Bit::Z);
+    opcodes[0xE7] = set!(0xe7, "SET 4, A", ByteBit::Four, Rhs8Bit::C);
 
-    opcodes[0xE8] = set!(0xe8, "SET 5, B", r8, 5, set_b, get_b);
-    opcodes[0xE9] = set!(0xe9, "SET 5, C", r8, 5, set_c, get_c);
-    opcodes[0xEA] = set!(0xea, "SET 5, D", r8, 5, set_d, get_d);
-    opcodes[0xEB] = set!(0xeb, "SET 5, E", r8, 5, set_e, get_e);
-    opcodes[0xEC] = set!(0xec, "SET 5, H", r8, 5, set_h, get_h);
-    opcodes[0xED] = set!(0xed, "SET 5, L", r8, 5, set_l, get_l);
-    opcodes[0xEE] = set!(0xee, "SET 5, [HL]", ar16, 5, get_hl);
-    opcodes[0xEF] = set!(0xef, "SET 5, A", r8, 5, set_a, get_a);
+    opcodes[0xE8] = set!(0xe8, "SET 5, B", ByteBit::Five, Rhs8Bit::B);
+    opcodes[0xE9] = set!(0xe9, "SET 5, C", ByteBit::Five, Rhs8Bit::C);
+    opcodes[0xEA] = set!(0xea, "SET 5, D", ByteBit::Five, Rhs8Bit::D);
+    opcodes[0xEB] = set!(0xeb, "SET 5, E", ByteBit::Five, Rhs8Bit::E);
+    opcodes[0xEC] = set!(0xec, "SET 5, H", ByteBit::Five, Rhs8Bit::H);
+    opcodes[0xED] = set!(0xed, "SET 5, L", ByteBit::Five, Rhs8Bit::L);
+    opcodes[0xEE] = set!(0xee, "SET 5, [HL]", ByteBit::Five, AddressRegister::HL, Rhs8Bit::Z);
+    opcodes[0xEF] = set!(0xef, "SET 5, A", ByteBit::Five, Rhs8Bit::C);
 
-    opcodes[0xF0] = set!(0xF0, "SET 6, B", r8, 6, set_b, get_b);
-    opcodes[0xF1] = set!(0xF1, "SET 6, C", r8, 6, set_c, get_c);
-    opcodes[0xF2] = set!(0xF2, "SET 6, D", r8, 6, set_d, get_d);
-    opcodes[0xF3] = set!(0xF3, "SET 6, E", r8, 6, set_e, get_e);
-    opcodes[0xF4] = set!(0xF4, "SET 6, H", r8, 6, set_h, get_h);
-    opcodes[0xF5] = set!(0xF5, "SET 6, L", r8, 6, set_l, get_l);
-    opcodes[0xF6] = set!(0xF6, "SET 6, [HL]", ar16, 6, get_hl);
-    opcodes[0xF7] = set!(0xF7, "SET 6, A", r8, 6, set_a, get_a);
+    opcodes[0xF0] = set!(0xF0, "SET 6, B", ByteBit::Six, Rhs8Bit::B);
+    opcodes[0xF1] = set!(0xF1, "SET 6, C", ByteBit::Six, Rhs8Bit::C);
+    opcodes[0xF2] = set!(0xF2, "SET 6, D", ByteBit::Six, Rhs8Bit::D);
+    opcodes[0xF3] = set!(0xF3, "SET 6, E", ByteBit::Six, Rhs8Bit::E);
+    opcodes[0xF4] = set!(0xF4, "SET 6, H", ByteBit::Six, Rhs8Bit::H);
+    opcodes[0xF5] = set!(0xF5, "SET 6, L", ByteBit::Six, Rhs8Bit::L);
+    opcodes[0xF6] = set!(0xF6, "SET 6, [HL]", ByteBit::Six, AddressRegister::HL, Rhs8Bit::Z);
+    opcodes[0xF7] = set!(0xF7, "SET 6, A", ByteBit::Six, Rhs8Bit::C);
 
-    opcodes[0xF8] = set!(0xF8, "SET 7, B", r8, 7, set_b, get_b);
-    opcodes[0xF9] = set!(0xF9, "SET 7, C", r8, 7, set_c, get_c);
-    opcodes[0xFA] = set!(0xFa, "SET 7, D", r8, 7, set_d, get_d);
-    opcodes[0xFB] = set!(0xFb, "SET 7, E", r8, 7, set_e, get_e);
-    opcodes[0xFC] = set!(0xFc, "SET 7, H", r8, 7, set_h, get_h);
-    opcodes[0xFD] = set!(0xFd, "SET 7, L", r8, 7, set_l, get_l);
-    opcodes[0xFE] = set!(0xFe, "SET 7, [HL]", ar16, 7, get_hl);
-    opcodes[0xFF] = set!(0xFf, "SET 7, A", r8, 7, set_a, get_a);
+    opcodes[0xF8] = set!(0xF8, "SET 7, B", ByteBit::Seven, Rhs8Bit::B);
+    opcodes[0xF9] = set!(0xF9, "SET 7, C", ByteBit::Seven, Rhs8Bit::C);
+    opcodes[0xFA] = set!(0xFa, "SET 7, D", ByteBit::Seven, Rhs8Bit::D);
+    opcodes[0xFB] = set!(0xFb, "SET 7, E", ByteBit::Seven, Rhs8Bit::E);
+    opcodes[0xFC] = set!(0xFc, "SET 7, H", ByteBit::Seven, Rhs8Bit::H);
+    opcodes[0xFD] = set!(0xFd, "SET 7, L", ByteBit::Seven, Rhs8Bit::L);
+    opcodes[0xFE] = set!(0xFe, "SET 7, [HL]", ByteBit::Seven, AddressRegister::HL, Rhs8Bit::Z);
+    opcodes[0xFF] = set!(0xFf, "SET 7, A", ByteBit::Seven, Rhs8Bit::C);
     opcodes
 }
 
