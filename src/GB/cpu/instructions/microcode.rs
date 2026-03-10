@@ -53,8 +53,30 @@ pub enum CheckCondition {
 }
 
 #[derive(Debug, Clone, Copy)]
+pub enum IduOp {
+    None(Lhs16Bit, Rhs16Bit),
+    Inc(Lhs16Bit, Rhs16Bit),
+    Dec(Lhs16Bit, Rhs16Bit),
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum SetFlag {
+    Same,
+    On,
+    Off,
+    Cpl, // "Complement"
+}
+
+pub type SetFlagZ = SetFlag;
+pub type SetFlagN = SetFlag;
+pub type SetFlagH = SetFlag;
+pub type SetFlagC = SetFlag;
+
+#[derive(Debug, Clone, Copy)]
 pub enum AluOp {
     Add(Lhs8Bit, Rhs8Bit),
+    AddMsb(Lhs16Bit, Lhs16Bit), // For MSB of 16-bit registers: Z flag is not latched and propagated
+    AddLsb(Lhs16Bit, Lhs16Bit), // For lsb of 16-bit registers: Z flag is not latched and propagated
     Adc(Lhs8Bit, Rhs8Bit),
     Sub(Lhs8Bit, Rhs8Bit),
     Sbc(Lhs8Bit, Rhs8Bit),
@@ -84,6 +106,7 @@ pub enum AluOp {
     Bit(ByteBit, Rhs8Bit),
     Res(ByteBit, Rhs8Bit),
     Set(ByteBit, Rhs8Bit),
+    SetFlags(SetFlagZ, SetFlagN, SetFlagH, SetFlagC),
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -91,16 +114,31 @@ pub enum MicroOp {
     Fetch8(Registers8Bit),
     Ld8(Lhs8Bit, Rhs8Bit),
     Ld16(Lhs16Bit, Rhs16Bit),
+    Read8H(Lhs8Bit, Rhs8Bit),
+    Write8H(Lhs8Bit, Rhs8Bit),
     Read8(Lhs8Bit, AddressRegister),
+    Read8Inc(Lhs8Bit, AddressRegister),  // For HL+
+    Read8Dec(Lhs8Bit, AddressRegister),  // For HL-
+    Read16msbInc(Rhs16Bit, AddressRegister),
+    Read16msbDec(Rhs16Bit, AddressRegister),
+    Read16lsbInc(Rhs16Bit, AddressRegister),
+    Read16lsbDec(Rhs16Bit, AddressRegister),
     Write8(AddressRegister, Rhs8Bit),
-    Push16msb(Rhs16Bit),
-    Push16lsb(Rhs16Bit),
-    Pop16msb(Rhs16Bit),
-    Pop16lsb(Rhs16Bit),
+    Write8Inc(AddressRegister, Rhs8Bit),  // For HL+
+    Write8Dec(AddressRegister, Rhs8Bit),  // For HL-
+    Write16msb(AddressRegister, Rhs16Bit),
+    Write16lsb(AddressRegister, Rhs16Bit),
+    Write16msbInc(AddressRegister, Rhs16Bit),
+    Write16msbDec(AddressRegister, Rhs16Bit),
+    Write16lsbInc(AddressRegister, Rhs16Bit),
+    Write16lsbDec(AddressRegister, Rhs16Bit),
     Inc16(Rhs16Bit),
     Dec16(Rhs16Bit),
     JumpVector(VectorAddress), // To immediate set PC during interrupts and RST
+    SumSignedByte16(Rhs16Bit, Rhs16Bit, bool),
     Alu(AluOp),
+    Idu(IduOp),
+    AluAndWrite8(AluOp, AddressRegister, Rhs8Bit),
     ImeEnabled(bool),
     PrefixCB,
     Idle,
