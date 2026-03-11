@@ -18,12 +18,12 @@ pub struct PpuMmio {
     oam_buffer: Vec<OAM>,
     obj_fifo: VecDeque<PixelFifo>,
     background_fifo: VecDeque<PixelFifo>,
-    screen_x: u8,
     vram: VRAM,
     lcdc: Byte,
     stat: Byte,
     scy: Byte,
     scx: Byte,
+    lx: u8, // This is NOT a register, just a internal pixel screen counter
     ly: Byte,
     lyc: Byte,
     bgp: Byte,
@@ -55,12 +55,12 @@ impl PpuMmio {
             oam_buffer: Vec::with_capacity(10),
             obj_fifo: VecDeque::with_capacity(16),
             background_fifo: VecDeque::with_capacity(16),
-            screen_x: 0,
             vram: VRAM::new(),
             lcdc: 0,
             stat: 0,
             scy: 0,
             scx: 0,
+            lx: 0,
             ly: 0,
             lyc: 0,
             bgp: 0,
@@ -152,6 +152,16 @@ impl PpuMmio {
     }
 
     #[inline]
+    pub fn clear_obj_fifo(&mut self) {
+        self.obj_fifo.clear();
+    }
+
+    #[inline]
+    pub fn clear_bg_fifo(&mut self) {
+        self.background_fifo.clear();
+    }
+
+    #[inline]
     pub fn oam_buffer(&self) -> &Vec<OAM> {
         &self.oam_buffer
     }
@@ -167,18 +177,18 @@ impl PpuMmio {
     }
 
     #[inline]
-    pub fn screen_x(&self) -> u8 {
-        self.screen_x
+    pub fn lx(&self) -> u8 {
+        self.lx
     }
 
     #[inline]
-    pub fn next_screen_x(&mut self) {
-        self.screen_x += 1;
+    pub fn next_lx(&mut self) {
+        self.lx += 1;
     }
 
     #[inline]
-    pub fn reset_screen_x(&mut self) {
-        self.screen_x = 0;
+    pub fn reset_lx(&mut self) {
+        self.lx = 0;
     }
 
     #[inline]

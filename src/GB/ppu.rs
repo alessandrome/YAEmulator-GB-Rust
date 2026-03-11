@@ -9,7 +9,7 @@ use crate::GB::ppu::oam::{OAM};
 use crate::GB::traits::Tick;
 use crate::GB::types::Byte;
 use lcd::LCD;
-use crate::GB::ppu::pixel_fetcher::PixelFetcherState;
+use crate::GB::ppu::pixel_fetcher::{BgFetchingMode, PixelFetcherState};
 
 pub mod lcd_stat;
 pub mod lcd_control;
@@ -44,8 +44,6 @@ pub struct PPU {
     oam_scans: u8,
     discarding_pixels: u8,
     dot: u16,
-    dots_penalties: u8,
-    dots_penalties_counter: u8,
     screen_dot: u8,
     switch_mode: bool,
 }
@@ -70,8 +68,6 @@ impl PPU {
             oam_scans: 0,
             discarding_pixels: 0,
             dot: 0,
-            dots_penalties: 0,
-            dots_penalties_counter: 0,
             screen_dot: 0,
             switch_mode: false,
         }
@@ -93,14 +89,21 @@ impl Tick for PPU {
                     self.oam_scans = 0;
                     self.oam_loading.clear();
                     self.dot = 0;
-                    self.dots_penalties = 0;
-                    self.dots_penalties_counter = 0;
-                    self.screen_dot = 0;
+                    ctx.ppu_mmio.reset_lx();
                 }
                 PpuMode::Drawing => {
                     ctx.ppu_mmio.sort_oam_buffer();
                     self.fetching_mode = PpuFetchingMode::FetchBg;
-                    self.discarding_pixels = ctx.ppu_mmio.scx() & 7;
+                    let lcdc = ctx.ppu_mmio.lcdc_view();
+                    let wx = ctx.ppu_mmio.wx();
+                    let wy = ctx.ppu_mmio.wy();
+                    let lx = ctx.ppu_mmio.lx();
+                    let ly = ctx.ppu_mmio.ly();
+                    if lcdc.bg_win_enabled && wx != 0 && wx.saturating_sub(7) == lx && ly >= wy {
+                        self.discarding_pixels = 7 - wx;
+                    } else {
+                        self.discarding_pixels = ctx.ppu_mmio.scx() & 7;
+                    }
                 }
                 PpuMode::HBlank => {}
                 PpuMode::VBlank => {}
@@ -153,15 +156,29 @@ impl Tick for PPU {
                     todo!("LCD Tick - Mix & Push pixel to screen (if BG ready!)");
                 }
 
-                let sprite_oam = ctx.ppu_mmio.oam_buffer().first();
-                match sprite_oam {
-                    None => {}
-                    Some(oam) => {
-                        if self.fetching_mode == PpuFetchingMode::FetchBg && oam.x().saturating_sub(8) == ctx.ppu_mmio.screen_x() {
-                            // Sprite Pixel fetching starts only if OBJs are enabled
-                            if ctx.ppu_mmio.lcdc_view().obj_enabled {
-                                self.fetching_mode = PpuFetchingMode::FetchSprite;
-                                self.bg_fetcher.reset();
+                if self.bg_fetcher.fetching_mode() == BgFetchingMode::Bg {
+                    let lcdc = ctx.ppu_mmio.lcdc_view();
+                    let wx = ctx.ppu_mmio.wx();
+                    let wy = ctx.ppu_mmio.wy();
+                    let lx = ctx.ppu_mmio.lx();
+                    let ly = ctx.ppu_mmio.ly();
+                    if lcdc.bg_win_enabled && wx.saturating_sub(7) == lx && ly >= wy {
+                        self.bg_fetcher.set_window_mode();
+                        ctx.ppu_mmio.clear_obj_fifo();
+                    }
+                }
+
+                if self.bg_fetcher.fetching_mode() == BgFetchingMode::Bg {
+                    let sprite_oam = ctx.ppu_mmio.oam_buffer().first();
+                    match sprite_oam {
+                        None => {}
+                        Some(oam) => {
+                            if self.fetching_mode == PpuFetchingMode::FetchBg && oam.x().saturating_sub(8) == ctx.ppu_mmio.lx() {
+                                // Sprite Pixel fetching starts only if OBJs are enabled
+                                if ctx.ppu_mmio.lcdc_view().obj_enabled {
+                                    self.fetching_mode = PpuFetchingMode::FetchSprite;
+                                    self.bg_fetcher.reset_cycle();
+                                }
                             }
                         }
                     }

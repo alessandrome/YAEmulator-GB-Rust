@@ -108,17 +108,17 @@ impl Tick for SpriteFetcher {
                 if self.oam.x_flip() {
                     self.tile_line = self.tile_line.reverse();
                 }
+                let palette;
+                if self.oam.palette() {
+                    palette = PixelFifoPaletteRegister::Obp1;
+                } else {
+                    palette = PixelFifoPaletteRegister::Obp0;
+                }
 
                 let obj_fifo_len = ctx.ppu_mmio.oam_buffer().len();
                 for pixel in 0..Tile::TILE_WIDTH {
                     // Push only pixels that don't overlap with already pushed ones
                     if pixel as usize >= obj_fifo_len {
-                        let palette;
-                        if self.oam.palette() {
-                            palette = PixelFifoPaletteRegister::Obp1;
-                        } else {
-                            palette = PixelFifoPaletteRegister::Obp0;
-                        }
                         ctx.ppu_mmio.push_obj_pixel(PixelFifo::new(
                             self.tile_line.line()[pixel as usize],
                             palette,

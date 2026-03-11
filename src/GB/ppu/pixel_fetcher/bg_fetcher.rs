@@ -8,16 +8,26 @@ use crate::GB::traits::Tick;
 use crate::GB::types::Byte;
 use super::PixelFetcherState;
 
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub enum BgFetchingMode {
+    Bg,
+    Window
+}
+
 pub struct BackgroundFetcher {
     state: PixelFetcherState,
+    fetching_mode: BgFetchingMode,
     first_cycle: bool,
-    screen_tile_x: u8,
+    bg_tile_x: u8,
+    wy: u8, // Internal WY
     pixel_shift: u8,
     tile_map_id: u16,
     tile_id: u8,
     line_high_byte: Byte,
     line_low_byte: Byte,
     tile_line: TileLine,
+    window_drawn: bool,
+    discarding_pixels: u8,
 }
 
 impl BackgroundFetcher {
@@ -26,81 +36,166 @@ impl BackgroundFetcher {
     pub fn new() -> Self {
         Self {
             state: PixelFetcherState::FetchTileT1,
+            fetching_mode: BgFetchingMode::Bg,
             first_cycle: true,
-            screen_tile_x: 0,
+            bg_tile_x: 0,
+            wy: 0,
             pixel_shift: 0,
             tile_map_id: 0,
             tile_id: 0,
             line_high_byte: 0,
             line_low_byte: 0,
             tile_line: TileLine::default(),
+            window_drawn: false,
+            discarding_pixels: 0,
         }
     }
 
-    pub fn reset(&mut self) {
+    #[inline]
+    pub fn fetching_mode(&self) -> BgFetchingMode {
+        self.fetching_mode
+    }
+
+    #[inline]
+    pub fn window_drawn(&self) -> bool {
+        self.window_drawn
+    }
+
+    #[inline]
+    pub fn set_window_mode(&mut self) {
+        self.reset_cycle();
         self.state = PixelFetcherState::FetchTileT1;
+    }
+
+    #[inline]
+    pub fn reset(&mut self, new_line: bool) {
+        self.bg_tile_x = 0;
+        if new_line {
+            self.wy += 1;
+        } else {
+            self.wy = 0;
+        }
+        self.window_drawn = false;
+        self.discarding_pixels = 0;
+        self.state = PixelFetcherState::FetchTileT1;
+    }
+
+    #[inline]
+    pub fn reset_cycle(&mut self) {
+        self.state = PixelFetcherState::FetchTileT1;
+    }
+
+    #[inline]
+    pub fn set_pixel_shift(&mut self, pixel_shift: u8) {
+        self.pixel_shift = pixel_shift;
     }
 }
 
 impl Tick for BackgroundFetcher {
     fn tick(&mut self, bus: &mut Bus, ctx: &mut MmioContext) {
         let lcdc = ctx.ppu_mmio.lcdc_view();
+        let wx = ctx.ppu_mmio.wx();
+        let wy = ctx.ppu_mmio.wy();
+        let lx = ctx.ppu_mmio.lx();
+        let ly = ctx.ppu_mmio.ly();
 
         // Reset here OAM buffer and X on starting phases
-        if ctx.ppu_mmio.prev_ppu_mode() != ctx.ppu_mmio.ppu_mode() {
-            match ctx.ppu_mmio.ppu_mode() {
-                PpuMode::OAMScan => {
-                    self.screen_tile_x = 0;
-                }
-                PpuMode::Drawing => {
-                    self.first_cycle = true;
-                    self.pixel_shift = ctx.ppu_mmio.scx() & 0x07;
-                }
-                PpuMode::HBlank => {}
-                PpuMode::VBlank => {}
-            }
-        }
+        // if ctx.ppu_mmio.prev_ppu_mode() != ctx.ppu_mmio.ppu_mode() {
+        //     match ctx.ppu_mmio.ppu_mode() {
+        //         PpuMode::OAMScan => {
+        //             self.bg_tile_x = 0;
+        //             self.wy = 0;
+        //             self.window_drawn = false;
+        //         }
+        //         PpuMode::Drawing => {
+        //             self.first_cycle = true;
+        //             self.pixel_shift = ctx.ppu_mmio.scx() & 0x07;
+        //         }
+        //         PpuMode::HBlank => {}
+        //         PpuMode::VBlank => {}
+        //     }
+        // }
 
         match self.state {
             PixelFetcherState::FetchTileT1 => {
-                // TODO: add for code to switch from bg to windows calculus mode
                 let scx = ctx.ppu_mmio.scx();
                 let scy = ctx.ppu_mmio.scy();
-                let wx = ctx.ppu_mmio.wx();
-                let wy = ctx.ppu_mmio.wy();
-                let ly = ctx.ppu_mmio.ly();
 
-                // Get tile map coordinates
-                let bg_map_x = (self.screen_tile_x + (scx / 8)) & 0x1F; // X of tile Map
-                let bg_map_y = ((ly as u16 + scy as u16) & 0xFF) as u8 / 8; // Y of Tile Map
-                self.tile_map_id = (32 * bg_map_y as u16 + bg_map_x as u16) & 0x3FF; // Idx of tile id given (X,Y) of the map
+                if !lcdc.bg_win_enabled || (lx < wx || ly < wy) {
+                    // Background: Get tile map coordinates
+                    let bg_map_x = (self.bg_tile_x + (scx / 8)) & 0x1F; // X of tile Map
+                    let bg_map_y = ((ly as u16 + scy as u16) & 0xFF) as u8 / 8; // Y of Tile Map
+                    self.tile_map_id = (32 * bg_map_y as u16 + bg_map_x as u16) & 0x3FF; // Idx of tile id given (X,Y) of the map
+                    self.fetching_mode = BgFetchingMode::Bg;
+                } else {
+                    // Window: Get tile map coordinates
+                    let win_map_x = (wx / 8) & 0x1F;
+                    let win_map_y = (ly - wy) & 0x1F;
+                    self.tile_map_id = (32 * win_map_y as u16 + win_map_x as u16) & 0x3FF;
+                    self.fetching_mode = BgFetchingMode::Window;
+                }
                 self.state = PixelFetcherState::FetchTileT2;
             }
             PixelFetcherState::FetchTileT2 => {
-                self.tile_id = ctx.ppu_mmio.vram().tile_id(self.tile_map_id, lcdc.bg_tile_map);
+                match self.fetching_mode {
+                    BgFetchingMode::Bg => {
+                        self.tile_id = ctx.ppu_mmio.vram().tile_id(self.tile_map_id, lcdc.bg_tile_map);
+                    }
+                    BgFetchingMode::Window => {
+                        self.tile_id = ctx.ppu_mmio.vram().tile_id(self.tile_map_id, lcdc.window_tile_map);
+                    }
+                }
                 self.state = PixelFetcherState::FetchTileDataHighT1;
             }
             PixelFetcherState::FetchTileDataLowT1 => {
-                let scy = ctx.ppu_mmio.scy();
-                let ly = ctx.ppu_mmio.ly();
-                self.line_low_byte = ctx.ppu_mmio.vram().tile_line_lsb_byte(
-                    self.tile_id,
-                    ((scy as u16 + ly as u16) & 7) as u8,
-                    TileDataArea::DataBlock12
-                );
+                let tile_data_area = lcdc.bg_window_tile_area;
+                match self.fetching_mode {
+                    BgFetchingMode::Bg => {
+                        // Background: Get tile line low data
+                        let scy = ctx.ppu_mmio.scy();
+                        let ly = ctx.ppu_mmio.ly();
+                        self.line_low_byte = ctx.ppu_mmio.vram().tile_line_lsb_byte(
+                            self.tile_id,
+                            ((scy as u16 + ly as u16) & 7) as u8,
+                            tile_data_area
+                        );
+                    }
+                    BgFetchingMode::Window => {
+                        // Window: Get tile line low data
+                        self.line_low_byte = ctx.ppu_mmio.vram().tile_line_lsb_byte(
+                            self.tile_id,
+                            self.wy,
+                            tile_data_area
+                        );
+                    }
+                }
                 self.state = PixelFetcherState::FetchTileDataLowT2;
             }
             PixelFetcherState::FetchTileDataLowT2 => {
                 self.state = PixelFetcherState::FetchTileDataHighT1;
             }
             PixelFetcherState::FetchTileDataHighT1 => {
-                let scy = ctx.ppu_mmio.scy();
-                let ly = ctx.ppu_mmio.ly();
-                self.line_high_byte = ctx.ppu_mmio.vram().tile_line_msb_byte(
-                    self.tile_id,
-                    ((scy as u16 + ly as u16) & 7) as u8,
-                    TileDataArea::DataBlock12
-                );
+                let tile_data_area = lcdc.bg_window_tile_area;
+                match self.fetching_mode {
+                    BgFetchingMode::Bg => {
+                        // Background: Get tile line low data
+                        let scy = ctx.ppu_mmio.scy();
+                        let ly = ctx.ppu_mmio.ly();
+                        self.line_high_byte = ctx.ppu_mmio.vram().tile_line_msb_byte(
+                            self.tile_id,
+                            ((scy as u16 + ly as u16) & 7) as u8,
+                            tile_data_area
+                        );
+                    }
+                    BgFetchingMode::Window => {
+                        // Window: Get tile line low data
+                        self.line_low_byte = ctx.ppu_mmio.vram().tile_line_msb_byte(
+                            self.tile_id,
+                            self.wy,
+                            tile_data_area
+                        );
+                    }
+                }
                 self.state = PixelFetcherState::FetchTileDataHighT2;
             }
             PixelFetcherState::FetchTileDataHighT2 => {
@@ -126,7 +221,7 @@ impl Tick for BackgroundFetcher {
                 }
             }
             PixelFetcherState::PushT2 => {
-                self.screen_tile_x += 1;
+                self.bg_tile_x += 1;
                 self.state = PixelFetcherState::FetchTileT1;
             }
         }
