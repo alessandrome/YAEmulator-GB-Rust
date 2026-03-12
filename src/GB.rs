@@ -39,11 +39,11 @@ pub struct GB {
     pub wram: memory::wram::WRAM,
     pub oam_memory: memory::oam_memory::OamMemory,
     // pub bios: BIOS, // todo!("Add Bios")
-    pub cpu_ctx: cpu::CpuCtx,
+    cpu_ctx: cpu::CpuCtx,
     ppu_ctx: ppu::PpuCtx,
     dma_ctx: dma::DmaCtx,
     apu_ctx: apu::ApuCtx,
-    pub input: input::GBInput,
+    input: input::GBInput,
     cartridge: Option<cartridge::Cartridge>,
     cycles: u64, // Number to cycle needed to complete current CPU instruction. cpu.cycle() is skipped if different from 0
     cycles_overflows: u64, // Number of time cycles has overflowed
