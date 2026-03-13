@@ -2,13 +2,12 @@ pub mod addresses;
 
 #[cfg(test)]
 mod tests;
+mod mbc1;
 
 use std::{fmt, io};
-use std::cell::RefCell;
 use std::io::prelude::*;
 use std::fs::File;
-use std::rc::Rc;
-use std::string::FromUtf8Error;
+use crate::GB::bus::BusDevice;
 use crate::GB::cartridge::addresses::{TITLE, TITLE_OLD_SIZE};
 use crate::GB::cartridge::addresses::mbc1::{MBC1_BANKING_MODE_ADDRESS_END, MBC1_BANKING_MODE_ADDRESS_START, MBC1_RAM_BANK_SELECTION_ADDRESS_END, MBC1_RAM_BANK_SELECTION_ADDRESS_START, MBC1_RAM_ENABLE_ADDRESS_END, MBC1_RAM_ENABLE_ADDRESS_START, MBC1_ROM_BANK_SELECTION_ADDRESS_END, MBC1_ROM_BANK_SELECTION_ADDRESS_START};
 use crate::GB::memory::{Memory};
@@ -31,6 +30,11 @@ pub struct Cartridge {
 
 /// Alias name for cartridge type, as it is commonly known as ROM
 pub type ROM = Cartridge;
+
+pub trait RomController: BusDevice {
+    fn new() -> Self;
+    fn load(&mut self, rom_path: &str);
+}
 
 #[derive(Copy, Clone, Debug, Ord, PartialOrd, Eq, PartialEq)]
 #[repr(u8)]
