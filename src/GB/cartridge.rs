@@ -4,7 +4,6 @@ pub mod addresses;
 mod tests;
 mod mbc1;
 
-use std::{fmt, io};
 use std::io::prelude::*;
 use std::fs::File;
 use crate::GB::bus::BusDevice;
@@ -14,31 +13,9 @@ use crate::GB::memory::{Memory};
 use crate::GB::memory::addresses::{ROM_BANK_0_ADDRESS, ROM_BANK_0_LAST_ADDRESS, EXTERNAL_RAM_ADDRESS, EXTERNAL_RAM_LAST_ADDRESS, ROM_BANK_1_LAST_ADDRESS, ROM_BANK_1_ADDRESS};
 use crate::GB::cpu::registers::core_registers::Registers;
 
-pub const ROM_BANK_SIZE: usize = 0x4000;
-pub const RAM_BANK_SIZE: usize = 0x2000;
-
-pub struct Cartridge {
-    rom: Memory<u8>,
-    ram: Memory<u8>,
-    cartridge_type: CartridgeType,
-    rom_path: String,
-    ram_enabled: bool,
-    rom_bank: usize,
-    ram_bank: usize,
-    bank_switch_mode: bool, // False = ROM mode - True = RAM mode
-}
-
-/// Alias name for cartridge type, as it is commonly known as ROM
-pub type ROM = Cartridge;
-
-pub trait RomController: BusDevice {
-    fn new() -> Self;
-    fn load(&mut self, rom_path: &str);
-}
-
 #[derive(Copy, Clone, Debug, Ord, PartialOrd, Eq, PartialEq)]
 #[repr(u8)]
-enum CartridgeType {
+enum CartridgeController {
     RomOnly = 0,
     Mbc1 = 0x01,
     Mbc1Ram = 0x02,
@@ -70,6 +47,26 @@ enum CartridgeType {
     Unknown = 0xEE,
 }
 
+pub struct Cartridge {
+    rom: Box<dyn RomController>,
+    // rom: Memory<u8>,
+    ram: Memory<u8>,
+    cartridge_type: CartridgeController,
+    rom_path: String,
+    ram_enabled: bool,
+    rom_bank: usize,
+    ram_bank: usize,
+    bank_switch_mode: bool, // False = ROM mode - True = RAM mode
+}
+
+/// Alias name for cartridge type, as it is commonly known as ROM
+pub type ROM = Cartridge;
+
+pub trait RomController: BusDevice {
+    fn new() -> Self;
+    fn load(&mut self, rom_path: &str) -> Result<(), std::io::Error>;
+}
+
 impl Cartridge {
     pub fn new(file: String) -> Result<Self, std::io::Error> {
         let mut f = File::open(&file)?;
@@ -82,7 +79,7 @@ impl Cartridge {
             5 => 64 * 1024,
             _ => 0
         };
-        let cartridge_type: CartridgeType = Self::get_cartridge_type(buffer[addresses::CARTRIDGE_TYPE]);
+        let cartridge_type: CartridgeController = Self::get_cartridge_type(buffer[addresses::CARTRIDGE_TYPE]);
         Ok(Self {
             rom: Memory::<u8>::new_from_vec(buffer),
             ram: Memory::<u8>::new(0, ram_size),
@@ -113,7 +110,7 @@ impl Cartridge {
         let address_usize = address as usize;
         let mut return_val: u8 = 0xFF;
         match self.cartridge_type {
-            CartridgeType::Mbc1 => {
+            CartridgeController::Mbc1 => {
                 return_val = self.read_mbc1(address_usize);
             }
             _ => {}
@@ -124,7 +121,7 @@ impl Cartridge {
     pub fn write(&mut self, address: u16, value: u8) {
         let address_usize = address as usize;
         match self.cartridge_type {
-            CartridgeType::Mbc1 => {
+            CartridgeController::Mbc1 => {
                 self.write_mbc1(address_usize, value);
             }
             _ => {}
@@ -196,70 +193,70 @@ impl Cartridge {
         self.ram.len() / ROM_BANK_SIZE
     }
 
-    pub fn get_cartridge_type(code: u8) -> CartridgeType {
+    pub fn get_cartridge_type(code: u8) -> CartridgeController {
         match code {
-            0x00 => CartridgeType::RomOnly,
-            0x01 => CartridgeType::Mbc1,
-            0x02 => CartridgeType::Mbc1Ram,
-            0x03 => CartridgeType::Mbc1RamBattery,
-            0x05 => CartridgeType::Mbc2,
-            0x06 => CartridgeType::Mbc2Battery,
-            0x08 => CartridgeType::RomRam,
-            0x09 => CartridgeType::RomRamBattery,
-            0x0B => CartridgeType::Mmm01,
-            0x0C => CartridgeType::Mmm01Ram,
-            0x0D => CartridgeType::Mmm01RamBattery,
-            0x0F => CartridgeType::Mbc3TimerBattery,
-            0x10 => CartridgeType::Mbc3TimerRamBattery,
-            0x11 => CartridgeType::Mbc3,
-            0x12 => CartridgeType::Mbc3Ram,
-            0x13 => CartridgeType::Mbc3RamBattery,
-            0x19 => CartridgeType::Mbc5,
-            0x1A => CartridgeType::Mbc5Ram,
-            0x1B => CartridgeType::Mbc5RamBattery,
-            0x1C => CartridgeType::Mbc5Rumble,
-            0x1D => CartridgeType::Mbc5RumbleRam,
-            0x1E => CartridgeType::Mbc5RumbleRamBattery,
-            0x20 => CartridgeType::Mbc6,
-            0x22 => CartridgeType::Mbc7SensorRumbleRamBattery,
-            0xFC => CartridgeType::PocketCamera,
-            0xFD => CartridgeType::BandaiTama5,
-            0xFE => CartridgeType::HuC3,
-            0xFF => CartridgeType::HuC1RamBattery,
-            _ => CartridgeType::Unknown
+            0x00 => CartridgeController::RomOnly,
+            0x01 => CartridgeController::Mbc1,
+            0x02 => CartridgeController::Mbc1Ram,
+            0x03 => CartridgeController::Mbc1RamBattery,
+            0x05 => CartridgeController::Mbc2,
+            0x06 => CartridgeController::Mbc2Battery,
+            0x08 => CartridgeController::RomRam,
+            0x09 => CartridgeController::RomRamBattery,
+            0x0B => CartridgeController::Mmm01,
+            0x0C => CartridgeController::Mmm01Ram,
+            0x0D => CartridgeController::Mmm01RamBattery,
+            0x0F => CartridgeController::Mbc3TimerBattery,
+            0x10 => CartridgeController::Mbc3TimerRamBattery,
+            0x11 => CartridgeController::Mbc3,
+            0x12 => CartridgeController::Mbc3Ram,
+            0x13 => CartridgeController::Mbc3RamBattery,
+            0x19 => CartridgeController::Mbc5,
+            0x1A => CartridgeController::Mbc5Ram,
+            0x1B => CartridgeController::Mbc5RamBattery,
+            0x1C => CartridgeController::Mbc5Rumble,
+            0x1D => CartridgeController::Mbc5RumbleRam,
+            0x1E => CartridgeController::Mbc5RumbleRamBattery,
+            0x20 => CartridgeController::Mbc6,
+            0x22 => CartridgeController::Mbc7SensorRumbleRamBattery,
+            0xFC => CartridgeController::PocketCamera,
+            0xFD => CartridgeController::BandaiTama5,
+            0xFE => CartridgeController::HuC3,
+            0xFF => CartridgeController::HuC1RamBattery,
+            _ => CartridgeController::Unknown
         }
     }
-    pub fn get_cartridge_type_string(code: &CartridgeType) -> String {
+    pub fn get_cartridge_type_string(code: &CartridgeController) -> String {
         let s = match code {
-            CartridgeType::RomOnly => "ROM-Only",
-            CartridgeType::Mbc1 => "MBC1",
-            CartridgeType::Mbc1Ram => "MBC1+RAN",
-            CartridgeType::Mbc1RamBattery => "MBC1+RAM+BATTERY",
-            CartridgeType::Mbc2 => "MBC2",
-            CartridgeType::Mbc2Battery => "MBC2+BATTERY",
-            CartridgeType::RomRam => "ROM+RAM",
-            CartridgeType::RomRamBattery => "ROM+RAM+BATTERY",
-            CartridgeType::Mmm01 => "MMM01",
-            CartridgeType::Mmm01Ram => "MMM01+RAM",
-            CartridgeType::Mmm01RamBattery => "MMM01+RAM+BATTERY",
-            CartridgeType::Mbc3TimerBattery => "MBC3+TIMER+BATTERY",
-            CartridgeType::Mbc3TimerRamBattery => "MBC3+TIMER+RAM+BATTERY",
-            CartridgeType::Mbc3 => "MBC3",
-            CartridgeType::Mbc3Ram => "MBC3+RAM",
-            CartridgeType::Mbc3RamBattery => "MBC3+RAM+BATTERY",
-            CartridgeType::Mbc5 => "MB5",
-            CartridgeType::Mbc5Ram => "MBC5+RAM",
-            CartridgeType::Mbc5RamBattery => "MBC5+RAM+BATTERY",
-            CartridgeType::Mbc5Rumble => "MBC5+RUMBLE",
-            CartridgeType::Mbc5RumbleRam => "MBC5+RUMBLE+RAM",
-            CartridgeType::Mbc5RumbleRamBattery => "MBC5+RUMBLE+RAM+BATTERY",
-            CartridgeType::Mbc6 => "MBC6",
-            CartridgeType::Mbc7SensorRumbleRamBattery => "MBC7+SENSOR+RUMBLE+RAM+BATTERY",
-            CartridgeType::PocketCamera => "POCKET-CAMERA",
-            CartridgeType::BandaiTama5 => "BANDAI-TAMA5",
-            CartridgeType::HuC3 => "HuC3",
-            CartridgeType::HuC1RamBattery => "HuC1+RAM+BATTERY",
-            CartridgeType::Unknown => "Unknown",
+            CartridgeController::RomOnly => "ROM-Only",
+            CartridgeController::Mbc1 => "MBC1",
+            CartridgeController::Mbc1Ram => "MBC1+RAN",
+            CartridgeController::Mbc1RamBattery => "MBC1+RAM+BATTERY",
+            CartridgeController::Mbc2 => "MBC2",
+            CartridgeController::Mbc2Battery => "MBC2+BATTERY",
+            CartridgeController::RomRam => "ROM+RAM",
+            CartridgeController::RomRamBattery => "ROM+RAM+BATTERY",
+            CartridgeController::Mmm01 => "MMM01",
+            CartridgeController::Mmm01Ram => "MMM01+RAM",
+            CartridgeController::Mmm01RamBattery => "MMM01+RAM+BATTERY",
+            CartridgeController::Mbc3TimerBattery => "MBC3+TIMER+BATTERY",
+            CartridgeController::Mbc3TimerRamBattery => "MBC3+TIMER+RAM+BATTERY",
+            CartridgeController::Mbc3 => "MBC3",
+            CartridgeController::Mbc3Ram => "MBC3+RAM",
+            CartridgeController::Mbc3RamBattery => "MBC3+RAM+BATTERY",
+            CartridgeController::Mbc5 => "MB5",
+            CartridgeController::Mbc5Ram => "MBC5+RAM",
+            CartridgeController::Mbc5RamBattery => "MBC5+RAM+BATTERY",
+            CartridgeController::Mbc5Rumble => "MBC5+RUMBLE",
+            CartridgeController::Mbc5RumbleRam => "MBC5+RUMBLE+RAM",
+            CartridgeController::Mbc5RumbleRamBattery => "MBC5+RUMBLE+RAM+BATTERY",
+            CartridgeController::Mbc6 => "MBC6",
+            CartridgeController::Mbc7SensorRumbleRamBattery => "MBC7+SENSOR+RUMBLE+RAM+BATTERY",
+            CartridgeController::PocketCamera => "POCKET-CAMERA",
+            CartridgeController::BandaiTama5 => "BANDAI-TAMA5",
+            CartridgeController::HuC3 => "HuC3",
+            CartridgeController::HuC1RamBattery => "HuC1+RAM+BATTERY",
+            CartridgeController::Unknown => "Unknown",
         };
         s.to_string()
     }
@@ -280,7 +277,7 @@ impl Cartridge {
         self.ram.len()
     }
 
-    pub fn get_cart_type(&self) -> CartridgeType {
+    pub fn get_cart_type(&self) -> CartridgeController {
         self.cartridge_type
     }
 }
