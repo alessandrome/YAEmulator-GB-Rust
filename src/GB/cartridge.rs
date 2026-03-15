@@ -2,16 +2,16 @@ pub mod addresses;
 
 #[cfg(test)]
 mod tests;
-mod mbc1;
+pub mod header;
+pub mod controller;
 
 use std::io::prelude::*;
 use std::fs::File;
 use crate::GB::bus::BusDevice;
 use crate::GB::cartridge::addresses::{TITLE, TITLE_OLD_SIZE};
 use crate::GB::cartridge::addresses::mbc1::{MBC1_BANKING_MODE_ADDRESS_END, MBC1_BANKING_MODE_ADDRESS_START, MBC1_RAM_BANK_SELECTION_ADDRESS_END, MBC1_RAM_BANK_SELECTION_ADDRESS_START, MBC1_RAM_ENABLE_ADDRESS_END, MBC1_RAM_ENABLE_ADDRESS_START, MBC1_ROM_BANK_SELECTION_ADDRESS_END, MBC1_ROM_BANK_SELECTION_ADDRESS_START};
-use crate::GB::memory::{Memory};
-use crate::GB::memory::addresses::{ROM_BANK_0_ADDRESS, ROM_BANK_0_LAST_ADDRESS, EXTERNAL_RAM_ADDRESS, EXTERNAL_RAM_LAST_ADDRESS, ROM_BANK_1_LAST_ADDRESS, ROM_BANK_1_ADDRESS};
-use crate::GB::cpu::registers::core_registers::Registers;
+use crate::GB::memory::Memory;
+use crate::GB::memory::addresses::{EXTERNAL_RAM_ADDRESS, EXTERNAL_RAM_LAST_ADDRESS, ROM_BANK_0_ADDRESS, ROM_BANK_0_LAST_ADDRESS, ROM_BANK_1_ADDRESS, ROM_BANK_1_LAST_ADDRESS};
 
 #[derive(Copy, Clone, Debug, Ord, PartialOrd, Eq, PartialEq)]
 #[repr(u8)]
@@ -65,6 +65,7 @@ pub type ROM = Cartridge;
 pub trait RomController: BusDevice {
     fn new() -> Self;
     fn load(&mut self, rom_path: &str) -> Result<(), std::io::Error>;
+    fn header_slice(&self) -> &[u8; 0x50];
 }
 
 impl Cartridge {
