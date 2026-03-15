@@ -6,12 +6,12 @@ use crate::GB::types::Byte;
 const HEADER_START_ADDRESS: Address = Address(0x0100);
 const HEADER_END_ADDRESS: Address = Address(0x014F);
 
-pub struct RomHeader<'a> {
+pub struct RomHeader {
     raw_header: [u8; HEADER_END_ADDRESS.as_usize() - HEADER_START_ADDRESS.as_usize()],
-    title: &'a str,
+    title: String,
 }
 
-impl RomHeader<'_> {
+impl RomHeader {
     pub const HEADER_START_ADDRESS: Address = HEADER_START_ADDRESS;
     pub const HEADER_END_ADDRESS: Address = HEADER_END_ADDRESS;
     pub const HEADER_SIZE: usize = Self::HEADER_END_ADDRESS.as_usize() - HEADER_START_ADDRESS.as_usize();
@@ -19,9 +19,9 @@ impl RomHeader<'_> {
     pub const HEADER_TITLE_END_ADDRESS: Address = Address(0x0143);
 }
 
-impl RomHeader<'_> {
+impl RomHeader {
     pub fn new(header_slice: &[Byte; Self::HEADER_SIZE]) -> Self {
-        let title_result = str::from_utf8(
+        let title_result = String::from_utf8(
             &header_slice[
                 (Self::HEADER_TITLE_START_ADDRESS.as_usize() - Self::HEADER_START_ADDRESS.as_usize())..=(Self::HEADER_TITLE_START_ADDRESS.as_usize() - Self::HEADER_END_ADDRESS.as_usize())
                 ]
