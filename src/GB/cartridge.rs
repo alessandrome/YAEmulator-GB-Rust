@@ -69,6 +69,9 @@ pub trait RomController: BusDevice {
 }
 
 impl Cartridge {
+    pub const ROM_BANK_SIZE: usize = 0x4000;
+    pub const RAM_BANK_SIZE: usize = 0x2000;
+
     pub fn new(file: String) -> Result<Self, std::io::Error> {
         let mut f = File::open(&file)?;
         let mut buffer = Vec::new();
