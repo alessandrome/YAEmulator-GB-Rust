@@ -15,6 +15,7 @@ const HEADER_NINTENDO_LOGO: [Byte; 48] = [
 const HEADER_START_ADDRESS: Address = Address(0x0100);
 const HEADER_END_ADDRESS: Address = Address(0x014F);
 
+#[derive(Clone, Debug)]
 pub struct RomHeader {
     raw_header: [u8; HEADER_END_ADDRESS.as_usize() - HEADER_START_ADDRESS.as_usize()],
     rom_banks: usize,
@@ -23,6 +24,8 @@ pub struct RomHeader {
     new_license_code: NewLicenseCode,
     rom_version: Byte,
     title: String,
+    rom_checksum: u8,
+    global_checksum: u16,
 }
 
 impl RomHeader {
@@ -54,9 +57,13 @@ impl RomHeader {
         let old_license_code = header_slice[Self::HEADER_OLD_LICENSE_ADDRESS.as_usize() - Self::HEADER_START_ADDRESS.as_usize()];
         let new_license_high_byte = header_slice[Self::HEADER_NEW_LICENSE_HIGH_BYTE_ADDRESS.as_usize() - Self::HEADER_START_ADDRESS.as_usize()];
         let new_license_low_byte = header_slice[Self::HEADER_NEW_LICENSE_LOW_BYTE_ADDRESS.as_usize() - Self::HEADER_START_ADDRESS.as_usize()];
-        let new_license_code = (new_license_high_byte as u16) << 8 | new_license_low_byte as u16;
+        let new_license_code = ((new_license_high_byte as u16) << 8) | new_license_low_byte as u16;
 
         let rom_version = header_slice[Self::HEADER_ROM_VERSION_ADDRESS.as_usize() - Self::HEADER_START_ADDRESS.as_usize()];
+        let rom_checksum = header_slice[Self::HEADER_ROM_CHECKSUM_ADDRESS.as_usize() - Self::HEADER_START_ADDRESS.as_usize()];
+        let global_checksum_high = header_slice[Self::HEADER_GLOBAL_CHECKSUM_HIGH_BYTE_ADDRESS.as_usize() - Self::HEADER_START_ADDRESS.as_usize()];
+        let global_checksum_low = header_slice[Self::HEADER_GLOBAL_CHECKSUM_LOW_BYTE_ADDRESS.as_usize() - Self::HEADER_START_ADDRESS.as_usize()];
+        let global_checksum = ((global_checksum_high as u16) << 8) | global_checksum_low as u16;
 
         Self {
             raw_header: header_slice.clone(),
@@ -66,9 +73,12 @@ impl RomHeader {
             new_license_code: new_license_code.into(),
             rom_version,
             title: title_result,
+            rom_checksum,
+            global_checksum,
         }
     }
 
+    #[inline]
     pub fn rom_banks_from_byte(byte: Byte) -> usize {
         match byte {
             0..=8 => 2 << byte,
@@ -77,6 +87,7 @@ impl RomHeader {
         }
     }
 
+    #[inline]
     pub fn ram_banks_from_byte(byte: Byte) -> usize {
         match byte {
             0 => 0,
@@ -87,5 +98,50 @@ impl RomHeader {
             5 => 8,
             _ => unimplemented!(),
         }
+    }
+
+    #[inline]
+    pub fn raw_header(&self) -> &[Byte; Self::HEADER_SIZE] {
+        &self.raw_header
+    }
+
+    #[inline]
+    pub fn rom_banks(&self) -> usize {
+        self.rom_banks
+    }
+
+    #[inline]
+    pub fn ram_banks(&self) -> usize {
+        self.ram_banks
+    }
+
+    #[inline]
+    pub fn old_license_code(&self) -> OldLicenseCode {
+        self.old_license_code
+    }
+
+    #[inline]
+    pub fn new_license_code(&self) -> NewLicenseCode {
+        self.new_license_code
+    }
+
+    #[inline]
+    pub fn rom_version(&self) -> Byte {
+        self.rom_version
+    }
+
+    #[inline]
+    pub fn rom_checksum(&self) -> u8 {
+        self.rom_checksum
+    }
+
+    #[inline]
+    pub fn global_checksum(&self) -> u16 {
+        self.global_checksum
+    }
+
+    #[inline]
+    pub fn title(&self) -> &String {
+        &self.title
     }
 }

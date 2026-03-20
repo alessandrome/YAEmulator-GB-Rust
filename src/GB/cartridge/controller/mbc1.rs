@@ -1,6 +1,8 @@
 use std::fs::File;
+use std::io::{Read, Seek};
 use crate::GB::bus::BusDevice;
-use crate::GB::cartridge::RomController;
+use crate::GB::cartridge::{RomController, RomLoader};
+use crate::GB::cartridge::header::RomHeader;
 use crate::GB::memory::Memory;
 use crate::GB::types::address::{Address, AddressRangeInclusive};
 use crate::GB::types::Byte;
@@ -24,6 +26,7 @@ impl Mbc1Mask {
 
 #[derive(Clone, Debug)]
 pub struct Mbc1 {
+    header: RomHeader,
     rom_bank: u8,
     ram_bank: u8,
     ram_enabled: bool,
@@ -115,6 +118,7 @@ impl BusDevice for Mbc1 {
             address if Self::MBC1_ROM_BANK_1_RANGE.contains(&address) => {
                 match self.banking_mode {
                     Mbc1BankMode::Simple => {
+                        let rom_bank = if (self.rom_bank & Mbc1Mask::ROM_BANK_MODE) == 0 { 0 } else { self.rom_bank - 1 };
                         self.rom[address.as_usize()]
                     }
                     Mbc1BankMode::Advanced => {
@@ -148,17 +152,6 @@ impl BusDevice for Mbc1 {
 }
 
 impl RomController for Mbc1 {
-    fn new() -> Self {
-        Self {
-            rom_bank: 0,
-            ram_bank: 0,
-            ram_enabled: false,
-            rom: vec![0; Self::MBC1_ROM_BANK_SIZE * Self::MBC1_ROM_BANKS],
-            ram: vec![0; Self::MBC1_RAM_BANK_SIZE * Self::MBC1_RAM_BANKS],
-            banking_mode: Mbc1BankMode::Simple,
-        }
-    }
-
     fn load(&mut self, rom_path: &str) -> Result<(), std::io::Error> {
         let open_result = File::open(rom_path);
         match open_result {
@@ -167,5 +160,32 @@ impl RomController for Mbc1 {
             }
             Err(err) => Result::Err(err),
         }
+    }
+
+    fn header_slice(&self) -> &[u8; 0x50] {
+        self.header.raw_header()
+    }
+
+    fn header(&self) -> &RomHeader {
+        &self.header
+    }
+}
+
+impl RomLoader for Mbc1 {
+    fn new(mut file: File) -> Result<Self, std::io::Error> {
+        file.rewind()?;
+        let mut rom: Vec<Byte> = Vec::new();
+        file.read_to_end(&mut rom)?;
+        let header = RomHeader::new(&rom[RomHeader::HEADER_START_ADDRESS..=RomHeader::HEADER_END_ADDRESS]);
+
+        Ok(Self {
+            rom_bank: 1,
+            ram_bank: 0,
+            ram_enabled: false,
+            rom,
+            ram: vec![0; Self::MBC1_RAM_BANK_SIZE * header.rom_banks()],
+            banking_mode: Mbc1BankMode::Simple,
+            header,
+        })
     }
 }
