@@ -116,14 +116,14 @@ impl BusDevice for Mbc1 {
                 }
             }
             address if Self::MBC1_ROM_BANK_1_RANGE.contains(&address) => {
+                let rom_bank = if self.rom_bank == 0 { 1 } else { self.rom_bank };
+                let base_offset_low = Self::MBC1_ROM_BANK_SIZE * rom_bank as usize;
                 match self.banking_mode {
                     Mbc1BankMode::Simple => {
-                        let rom_bank = if (self.rom_bank & Mbc1Mask::ROM_BANK_MODE) == 0 { 0 } else { self.rom_bank - 1 };
-                        self.rom[address.as_usize()]
+                        self.rom[base_offset_low + address.as_usize()]
                     }
                     Mbc1BankMode::Advanced => {
                         let base_offset_high = 0x20 * Self::MBC1_ROM_BANK_SIZE * self.ram_bank as usize;
-                        let base_offset_low = Self::MBC1_ROM_BANK_SIZE * self.rom_bank as usize;
                         self.rom[base_offset_high + base_offset_low + address.as_usize()]
                     }
                 }
@@ -138,9 +138,11 @@ impl BusDevice for Mbc1 {
                 self.ram_enabled = if (data & Mbc1Mask::ENABLE_RAM) == Self::MBC1_RAM_ENABLE_VALUE { true } else { false };
             }
             address if Self::MBC1_ROM_BANK_SELECTOR_RANGE.contains(&address) => {
+                // Be sure the bank value use the right number of bits (5-bit for rom banking)
                 self.rom_bank = data & Mbc1Mask::ROM_BANK;
             }
             address if Self::MBC1_RAM_BANK_SELECTOR_RANGE.contains(&address) => {
+                // Be sure the bank value use the right number of bits (2-bit for ram banking)
                 self.ram_bank = data & Mbc1Mask::RAM_BANK;
             }
             address if Self::MBC1_ROM_BANK_MODE_RANGE.contains(&address) => {
@@ -163,7 +165,7 @@ impl RomController for Mbc1 {
     }
 
     fn header_slice(&self) -> &[u8; 0x50] {
-        self.header.raw_header()
+        self.header().raw_header()
     }
 
     fn header(&self) -> &RomHeader {

@@ -32,7 +32,7 @@ impl RomHeader {
     pub const HEADER_NINTENDO_LOGO: [Byte; 48] = HEADER_NINTENDO_LOGO;
     pub const HEADER_START_ADDRESS: Address = HEADER_START_ADDRESS;
     pub const HEADER_END_ADDRESS: Address = HEADER_END_ADDRESS;
-    pub const HEADER_SIZE: usize = Self::HEADER_END_ADDRESS.as_usize() - HEADER_START_ADDRESS.as_usize();
+    pub const HEADER_SIZE: usize = Self::HEADER_END_ADDRESS.as_usize() - HEADER_START_ADDRESS.as_usize() + 1;
     pub const HEADER_TITLE_START_ADDRESS: Address = Address(0x0134);
     pub const HEADER_TITLE_END_ADDRESS: Address = Address(0x0143);
     pub const HEADER_NEW_LICENSE_HIGH_BYTE_ADDRESS: Address = Address(0x0144);
