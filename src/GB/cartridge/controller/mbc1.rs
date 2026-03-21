@@ -1,7 +1,7 @@
 use std::fs::File;
 use std::io::{Read, Seek};
 use crate::GB::bus::BusDevice;
-use crate::GB::cartridge::{RomController, RomLoader};
+use super::{RomController};
 use crate::GB::cartridge::header::RomHeader;
 use crate::GB::memory::Memory;
 use crate::GB::types::address::{Address, AddressRangeInclusive};
@@ -65,6 +65,25 @@ impl Mbc1 {
 }
 
 impl Mbc1 {
+    pub fn new(mut file: File) -> Result<Self, std::io::Error> {
+        file.rewind()?;
+        let mut rom: Vec<Byte> = Vec::new();
+        file.read_to_end(&mut rom)?;
+        let header = RomHeader::new(
+            rom[RomHeader::HEADER_START_ADDRESS.as_usize()..=RomHeader::HEADER_END_ADDRESS.as_usize()].as_array().unwrap()
+        );
+
+        Ok(Self {
+            rom_bank: 1,
+            ram_bank: 0,
+            ram_enabled: false,
+            rom,
+            ram: vec![0; Self::MBC1_RAM_BANK_SIZE * header.rom_banks()],
+            banking_mode: Mbc1BankMode::Simple,
+            header,
+        })
+    }
+
     #[inline]
     /// Return the index of addressed RAM bank. Idx ∈ [0, 3]
     pub fn ram_bank(&self) -> u8 {
@@ -164,30 +183,7 @@ impl RomController for Mbc1 {
         }
     }
 
-    fn header_slice(&self) -> &[u8; 0x50] {
-        self.header().raw_header()
-    }
-
     fn header(&self) -> &RomHeader {
         &self.header
-    }
-}
-
-impl RomLoader for Mbc1 {
-    fn new(mut file: File) -> Result<Self, std::io::Error> {
-        file.rewind()?;
-        let mut rom: Vec<Byte> = Vec::new();
-        file.read_to_end(&mut rom)?;
-        let header = RomHeader::new(&rom[RomHeader::HEADER_START_ADDRESS..=RomHeader::HEADER_END_ADDRESS]);
-
-        Ok(Self {
-            rom_bank: 1,
-            ram_bank: 0,
-            ram_enabled: false,
-            rom,
-            ram: vec![0; Self::MBC1_RAM_BANK_SIZE * header.rom_banks()],
-            banking_mode: Mbc1BankMode::Simple,
-            header,
-        })
     }
 }

@@ -1,8 +1,9 @@
 pub mod new_license_code;
 pub mod old_license_code;
 
-use crate::GB::cartridge::header::new_license_code::NewLicenseCode;
-use crate::GB::cartridge::header::old_license_code::OldLicenseCode;
+use new_license_code::NewLicenseCode;
+use old_license_code::OldLicenseCode;
+use super::controller::CartridgeControllerType;
 use crate::GB::types::address::Address;
 use crate::GB::types::Byte;
 
@@ -14,10 +15,12 @@ const HEADER_NINTENDO_LOGO: [Byte; 48] = [
 
 const HEADER_START_ADDRESS: Address = Address(0x0100);
 const HEADER_END_ADDRESS: Address = Address(0x014F);
+const HEADER_SIZE: usize = HEADER_END_ADDRESS.as_usize() - HEADER_START_ADDRESS.as_usize() + 1;
 
 #[derive(Clone, Debug)]
 pub struct RomHeader {
-    raw_header: [u8; HEADER_END_ADDRESS.as_usize() - HEADER_START_ADDRESS.as_usize()],
+    raw_header: [u8; HEADER_SIZE],
+    rom_controller_type: CartridgeControllerType,
     rom_banks: usize,
     ram_banks: usize,
     old_license_code: OldLicenseCode,
@@ -32,11 +35,12 @@ impl RomHeader {
     pub const HEADER_NINTENDO_LOGO: [Byte; 48] = HEADER_NINTENDO_LOGO;
     pub const HEADER_START_ADDRESS: Address = HEADER_START_ADDRESS;
     pub const HEADER_END_ADDRESS: Address = HEADER_END_ADDRESS;
-    pub const HEADER_SIZE: usize = Self::HEADER_END_ADDRESS.as_usize() - HEADER_START_ADDRESS.as_usize() + 1;
+    pub const HEADER_SIZE: usize = HEADER_SIZE;
     pub const HEADER_TITLE_START_ADDRESS: Address = Address(0x0134);
     pub const HEADER_TITLE_END_ADDRESS: Address = Address(0x0143);
     pub const HEADER_NEW_LICENSE_HIGH_BYTE_ADDRESS: Address = Address(0x0144);
     pub const HEADER_NEW_LICENSE_LOW_BYTE_ADDRESS: Address = Address(0x0145);
+    pub const HEADER_CONTROLLER_TYPE_ADDRESS: Address = Address(0x0147);
     pub const HEADER_ROM_SIZE_ADDRESS: Address = Address(0x0148);
     pub const HEADER_RAM_SIZE_ADDRESS: Address = Address(0x0149);
     pub const HEADER_OLD_LICENSE_ADDRESS: Address = Address(0x014B);
@@ -64,9 +68,11 @@ impl RomHeader {
         let global_checksum_high = header_slice[Self::HEADER_GLOBAL_CHECKSUM_HIGH_BYTE_ADDRESS.as_usize() - Self::HEADER_START_ADDRESS.as_usize()];
         let global_checksum_low = header_slice[Self::HEADER_GLOBAL_CHECKSUM_LOW_BYTE_ADDRESS.as_usize() - Self::HEADER_START_ADDRESS.as_usize()];
         let global_checksum = ((global_checksum_high as u16) << 8) | global_checksum_low as u16;
+        let rom_controller_type = header_slice[Self::HEADER_CONTROLLER_TYPE_ADDRESS.as_usize() - Self::HEADER_START_ADDRESS.as_usize()];
 
         Self {
             raw_header: header_slice.clone(),
+            rom_controller_type: rom_controller_type.into(),
             rom_banks: Self::rom_banks_from_byte(header_slice[Self::HEADER_ROM_SIZE_ADDRESS.as_usize() - Self::HEADER_START_ADDRESS.as_usize()]),
             ram_banks: Self::ram_banks_from_byte(header_slice[Self::HEADER_RAM_SIZE_ADDRESS.as_usize() - Self::HEADER_START_ADDRESS.as_usize()]),
             old_license_code: old_license_code.into(),
@@ -106,13 +112,8 @@ impl RomHeader {
     }
 
     #[inline]
-    pub fn rom_banks(&self) -> usize {
-        self.rom_banks
-    }
-
-    #[inline]
-    pub fn ram_banks(&self) -> usize {
-        self.ram_banks
+    pub fn rom_controller_type(&self) -> CartridgeControllerType {
+        self.rom_controller_type
     }
 
     #[inline]
