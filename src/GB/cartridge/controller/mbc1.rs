@@ -1,6 +1,7 @@
 use std::fs::File;
 use std::io::{Read, Seek};
 use crate::GB::bus::BusDevice;
+use crate::GB::cartridge::Cartridge;
 use super::{RomController};
 use crate::GB::cartridge::header::RomHeader;
 use crate::GB::memory::Memory;
@@ -36,10 +37,8 @@ pub struct Mbc1 {
 }
 
 impl Mbc1 {
-    pub const MBC1_ROM_BANKS: usize = 80;
-    pub const MBC1_ROM_BANK_SIZE: usize = 0x4000;
-    pub const MBC1_RAM_BANKS: usize = 4;
-    pub const MBC1_RAM_BANK_SIZE: usize = 0x2000;
+    pub const MBC1_MAX_ROM_BANKS: usize = 80;
+    pub const MBC1_MAX_RAM_BANKS: usize = 4;
     pub const MBC1_RAM_ENABLE_VALUE: u8 = 0xA;
     pub const MBC1_ROM_BANK_0_START: Address = Address(0x0);
     pub const MBC1_ROM_BANK_0_END: Address = Address(0x3FFF);
@@ -74,11 +73,11 @@ impl Mbc1 {
         );
 
         Ok(Self {
-            rom_bank: 1,
+            rom_bank: 0,
             ram_bank: 0,
             ram_enabled: false,
             rom,
-            ram: vec![0; Self::MBC1_RAM_BANK_SIZE * header.rom_banks()],
+            ram: vec![0; Cartridge::RAM_BANK_SIZE * header.rom_banks()],
             banking_mode: Mbc1BankMode::Simple,
             header,
         })
@@ -129,23 +128,41 @@ impl BusDevice for Mbc1 {
                         self.rom[address.as_usize()]
                     }
                     Mbc1BankMode::Advanced => {
-                        let base_offset = 0x20 * Self::MBC1_ROM_BANK_SIZE * self.ram_bank as usize;
+                        let base_offset = 0x20 * Cartridge::ROM_BANK_SIZE * self.ram_bank as usize;
                         self.rom[base_offset + address.as_usize()]
                     }
                 }
             }
             address if Self::MBC1_ROM_BANK_1_RANGE.contains(&address) => {
                 let rom_bank = if self.rom_bank == 0 { 1 } else { self.rom_bank };
-                let base_offset_low = Self::MBC1_ROM_BANK_SIZE * rom_bank as usize;
+                let base_offset_low = Cartridge::ROM_BANK_SIZE * rom_bank as usize;
+                let bank_idx = address.as_usize() - Self::MBC1_ROM_BANK_1_START.as_usize();
                 match self.banking_mode {
                     Mbc1BankMode::Simple => {
-                        self.rom[base_offset_low + address.as_usize()]
+                        let base_offset_high = 0x20 * Cartridge::ROM_BANK_SIZE * self.ram_bank as usize;
+                        self.rom[base_offset_high + base_offset_low + bank_idx]
                     }
                     Mbc1BankMode::Advanced => {
-                        let base_offset_high = 0x20 * Self::MBC1_ROM_BANK_SIZE * self.ram_bank as usize;
-                        self.rom[base_offset_high + base_offset_low + address.as_usize()]
+                        self.rom[base_offset_low + bank_idx]
                     }
                 }
+            }
+            address if Self::MBC1_RAM_BANK_0_RANGE.contains(&address) => {
+                if !self.ram_enabled {
+                    return 0xFF;
+                }
+                let ram_bank_idx = address.as_usize() - Self::MBC1_RAM_BANK_0_START.as_usize();
+                let ram_bank;
+                match self.banking_mode {
+                    Mbc1BankMode::Simple => {
+                        ram_bank = 0;
+                    }
+                    Mbc1BankMode::Advanced => {
+                        ram_bank = self.ram_bank;
+                    }
+                }
+                let base_offset = ram_bank as usize * Cartridge::RAM_BANK_SIZE;
+                self.ram[base_offset + ram_bank_idx]
             }
             _ => unreachable!()
         }

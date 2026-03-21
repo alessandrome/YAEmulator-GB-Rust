@@ -117,6 +117,16 @@ impl RomHeader {
     }
 
     #[inline]
+    pub fn rom_banks(&self) -> usize {
+        self.rom_banks
+    }
+
+    #[inline]
+    pub fn ram_banks(&self) -> usize {
+        self.ram_banks
+    }
+
+    #[inline]
     pub fn old_license_code(&self) -> OldLicenseCode {
         self.old_license_code
     }
