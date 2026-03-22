@@ -152,7 +152,7 @@ pub enum OldLicenseCode {
 }
 
 impl From<u8> for OldLicenseCode {
-    fn from(value: u16) -> Self {
+    fn from(value: u8) -> Self {
         match value {
             0x00 => OldLicenseCode::None,
             0x01 => OldLicenseCode::Nintendo1,

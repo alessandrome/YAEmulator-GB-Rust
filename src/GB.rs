@@ -19,11 +19,13 @@ use traits::Tick;
 
 
 #[cfg(feature = "debug")]
+#[inline]
 fn debug_print(args: std::fmt::Arguments) {
     println!("{}", args);
 }
 
 #[cfg(not(feature = "debug"))]
+#[inline]
 fn debug_print(_args: std::fmt::Arguments) {
     // Do nothing
 }
@@ -68,13 +70,13 @@ impl GB {
         // let mut rom = BIOS::new();
         let mut is_booting = false;
 
-        match bios {
-            None => {}
-            Some(bios) => {
-                rom.load_bios(&bios);
-                is_booting = true;
-            }
-        }
+        // match bios {
+        //     None => {}
+        //     Some(bios) => {
+        //         rom.load_bios(&bios);
+        //         is_booting = true;
+        //     }
+        // }
 
         Self {
             is_booting,
@@ -121,14 +123,16 @@ impl GB {
         // self.cpu.registers.set_pc(0);
     }
 
-    pub fn insert_cartridge(&mut self, path: &String) {
+    pub fn insert_cartridge(&mut self, path: &String) -> Result<(), std::io::Error> {
         let cartridge = cartridge::Cartridge::new((*path).clone());
         match cartridge {
             Ok(c) => {
-                self.set_cartridge(Rc::new(RefCell::new(Option::from(c))));
+                self.cartridge = Option::from(c);
+                Ok(())
             }
-            Err(_) => {
-                self.set_cartridge(Rc::new(RefCell::new(None)));
+            Err(err) => {
+                self.cartridge = Option::None;
+                Err(err)
             }
         }
     }
@@ -140,6 +144,7 @@ impl GB {
         // let time = Instant::now();
         let mut ctx = MmioContext {
             cpu_mmio: &mut self.cpu_ctx.mmio,
+            rom_mmio: &mut self.cartridge,
             ppu_mmio: &mut self.ppu_ctx.mmio,
             apu_mmio: &mut self.apu_ctx.mmio,
             dma_mmio: &mut self.dma_ctx.mmio,
@@ -166,29 +171,19 @@ impl GB {
     }
 
     pub fn press_dpad(&mut self, dpad: GBInputDPadBits, pressed: bool) {
-        let mut input = self.input.borrow_mut();
         match dpad {
             GBInputDPadBits::Right => {
-                input.right = pressed;
+                self.input.right = pressed;
             }
             GBInputDPadBits::Left => {
-                input.left = pressed;
+                self.input.left = pressed;
             }
             GBInputDPadBits::Up => {
-                input.up = pressed;
+                self.input.up = pressed;
             }
             GBInputDPadBits::Down => {
-                input.down = pressed;
+                self.input.down = pressed;
             }
-        }
-
-        // Update IF (Interrupt Flags) for button pressed
-        if pressed {
-            let interrupt_flags = self.memory.borrow().read(addresses::interrupt::IF as u16);
-            self.memory.borrow_mut().write(
-                addresses::interrupt::IF as u16,
-                interrupt_flags | interrupts::InterruptFlagsMask::JoyPad,
-            );
         }
     }
 
@@ -211,19 +206,19 @@ impl GB {
 
     pub fn set_use_boot(&mut self, use_boot: bool) {
         self.is_booting = use_boot;
-        self.cpu.registers.set_pc(cartridge_addresses::ENTRY_POINT as u16);
+        self.cpu_ctx.cpu.registers.set_pc(cartridge_addresses::ENTRY_POINT as u16);
     }
 
     pub fn get_cartridge(&self) -> &Option<cartridge::Cartridge> {
         &self.cartridge
     }
 
-    pub fn get_bios(&self) -> &BIOS {
-        &self.bios
-    }
+    // pub fn get_bios(&self) -> &BIOS {
+    //     &self.bios
+    // }
 
-    pub fn get_frame_string(&self, doubled: bool) -> String {
-        self.ppu_ctx.get_frame_string(doubled)
+    pub fn get_frame(&self, doubled: bool) -> String {
+        self.ppu_ctx.ppu.screen(doubled)
     }
 }
 

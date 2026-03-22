@@ -36,6 +36,7 @@ impl RomHeader {
     pub const HEADER_START_ADDRESS: Address = HEADER_START_ADDRESS;
     pub const HEADER_END_ADDRESS: Address = HEADER_END_ADDRESS;
     pub const HEADER_SIZE: usize = HEADER_SIZE;
+    pub const HEADER_ENTRY_POINT: Address = Address(0x0100);
     pub const HEADER_TITLE_START_ADDRESS: Address = Address(0x0134);
     pub const HEADER_TITLE_END_ADDRESS: Address = Address(0x0143);
     pub const HEADER_NEW_LICENSE_HIGH_BYTE_ADDRESS: Address = Address(0x0144);

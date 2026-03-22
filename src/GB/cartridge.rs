@@ -10,6 +10,9 @@ use std::fs::File;
 use crate::GB::cartridge::header::RomHeader;
 // use crate::GB::memory::addresses::{EXTERNAL_RAM_ADDRESS, EXTERNAL_RAM_LAST_ADDRESS, ROM_BANK_0_ADDRESS, ROM_BANK_0_LAST_ADDRESS, ROM_BANK_1_ADDRESS, ROM_BANK_1_LAST_ADDRESS};
 use controller::{CartridgeControllerType, RomController};
+use crate::GB::bus::BusDevice;
+use crate::GB::types::address::{Address, AddressRangeInclusive};
+use crate::GB::types::Byte;
 
 pub struct Cartridge {
     rom: Box<dyn RomController>,
@@ -20,6 +23,12 @@ pub struct Cartridge {
 pub type ROM = Cartridge;
 
 impl Cartridge {
+    pub const CART_ROM_START_ADDRESS: Address = Address(0x0);
+    pub const CART_ROM_END_ADDRESS: Address = Address(0x7FFF);
+    pub const CART_ROM_RANGE_ADDRESS: AddressRangeInclusive = Self::CART_ROM_START_ADDRESS..=Self::CART_ROM_END_ADDRESS;
+    pub const CART_RAM_START_ADDRESS: Address = Address(0xA000);
+    pub const CART_RAM_END_ADDRESS: Address = Address(0xBFFF);
+    pub const CART_RAM_RANGE_ADDRESS: AddressRangeInclusive = Self::CART_RAM_START_ADDRESS..=Self::CART_RAM_END_ADDRESS;
     pub const ROM_BANK_SIZE: usize = 0x4000;
     pub const RAM_BANK_SIZE: usize = 0x2000;
 
@@ -49,6 +58,16 @@ impl Cartridge {
 
     pub fn cart_type(&self) -> CartridgeControllerType {
         self.header().rom_controller_type()
+    }
+}
+
+impl BusDevice for Cartridge {
+    fn read(&self, address: Address) -> Byte {
+        self.rom.read(address)
+    }
+
+    fn write(&mut self, address: Address, data: Byte) {
+        self.rom.write(address, data);
     }
 }
 
