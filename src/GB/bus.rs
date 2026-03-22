@@ -5,6 +5,7 @@ use crate::GB::memory::wram::WRAM;
 use crate::GB::memory::hram::HRAM;
 use crate::GB::cpu::registers::interrupt_registers::InterruptRegisters;
 use crate::GB::apu::apu_mmio::ApuMmio;
+use crate::GB::cartridge::Cartridge;
 use crate::GB::cpu::cpu_mmio::CpuMmio;
 use crate::GB::dma::DMA;
 use crate::GB::dma::dma_mmio::DmaMmio;
@@ -15,6 +16,7 @@ use crate::GB::types::Byte;
 
 pub struct MmioContext<'a> {
     pub cpu_mmio: &'a mut CpuMmio,
+    pub rom_mmio: &'a mut Option<Cartridge>,
     pub ppu_mmio: &'a mut PpuMmio,
     pub apu_mmio: &'a mut ApuMmio,
     pub dma_mmio: &'a mut DmaMmio,
@@ -33,6 +35,26 @@ impl Bus {
 impl Bus {
     pub fn read(&self, ctx: &MmioContext, address: Address) -> Byte {
         match address {
+            address if Cartridge::CART_ROM_RANGE_ADDRESS.contains(&address) => {
+                match ctx.rom_mmio.as_ref() {
+                    None => {
+                        0xFF
+                    }
+                    Some(rom) => {
+                        rom.read(address)
+                    }
+                }
+            }
+            address if Cartridge::CART_RAM_RANGE_ADDRESS.contains(&address) => {
+                match ctx.rom_mmio.as_ref() {
+                    None => {
+                        0xFF
+                    }
+                    Some(rom) => {
+                        rom.read(address)
+                    }
+                }
+            }
             address if HRAM::HRAM_ADDRESS_RANGE.contains(&address) => {
                 ctx.cpu_mmio.read(address)
             }
@@ -54,6 +76,22 @@ impl Bus {
 
     pub fn write(&mut self, ctx: &mut MmioContext, address: Address, data: Byte) {
         match address {
+            address if Cartridge::CART_ROM_RANGE_ADDRESS.contains(&address) => {
+                match ctx.rom_mmio {
+                    None => {}
+                    Some(rom) => {
+                        rom.write(address, data);
+                    }
+                }
+            }
+            address if Cartridge::CART_RAM_RANGE_ADDRESS.contains(&address) => {
+                match ctx.rom_mmio {
+                    None => {}
+                    Some(rom) => {
+                        rom.write(address, data);
+                    }
+                }
+            }
             address if HRAM::HRAM_ADDRESS_RANGE.contains(&address) => {
                 ctx.cpu_mmio.write(address, data)
             }
