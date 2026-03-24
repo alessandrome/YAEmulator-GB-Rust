@@ -1,7 +1,8 @@
-use crate::GB::ppu::tile::{GbPaletteId};
+use crate::GB::ppu::tile::{GbColor, GbPaletteId};
 use ppu_mode::PpuMode;
 use std::fmt;
 use std::fmt::Formatter;
+use winit::dpi::Pixel;
 use crate::GB::bus::{Bus, BusDevice, MmioContext};
 use crate::GB::memory::oam_memory::OamMemory;
 use crate::GB::ppu::ppu_mmio::PpuMmio;
@@ -9,6 +10,7 @@ use crate::GB::ppu::oam::{OAM};
 use crate::GB::traits::Tick;
 use crate::GB::types::Byte;
 use lcd::LCD;
+use crate::GB::ppu::pixel::{PixelFifo, PixelFifoPaletteRegister};
 use crate::GB::ppu::pixel_fetcher::{BgFetchingMode, PixelFetcherState};
 
 pub mod lcd_stat;
@@ -70,6 +72,21 @@ impl PPU {
             dot: 0,
             screen_dot: 0,
             switch_mode: false,
+        }
+    }
+
+    pub fn pixel_mixer(obj_pixel: Option<&PixelFifo>, bg_pixel: &PixelFifo) -> PixelFifo {
+        match obj_pixel {
+            None => bg_pixel.clone(),
+            Some(obj_pixel) => {
+                if obj_pixel.color_id() == GbPaletteId::Id0 {
+                    return bg_pixel.clone();
+                }
+                if obj_pixel.priority() && bg_pixel.color_id() != GbPaletteId::Id0 {
+                    return bg_pixel.clone();
+                }
+                obj_pixel.clone()
+            }
         }
     }
 }
@@ -187,7 +204,28 @@ impl Tick for PPU {
                 match self.fetching_mode {
                     PpuFetchingMode::FetchBg => {
                         self.bg_fetcher.tick(bus, ctx);
-                        todo!("Advance LCD driver");
+                        // Mix BG & Sprite pixel if BG is ready and set pixel color to stream
+                        if !ctx.ppu_mmio.bg_fifo().is_empty() {
+                            let obj_pixel= ctx.ppu_mmio.pop_obj_pixel();
+                            let mixed_pixel_fifo = Self::pixel_mixer(
+                                obj_pixel.as_ref(),
+                                &ctx.ppu_mmio.pop_bg_pixel().unwrap(),
+                            );
+                            // Get color by palette
+                            let color: GbColor;
+                            match mixed_pixel_fifo.palette() {
+                                PixelFifoPaletteRegister::Bgp => {
+                                    color = ctx.ppu_mmio.bgp_view().color(mixed_pixel_fifo.color_id());
+                                }
+                                PixelFifoPaletteRegister::Obp0 => {
+                                    color = ctx.ppu_mmio.obp0_view().color(mixed_pixel_fifo.color_id());
+                                }
+                                PixelFifoPaletteRegister::Obp1 => {
+                                    color = ctx.ppu_mmio.obp1_view().color(mixed_pixel_fifo.color_id());
+                                }
+                            }
+                            ctx.ppu_mmio.stream_pixel(color);
+                        }
                     }
                     PpuFetchingMode::FetchSprite => {
                         self.sprite_fetcher.tick(bus, ctx);
@@ -197,7 +235,7 @@ impl Tick for PPU {
                     }
                 }
 
-                // Penalities - Now already included in Pixel FIFO Behavior
+                // Penalities - Now already included in Pixel FIFO Behavior!
             }
             PpuMode::HBlank => {
                 // Mode 0 - HBlank

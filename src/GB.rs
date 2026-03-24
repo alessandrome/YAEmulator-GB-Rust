@@ -16,7 +16,8 @@ use crate::GB::cartridge::addresses as cartridge_addresses;
 use crate::GB::input::{GBInputButtonsBits, GBInputDPadBits};
 use crate::GB::bus::MmioContext;
 use traits::Tick;
-
+use crate::GB::ppu::PPU;
+use crate::GB::ppu::tile::GbColor;
 
 #[cfg(feature = "debug")]
 #[inline]
@@ -156,8 +157,8 @@ impl GB {
         self.apu_ctx.apu.tick(&mut self.bus, &mut ctx);
         self.ppu_ctx.ppu.tick(&mut self.bus, &mut ctx);
         self.dma_ctx.dma.tick(&mut self.bus, &mut ctx);
-        self.cpu_ctx.cpu.tick(&mut self.bus, &mut ctx);
         self.ppu_ctx.lcd.tick(&mut self.bus, &mut ctx);
+        self.cpu_ctx.cpu.tick(&mut self.bus, &mut ctx);
 
         // if self.cpu.dma_transfer {
         //     self.dma_transfer();
@@ -217,8 +218,8 @@ impl GB {
     //     &self.bios
     // }
 
-    pub fn get_frame(&self, doubled: bool) -> String {
-        self.ppu_ctx.ppu.screen(doubled)
+    pub fn get_frame(&self) -> &[GbColor; PPU::SCREEN_PIXELS as usize] {
+        self.ppu_ctx.lcd.screen()
     }
 }
 

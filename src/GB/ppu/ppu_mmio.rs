@@ -1,7 +1,7 @@
 use std::collections::VecDeque;
 use crate::GB::bus::BusDevice;
 use crate::GB::memory::vram::VRAM;
-use crate::GB::ppu::tile::{TileDataArea, TileMapArea};
+use crate::GB::ppu::tile::{GbColor, TileDataArea, TileMapArea};
 use crate::GB::ppu::lcd_control::{LCDCMasks, ObjSize, LCDC};
 use crate::GB::ppu::lcd_stat::{LCDStatMasks, LcdStat};
 use crate::GB::ppu::oam::OAM;
@@ -18,6 +18,7 @@ pub struct PpuMmio {
     oam_buffer: Vec<OAM>,
     obj_fifo: VecDeque<PixelFifo>,
     background_fifo: VecDeque<PixelFifo>,
+    pixel_output: Option<GbColor>,
     vram: VRAM,
     lcdc: Byte,
     stat: Byte,
@@ -55,6 +56,7 @@ impl PpuMmio {
             oam_buffer: Vec::with_capacity(10),
             obj_fifo: VecDeque::with_capacity(16),
             background_fifo: VecDeque::with_capacity(16),
+            pixel_output: None,
             vram: VRAM::new(),
             lcdc: 0,
             stat: 0,
@@ -174,6 +176,16 @@ impl PpuMmio {
     #[inline]
     pub fn bg_fifo(&self) -> &VecDeque<PixelFifo> {
         &self.background_fifo
+    }
+
+    #[inline]
+    pub fn consume_pixel(&mut self) -> Option<GbColor> {
+        self.pixel_output.take()
+    }
+
+    #[inline]
+    pub fn stream_pixel(&mut self, color: GbColor) {
+        self.pixel_output = Some(color);
     }
 
     #[inline]
