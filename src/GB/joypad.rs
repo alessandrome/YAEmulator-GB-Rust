@@ -14,37 +14,43 @@ pub const GB_DOWN_BUTTON: u32 = 0x05;
 pub const GB_LEFT_BUTTON: u32 = 0x06;
 pub const GB_RIGHT_BUTTON: u32 = 0x07;
 
-
 #[derive(Copy, Clone, Debug)]
 #[repr(u8)]
-pub enum GBInputSelectionBits {
+pub enum JoypadSelectionBits {
     Buttons = 0b_0100_0000,
     DPad = 0b_0010_0000,
 }
-mask_flag_enum_default_impl!(GBInputSelectionBits);
+mask_flag_enum_default_impl!(JoypadSelectionBits);
 
 #[derive(Copy, Clone, Debug)]
 #[repr(u8)]
-pub enum GBInputButtonsBits {
+pub enum JoypadButtonsBits {
     A = 0b_0000_0001,
     B = 0b_0000_0010,
     Select = 0b_0000_0100,
     Start = 0b_0000_1000,
 }
-mask_flag_enum_default_impl!(GBInputButtonsBits);
+mask_flag_enum_default_impl!(JoypadButtonsBits);
 
 #[derive(Copy, Clone, Debug)]
 #[repr(u8)]
-pub enum GBInputDPadBits {
+pub enum JoypadDPadBits {
     Right = 0b_0000_0001,
     Left = 0b_0000_0010,
     Up = 0b_0000_0100,
     Down = 0b_0000_1000,
 }
-mask_flag_enum_default_impl!(GBInputDPadBits);
+mask_flag_enum_default_impl!(JoypadDPadBits);
+
 
 #[derive(Copy, Clone, Debug)]
-struct GBInputMapping {
+pub enum JoypadButton {
+    Button(JoypadButtonsBits),
+    DPad(JoypadDPadBits),
+}
+
+#[derive(Copy, Clone, Debug)]
+struct JoypadMapping {
     pub a: u32,
     pub b: u32,
     pub start: u32,
@@ -55,7 +61,7 @@ struct GBInputMapping {
     pub right: u32,
 }
 
-impl GBInputMapping {
+impl JoypadMapping {
     pub fn new() -> Self {
         Self {
             a: 0,
@@ -73,7 +79,8 @@ impl GBInputMapping {
 /// Struct representing state of all buttons on Game Boy. Each button as 2 states: "true" when is pressed, "false" when is not.
 ///
 /// This input structure can write to memory to update status of buttons as reading 0xFF00 memory address returns the status of buttons (bit 0 if button pressed, 1 if not)
-pub struct GBInput {
+pub struct Joypad {
+    joyp_register: Byte,
     pub a: bool,
     pub b: bool,
     pub start: bool,
@@ -84,21 +91,46 @@ pub struct GBInput {
     pub right: bool,
 }
 
-impl GBInput {
+impl Joypad {
+    pub fn new() -> Self {
+        Self {
+            joyp_register: 0b0011_1111,
+            a: false,
+            b: false,
+            start: false,
+            select: false,
+            up: false,
+            down: false,
+            left: false,
+            right: false,
+        }
+    }
+
+    pub fn press_button(&mut self, btn: JoypadButton, pressed: bool) {
+        match btn {
+            JoypadButton::Button(btn) => {
+                todo!()
+            }
+            JoypadButton::DPad(direction) => {
+                todo!()
+            }
+        }
+    }
+
     pub fn get_buttons_byte(&self) -> u8 {
         0_u8
-            | ((!self.a as u8) << (GBInputButtonsBits::A as u8).trailing_zeros() | (GBInputButtonsBits::A as u8))
-            | ((!self.b as u8) << (GBInputButtonsBits::B as u8).trailing_zeros() | (GBInputButtonsBits::B as u8))
-            | ((!self.select as u8) << (GBInputButtonsBits::Select as u8).trailing_zeros() | (GBInputButtonsBits::Select as u8))
-            | ((!self.start as u8) << (GBInputButtonsBits::Start as u8).trailing_zeros() | (GBInputButtonsBits::Start as u8))
+            | ((!self.a as u8) << (JoypadButtonsBits::A as u8).trailing_zeros() | (JoypadButtonsBits::A as u8))
+            | ((!self.b as u8) << (JoypadButtonsBits::B as u8).trailing_zeros() | (JoypadButtonsBits::B as u8))
+            | ((!self.select as u8) << (JoypadButtonsBits::Select as u8).trailing_zeros() | (JoypadButtonsBits::Select as u8))
+            | ((!self.start as u8) << (JoypadButtonsBits::Start as u8).trailing_zeros() | (JoypadButtonsBits::Start as u8))
     }
 
     pub fn get_dpad_byte(&self) -> u8 {
         0_u8
-            | ((!self.right as u8) << (GBInputDPadBits::Right as u8).trailing_zeros() | (GBInputDPadBits::Right as u8))
-            | ((!self.left as u8) << (GBInputDPadBits::Left as u8).trailing_zeros() | (GBInputDPadBits::Left as u8))
-            | ((!self.up as u8) << (GBInputDPadBits::Up as u8).trailing_zeros() | (GBInputDPadBits::Up as u8))
-            | ((!self.down as u8) << (GBInputDPadBits::Down as u8).trailing_zeros() | (GBInputDPadBits::Down as u8))
+            | ((!self.right as u8) << (JoypadDPadBits::Right as u8).trailing_zeros() | (JoypadDPadBits::Right as u8))
+            | ((!self.left as u8) << (JoypadDPadBits::Left as u8).trailing_zeros() | (JoypadDPadBits::Left as u8))
+            | ((!self.up as u8) << (JoypadDPadBits::Up as u8).trailing_zeros() | (JoypadDPadBits::Up as u8))
+            | ((!self.down as u8) << (JoypadDPadBits::Down as u8).trailing_zeros() | (JoypadDPadBits::Down as u8))
     }
 
     pub fn symbolic_display(&self) -> String {
@@ -115,22 +147,13 @@ impl GBInput {
     }
 }
 
-impl Default for GBInput {
+impl Default for Joypad {
     fn default() -> Self {
-        Self {
-            a: false,
-            b: false,
-            start: false,
-            select: false,
-            up: false,
-            down: false,
-            left: false,
-            right: false,
-        }
+        Self::new()
     }
 }
 
-impl BusDevice for GBInput {
+impl BusDevice for Joypad {
     fn read(&self, address: Address) -> Byte {
         todo!()
     }
@@ -142,14 +165,14 @@ impl BusDevice for GBInput {
 
 struct InputMapping {
     mapping: HashMap<u32, u32>,
-    gb_mapping: GBInputMapping,
+    gb_mapping: JoypadMapping,
 }
 
 impl InputMapping {
     pub fn new() -> Self {
         let mut hashmap: HashMap<u32, u32> = HashMap::new();
         hashmap.insert(GB_A_BUTTON, 0x5A);
-        let mut gb_map = GBInputMapping::new();
+        let mut gb_map = JoypadMapping::new();
         Self {
             mapping: hashmap,
             gb_mapping: gb_map,
@@ -165,7 +188,7 @@ impl InputMapping {
     }
 }
 
-impl Display for GBInput {
+impl Display for Joypad {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "Inputs: [UP: {}, DOWN: {}, LEFT: {}, RIGHT: {}] [A: {}, B: {}, SELECT: {}, START: {}]",
             if self.up { "ON" } else { "OFF" },

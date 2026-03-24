@@ -2,7 +2,7 @@ pub mod cpu;
 pub mod ppu;
 pub mod apu;
 pub mod cartridge;
-pub mod input;
+pub mod joypad;
 pub mod memory;
 pub mod bus;
 pub mod types;
@@ -13,7 +13,7 @@ mod interrupt;
 pub mod dma;
 
 use crate::GB::cartridge::addresses as cartridge_addresses;
-use crate::GB::input::{GBInputButtonsBits, GBInputDPadBits};
+use crate::GB::joypad::{JoypadButtonsBits, JoypadDPadBits};
 use crate::GB::bus::MmioContext;
 use traits::Tick;
 use crate::GB::ppu::PPU;
@@ -46,7 +46,7 @@ pub struct GB {
     ppu_ctx: ppu::PpuCtx,
     dma_ctx: dma::DmaCtx,
     apu_ctx: apu::ApuCtx,
-    input: input::GBInput,
+    input: joypad::Joypad,
     cartridge: Option<cartridge::Cartridge>,
     cycles: u64, // Number to cycle needed to complete current CPU instruction. cpu.cycle() is skipped if different from 0
     cycles_overflows: u64, // Number of time cycles has overflowed
@@ -56,7 +56,7 @@ impl GB {
     pub const SYSTEM_FREQUENCY_CLOCK: u32 = 4_194_304;
 
     pub fn new(bios: Option<String>) -> Self {
-        let inputs = input::GBInput {
+        let inputs = joypad::Joypad {
             a: false,
             b: false,
             start: false,
@@ -102,7 +102,7 @@ impl GB {
             oam_memory: memory::oam_memory::OamMemory::new(),
             wram: memory::wram::WRAM::new(),
             cartridge: None,
-            input: input::GBInput::default(),
+            input: joypad::Joypad::default(),
             cycles: 0,
             cycles_overflows: 0,
         }
@@ -171,35 +171,35 @@ impl GB {
         }
     }
 
-    pub fn press_dpad(&mut self, dpad: GBInputDPadBits, pressed: bool) {
+    pub fn press_dpad(&mut self, dpad: JoypadDPadBits, pressed: bool) {
         match dpad {
-            GBInputDPadBits::Right => {
+            JoypadDPadBits::Right => {
                 self.input.right = pressed;
             }
-            GBInputDPadBits::Left => {
+            JoypadDPadBits::Left => {
                 self.input.left = pressed;
             }
-            GBInputDPadBits::Up => {
+            JoypadDPadBits::Up => {
                 self.input.up = pressed;
             }
-            GBInputDPadBits::Down => {
+            JoypadDPadBits::Down => {
                 self.input.down = pressed;
             }
         }
     }
 
-    pub fn press_button(&mut self, dpad: GBInputButtonsBits, pressed: bool) {
+    pub fn press_button(&mut self, dpad: JoypadButtonsBits, pressed: bool) {
         match dpad {
-            GBInputButtonsBits::A => {
+            JoypadButtonsBits::A => {
                 self.input.a = pressed;
             }
-            GBInputButtonsBits::B => {
+            JoypadButtonsBits::B => {
                 self.input.b = pressed;
             }
-            GBInputButtonsBits::Select => {
+            JoypadButtonsBits::Select => {
                 self.input.select = pressed;
             }
-            GBInputButtonsBits::Start => {
+            JoypadButtonsBits::Start => {
                 self.input.start = pressed;
             }
         }

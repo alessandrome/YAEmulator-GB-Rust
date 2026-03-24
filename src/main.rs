@@ -26,7 +26,7 @@ use crate::GB::ppu::tile::Tile;
 use GB::memory;
 use GB::cpu::{CPU, CPU_CLOCK_SPEED};
 use crate::GB::cpu::CPU_INTERRUPT_CYCLES;
-use crate::GB::input::{GBInputButtonsBits, GBInputDPadBits};
+use crate::GB::joypad::{JoypadButtonsBits, JoypadDPadBits};
 use crate::GB::memory::interrupts::InterruptFlagsMask;
 // use winit::{event, event_loop, window};
 
@@ -285,34 +285,34 @@ fn manage_gb_input_event(gb: &mut GB::GB, key_event: KeyEvent) {
         KeyEventKind::Press => {
             match key_event.code {
                 KeyCode::Char('z') => {
-                    gb.press_button(GBInputButtonsBits::A, true);
+                    gb.press_button(JoypadButtonsBits::A, true);
                 }
                 KeyCode::Char('x') => {
-                    gb.press_button(GBInputButtonsBits::B, true);
+                    gb.press_button(JoypadButtonsBits::B, true);
                 }
                 KeyCode::Char('a') => {
-                    gb.press_dpad(GBInputDPadBits::Left, true);
+                    gb.press_dpad(JoypadDPadBits::Left, true);
                 }
                 KeyCode::Char('d') => {
-                    gb.press_dpad(GBInputDPadBits::Right, true);
+                    gb.press_dpad(JoypadDPadBits::Right, true);
                 }
                 KeyCode::Char('s') => {
-                    gb.press_dpad(GBInputDPadBits::Down, true);
+                    gb.press_dpad(JoypadDPadBits::Down, true);
                 }
                 KeyCode::Char('w') => {
-                    gb.press_dpad(GBInputDPadBits::Up, true);
+                    gb.press_dpad(JoypadDPadBits::Up, true);
                 }
                 KeyCode::Char('o') => {
-                    gb.press_button(GBInputButtonsBits::Start, true);
+                    gb.press_button(JoypadButtonsBits::Start, true);
                 }
                 KeyCode::Char('p') => {
-                    gb.press_button(GBInputButtonsBits::Select, true);
+                    gb.press_button(JoypadButtonsBits::Select, true);
                 }
                 KeyCode::Enter => {
-                    gb.press_button(GBInputButtonsBits::Start, true);
+                    gb.press_button(JoypadButtonsBits::Start, true);
                 }
                 KeyCode::Backspace => {
-                    gb.press_button(GBInputButtonsBits::Select, true);
+                    gb.press_button(JoypadButtonsBits::Select, true);
                 }
                 _ => {}
             }
@@ -320,34 +320,34 @@ fn manage_gb_input_event(gb: &mut GB::GB, key_event: KeyEvent) {
         KeyEventKind::Release => {
             match key_event.code {
                 KeyCode::Char('z') => {
-                    gb.press_button(GBInputButtonsBits::A, false);
+                    gb.press_button(JoypadButtonsBits::A, false);
                 }
                 KeyCode::Char('x') => {
-                    gb.press_button(GBInputButtonsBits::B, false);
+                    gb.press_button(JoypadButtonsBits::B, false);
                 }
                 KeyCode::Char('a') => {
-                    gb.press_dpad(GBInputDPadBits::Left, false);
+                    gb.press_dpad(JoypadDPadBits::Left, false);
                 }
                 KeyCode::Char('d') => {
-                    gb.press_dpad(GBInputDPadBits::Right, false);
+                    gb.press_dpad(JoypadDPadBits::Right, false);
                 }
                 KeyCode::Char('s') => {
-                    gb.press_dpad(GBInputDPadBits::Down, false);
+                    gb.press_dpad(JoypadDPadBits::Down, false);
                 }
                 KeyCode::Char('w') => {
-                    gb.press_dpad(GBInputDPadBits::Up, false);
+                    gb.press_dpad(JoypadDPadBits::Up, false);
                 }
                 KeyCode::Char('o') => {
-                    gb.press_button(GBInputButtonsBits::Start, false);
+                    gb.press_button(JoypadButtonsBits::Start, false);
                 }
                 KeyCode::Char('p') => {
-                    gb.press_button(GBInputButtonsBits::Select, false);
+                    gb.press_button(JoypadButtonsBits::Select, false);
                 }
                 KeyCode::Enter => {
-                    gb.press_button(GBInputButtonsBits::Start, false);
+                    gb.press_button(JoypadButtonsBits::Start, false);
                 }
                 KeyCode::Backspace => {
-                    gb.press_button(GBInputButtonsBits::Select, false);
+                    gb.press_button(JoypadButtonsBits::Select, false);
                 }
                 _ => {}
             }
