@@ -13,7 +13,7 @@ mod interrupt;
 pub mod dma;
 
 use crate::GB::cartridge::addresses as cartridge_addresses;
-use crate::GB::joypad::{JoypadButtonsBits, JoypadDPadBits};
+use crate::GB::joypad::{JoypadButton, JoypadButtonsBits, JoypadDPadBits};
 use crate::GB::bus::MmioContext;
 use traits::Tick;
 use crate::GB::ppu::PPU;
@@ -172,37 +172,20 @@ impl GB {
     }
 
     pub fn press_dpad(&mut self, dpad: JoypadDPadBits, pressed: bool) {
-        match dpad {
-            JoypadDPadBits::Right => {
-                self.input.right = pressed;
-            }
-            JoypadDPadBits::Left => {
-                self.input.left = pressed;
-            }
-            JoypadDPadBits::Up => {
-                self.input.up = pressed;
-            }
-            JoypadDPadBits::Down => {
-                self.input.down = pressed;
-            }
-        }
+        self.input.set_button_status(
+            self.cpu_ctx.mmio.interrupt_registers_mut(),
+            JoypadButton::DPad(dpad),
+            pressed,
+        )
     }
 
-    pub fn press_button(&mut self, dpad: JoypadButtonsBits, pressed: bool) {
-        match dpad {
-            JoypadButtonsBits::A => {
-                self.input.a = pressed;
-            }
-            JoypadButtonsBits::B => {
-                self.input.b = pressed;
-            }
-            JoypadButtonsBits::Select => {
-                self.input.select = pressed;
-            }
-            JoypadButtonsBits::Start => {
-                self.input.start = pressed;
-            }
-        }
+    pub fn press_button(&mut self, btn: JoypadButtonsBits, pressed: bool) {
+
+        self.input.set_button_status(
+            self.cpu_ctx.mmio.interrupt_registers_mut(),
+            JoypadButton::Button(btn),
+            pressed,
+        )
     }
 
     pub fn set_use_boot(&mut self, use_boot: bool) {
