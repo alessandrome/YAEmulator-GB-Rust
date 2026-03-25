@@ -1,7 +1,9 @@
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 use crate::{mask_flag_enum_default_impl, default_enum_u8_bit_ops};
-use crate::GB::bus::BusDevice;
+use crate::GB::bus::{Bus, BusDevice, MmioContext};
+use crate::GB::cpu::cpu_mmio::CpuMmio;
+use crate::GB::cpu::registers::interrupt_registers::{InterruptFlagsMask, InterruptRegisters};
 use crate::GB::types::address::Address;
 use crate::GB::types::Byte;
 
@@ -80,21 +82,30 @@ impl JoypadMapping {
 ///
 /// This input structure can write to memory to update status of buttons as reading 0xFF00 memory address returns the status of buttons (bit 0 if button pressed, 1 if not)
 pub struct Joypad {
-    joyp_register: Byte,
-    pub a: bool,
-    pub b: bool,
-    pub start: bool,
-    pub select: bool,
-    pub up: bool,
-    pub down: bool,
-    pub left: bool,
-    pub right: bool,
+    mode_selection: Byte,
+    buttons_byte: Byte,
+    dpad_byte: Byte,
+    a: bool,
+    b: bool,
+    start: bool,
+    select: bool,
+    up: bool,
+    down: bool,
+    left: bool,
+    right: bool,
+}
+
+impl Joypad {
+    pub const JOYPAD_REGISTER_ADDRESS: Address = Address(0xFF00);
+    pub const WRITABLE_BITS_MASK: u8 = 0b0011_0000;
 }
 
 impl Joypad {
     pub fn new() -> Self {
         Self {
-            joyp_register: 0b0011_1111,
+            mode_selection: 0b0011_0000,
+            buttons_byte: 0b0000_1111,
+            dpad_byte: 0b0000_1111,
             a: false,
             b: false,
             start: false,
@@ -106,32 +117,76 @@ impl Joypad {
         }
     }
 
-    pub fn press_button(&mut self, btn: JoypadButton, pressed: bool) {
+    pub fn set_button_status(&mut self, interrupt_registers: &mut InterruptRegisters, btn: JoypadButton, pressed: bool) {
         match btn {
             JoypadButton::Button(btn) => {
-                todo!()
+                let old_btn_byte = self.buttons_byte;
+                match btn {
+                    JoypadButtonsBits::A => {
+                        self.a = pressed;
+                    }
+                    JoypadButtonsBits::B => {
+                        self.b = pressed;
+                    }
+                    JoypadButtonsBits::Select => {
+                        self.select = pressed;
+                    }
+                    JoypadButtonsBits::Start => {
+                        self.start = pressed;
+                    }
+                }
+                if pressed {
+                    self.buttons_byte &= !(btn as Byte);
+                    if self.buttons_byte < old_btn_byte {
+                        interrupt_registers.set_if_bit(InterruptFlagsMask::JoyPad);
+                    }
+                } else {
+                    self.buttons_byte |= btn as Byte;
+                }
             }
             JoypadButton::DPad(direction) => {
-                todo!()
+                let old_dpad_byte = self.dpad_byte;
+                match direction {
+                    JoypadDPadBits::Up => {
+                        self.up = pressed;
+                    }
+                    JoypadDPadBits::Right => {
+                        self.right = pressed;
+                    }
+                    JoypadDPadBits::Down => {
+                        self.down = pressed;
+                    }
+                    JoypadDPadBits::Left => {
+                        self.left = pressed;
+                    }
+                }
+                if pressed {
+                    self.dpad_byte &= !(direction as Byte);
+                    if self.dpad_byte < old_dpad_byte {
+                        interrupt_registers.set_if_bit(InterruptFlagsMask::JoyPad);
+                    }
+                } else {
+                    self.dpad_byte |= direction as Byte;
+                }
             }
         }
     }
 
-    pub fn get_buttons_byte(&self) -> u8 {
-        0_u8
-            | ((!self.a as u8) << (JoypadButtonsBits::A as u8).trailing_zeros() | (JoypadButtonsBits::A as u8))
-            | ((!self.b as u8) << (JoypadButtonsBits::B as u8).trailing_zeros() | (JoypadButtonsBits::B as u8))
-            | ((!self.select as u8) << (JoypadButtonsBits::Select as u8).trailing_zeros() | (JoypadButtonsBits::Select as u8))
-            | ((!self.start as u8) << (JoypadButtonsBits::Start as u8).trailing_zeros() | (JoypadButtonsBits::Start as u8))
-    }
-
-    pub fn get_dpad_byte(&self) -> u8 {
-        0_u8
-            | ((!self.right as u8) << (JoypadDPadBits::Right as u8).trailing_zeros() | (JoypadDPadBits::Right as u8))
-            | ((!self.left as u8) << (JoypadDPadBits::Left as u8).trailing_zeros() | (JoypadDPadBits::Left as u8))
-            | ((!self.up as u8) << (JoypadDPadBits::Up as u8).trailing_zeros() | (JoypadDPadBits::Up as u8))
-            | ((!self.down as u8) << (JoypadDPadBits::Down as u8).trailing_zeros() | (JoypadDPadBits::Down as u8))
-    }
+    // pub fn get_buttons_byte(&self) -> u8 {
+    //     0_u8
+    //         | ((!self.a as u8) << (JoypadButtonsBits::A as u8).trailing_zeros() | (JoypadButtonsBits::A as u8))
+    //         | ((!self.b as u8) << (JoypadButtonsBits::B as u8).trailing_zeros() | (JoypadButtonsBits::B as u8))
+    //         | ((!self.select as u8) << (JoypadButtonsBits::Select as u8).trailing_zeros() | (JoypadButtonsBits::Select as u8))
+    //         | ((!self.start as u8) << (JoypadButtonsBits::Start as u8).trailing_zeros() | (JoypadButtonsBits::Start as u8))
+    // }
+    //
+    // pub fn get_dpad_byte(&self) -> u8 {
+    //     0_u8
+    //         | ((!self.right as u8) << (JoypadDPadBits::Right as u8).trailing_zeros() | (JoypadDPadBits::Right as u8))
+    //         | ((!self.left as u8) << (JoypadDPadBits::Left as u8).trailing_zeros() | (JoypadDPadBits::Left as u8))
+    //         | ((!self.up as u8) << (JoypadDPadBits::Up as u8).trailing_zeros() | (JoypadDPadBits::Up as u8))
+    //         | ((!self.down as u8) << (JoypadDPadBits::Down as u8).trailing_zeros() | (JoypadDPadBits::Down as u8))
+    // }
 
     pub fn symbolic_display(&self) -> String {
         let mut string = String::new();
@@ -155,11 +210,35 @@ impl Default for Joypad {
 
 impl BusDevice for Joypad {
     fn read(&self, address: Address) -> Byte {
-        todo!()
+        match address {
+            Self::JOYPAD_REGISTER_ADDRESS => {
+                let mut return_byte = self.mode_selection;
+                let button_mode_on = (self.mode_selection & JoypadSelectionBits::Buttons as u8) == 0;
+                let dpad_mode_on = (self.mode_selection & JoypadSelectionBits::DPad as u8) == 0;
+
+                // Set lower nibble of return byte
+                if button_mode_on && dpad_mode_on {
+                    return_byte |= self.buttons_byte & self.dpad_byte;
+                } else if button_mode_on {
+                    return_byte |= self.buttons_byte
+                } else if dpad_mode_on {
+                    return_byte |= self.dpad_byte
+                } else {
+                    return_byte |= 0b0000_1111;
+                }
+                return_byte
+            },
+            _ => unreachable!(),
+        }
     }
 
     fn write(&mut self, address: Address, data: Byte) {
-        todo!()
+        match address {
+            Self::JOYPAD_REGISTER_ADDRESS => {
+                self.mode_selection = data & Self::WRITABLE_BITS_MASK;
+            },
+            _ => unreachable!(),
+        }
     }
 }
 

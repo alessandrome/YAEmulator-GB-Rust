@@ -20,6 +20,9 @@ impl CpuMmio {
     pub fn interrupt_registers(&self) -> &InterruptRegisters {
         &self.interrupt_registers
     }
+    pub fn interrupt_registers_mut(&mut self) -> &mut InterruptRegisters {
+        &mut self.interrupt_registers
+    }
 
     pub fn hram(&self) -> &HRAM {
         &self.hram

@@ -45,7 +45,7 @@ pub struct InterruptFlags {
 }
 
 impl InterruptFlags {
-    pub fn new(byte: u8) -> Self {
+    pub fn new(byte: Byte) -> Self {
         Self {
             joy_pad: (byte & InterruptFlagsMask::JoyPad) != 0,
             serial: (byte & InterruptFlagsMask::Serial) != 0,
@@ -58,13 +58,19 @@ impl InterruptFlags {
 
 
 pub struct InterruptRegisters {
-    ie: u8,
-    iflag: u8,  // IF but if is a reserved keyword
+    ie: Byte,
+    iflag: Byte,  // IF but if is a reserved keyword
 }
 
 impl InterruptRegisters {
     pub const IE_ADDRESS: Address = Address(0xFFFF);
     pub const IF_ADDRESS: Address = Address(0xFF0F);
+    pub const AVAILABLE_BITS_MASK: u8 = 0b0001_1111;
+    pub const BIT_VBLANK_MASK: u8 = InterruptFlagsMask::VBlank as u8;
+    pub const BIT_LCD_MASK: u8 = InterruptFlagsMask::LCD as u8;
+    pub const BIT_TIMER_MASK: u8 = InterruptFlagsMask::Timer as u8;
+    pub const BIT_SERIAL_MASK: u8 = InterruptFlagsMask::Serial as u8;
+    pub const BIT_JOYPAD_MASK: u8 = InterruptFlagsMask::JoyPad as u8;
 
     #[inline]
     pub fn new() -> Self {
@@ -126,6 +132,26 @@ impl InterruptRegisters {
     pub fn get_joypad_interrupt(&self) -> bool {
         (self.iflag & 0b0001_0000) != 0
     }
+
+    #[inline]
+    pub fn set_ie_bit(&mut self, bit: InterruptEnableMask) {
+        self.ie |= bit as Byte;
+    }
+
+    #[inline]
+    pub fn reset_ie_bit(&mut self, bit: InterruptEnableMask) {
+        self.ie &= !(bit as Byte);
+    }
+
+    #[inline]
+    pub fn set_if_bit(&mut self, bit: InterruptFlagsMask) {
+        self.iflag |= bit as Byte;
+    }
+
+    #[inline]
+    pub fn reset_if_bit(&mut self, bit: InterruptFlagsMask) {
+        self.iflag &= !(bit as Byte);
+    }
 }
 
 impl BusDevice for InterruptRegisters {
@@ -139,8 +165,8 @@ impl BusDevice for InterruptRegisters {
 
     fn write(&mut self, address: Address, data: Byte) {
         match address {
-            Self::IE_ADDRESS => self.ie = data,
-            Self::IF_ADDRESS => self.iflag = data,
+            Self::IE_ADDRESS => self.ie = data & Self::AVAILABLE_BITS_MASK,
+            Self::IF_ADDRESS => self.iflag = data & Self::AVAILABLE_BITS_MASK,
             _ => unreachable!(),
         }
     }
