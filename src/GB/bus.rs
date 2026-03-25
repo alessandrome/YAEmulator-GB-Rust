@@ -9,6 +9,7 @@ use crate::GB::cartridge::Cartridge;
 use crate::GB::cpu::cpu_mmio::CpuMmio;
 use crate::GB::dma::DMA;
 use crate::GB::dma::dma_mmio::DmaMmio;
+use crate::GB::joypad::Joypad;
 use crate::GB::memory::oam_memory::OamMemory;
 use crate::GB::ppu::ppu_mmio::PpuMmio;
 use crate::GB::types::address::Address;
@@ -22,6 +23,7 @@ pub struct MmioContext<'a> {
     pub dma_mmio: &'a mut DmaMmio,
     pub oam_mmio: &'a mut OamMemory,
     pub wram_mmio: &'a mut WRAM,
+    pub joypad: &'a mut Joypad,
 }
 
 pub struct Bus {}
@@ -70,6 +72,9 @@ impl Bus {
             address if OamMemory::OAM_ADDRESS_RANGE.contains(&address) => {
                 ctx.oam_mmio.read(address)
             }
+            Joypad::JOYPAD_REGISTER_ADDRESS => {
+                ctx.joypad.read(address)
+            }
             _ => todo!("Implement all other ranges"),
         }
     }
@@ -106,6 +111,9 @@ impl Bus {
             }
             address if OamMemory::OAM_ADDRESS_RANGE.contains(&address) => {
                 ctx.oam_mmio.write(address, data)
+            }
+            Joypad::JOYPAD_REGISTER_ADDRESS => {
+                ctx.joypad.write(address, data)
             }
             _ => todo!("Implement all other ranges"),
         }

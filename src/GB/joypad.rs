@@ -117,10 +117,28 @@ impl Joypad {
         }
     }
 
+    pub fn as_byte(&self) -> Byte {
+        let mut return_byte = self.mode_selection;
+        let button_mode_on = (self.mode_selection & JoypadSelectionBits::Buttons as u8) == 0;
+        let dpad_mode_on = (self.mode_selection & JoypadSelectionBits::DPad as u8) == 0;
+
+        // Set lower nibble of return byte
+        if button_mode_on && dpad_mode_on {
+            return_byte |= self.buttons_byte & self.dpad_byte;
+        } else if button_mode_on {
+            return_byte |= self.buttons_byte
+        } else if dpad_mode_on {
+            return_byte |= self.dpad_byte
+        } else {
+            return_byte |= 0b0000_1111;
+        }
+        return_byte
+    }
+
     pub fn set_button_status(&mut self, interrupt_registers: &mut InterruptRegisters, btn: JoypadButton, pressed: bool) {
+        let old_byte = self.as_byte();
         match btn {
             JoypadButton::Button(btn) => {
-                let old_btn_byte = self.buttons_byte;
                 match btn {
                     JoypadButtonsBits::A => {
                         self.a = pressed;
@@ -137,15 +155,11 @@ impl Joypad {
                 }
                 if pressed {
                     self.buttons_byte &= !(btn as Byte);
-                    if self.buttons_byte < old_btn_byte {
-                        interrupt_registers.set_if_bit(InterruptFlagsMask::JoyPad);
-                    }
                 } else {
                     self.buttons_byte |= btn as Byte;
                 }
             }
             JoypadButton::DPad(direction) => {
-                let old_dpad_byte = self.dpad_byte;
                 match direction {
                     JoypadDPadBits::Up => {
                         self.up = pressed;
@@ -162,13 +176,14 @@ impl Joypad {
                 }
                 if pressed {
                     self.dpad_byte &= !(direction as Byte);
-                    if self.dpad_byte < old_dpad_byte {
-                        interrupt_registers.set_if_bit(InterruptFlagsMask::JoyPad);
-                    }
                 } else {
                     self.dpad_byte |= direction as Byte;
                 }
             }
+        }
+        let new_byte = self.as_byte();
+        if new_byte < old_byte {
+            interrupt_registers.set_if_bit(InterruptFlagsMask::JoyPad);
         }
     }
 
@@ -212,21 +227,7 @@ impl BusDevice for Joypad {
     fn read(&self, address: Address) -> Byte {
         match address {
             Self::JOYPAD_REGISTER_ADDRESS => {
-                let mut return_byte = self.mode_selection;
-                let button_mode_on = (self.mode_selection & JoypadSelectionBits::Buttons as u8) == 0;
-                let dpad_mode_on = (self.mode_selection & JoypadSelectionBits::DPad as u8) == 0;
-
-                // Set lower nibble of return byte
-                if button_mode_on && dpad_mode_on {
-                    return_byte |= self.buttons_byte & self.dpad_byte;
-                } else if button_mode_on {
-                    return_byte |= self.buttons_byte
-                } else if dpad_mode_on {
-                    return_byte |= self.dpad_byte
-                } else {
-                    return_byte |= 0b0000_1111;
-                }
-                return_byte
+                self.as_byte()
             },
             _ => unreachable!(),
         }

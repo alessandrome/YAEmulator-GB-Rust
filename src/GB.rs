@@ -46,7 +46,7 @@ pub struct GB {
     ppu_ctx: ppu::PpuCtx,
     dma_ctx: dma::DmaCtx,
     apu_ctx: apu::ApuCtx,
-    input: joypad::Joypad,
+    joypad: joypad::Joypad,
     cartridge: Option<cartridge::Cartridge>,
     cycles: u64, // Number to cycle needed to complete current CPU instruction. cpu.cycle() is skipped if different from 0
     cycles_overflows: u64, // Number of time cycles has overflowed
@@ -56,17 +56,6 @@ impl GB {
     pub const SYSTEM_FREQUENCY_CLOCK: u32 = 4_194_304;
 
     pub fn new(bios: Option<String>) -> Self {
-        let inputs = joypad::Joypad {
-            a: false,
-            b: false,
-            start: false,
-            select: false,
-            up: false,
-            down: false,
-            left: false,
-            right: false,
-        };
-
         // Todo!("Add Bios")
         // let mut rom = BIOS::new();
         let mut is_booting = false;
@@ -102,7 +91,7 @@ impl GB {
             oam_memory: memory::oam_memory::OamMemory::new(),
             wram: memory::wram::WRAM::new(),
             cartridge: None,
-            input: joypad::Joypad::default(),
+            joypad: joypad::Joypad::new(),
             cycles: 0,
             cycles_overflows: 0,
         }
@@ -151,6 +140,7 @@ impl GB {
             dma_mmio: &mut self.dma_ctx.mmio,
             oam_mmio: &mut self.oam_memory,
             wram_mmio: &mut self.wram,
+            joypad:&mut self.joypad,
         };
 
         // Tick every component
@@ -172,7 +162,7 @@ impl GB {
     }
 
     pub fn press_dpad(&mut self, dpad: JoypadDPadBits, pressed: bool) {
-        self.input.set_button_status(
+        self.joypad.set_button_status(
             self.cpu_ctx.mmio.interrupt_registers_mut(),
             JoypadButton::DPad(dpad),
             pressed,
@@ -180,8 +170,7 @@ impl GB {
     }
 
     pub fn press_button(&mut self, btn: JoypadButtonsBits, pressed: bool) {
-
-        self.input.set_button_status(
+        self.joypad.set_button_status(
             self.cpu_ctx.mmio.interrupt_registers_mut(),
             JoypadButton::Button(btn),
             pressed,
