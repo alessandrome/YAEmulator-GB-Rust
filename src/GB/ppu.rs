@@ -161,18 +161,6 @@ impl Tick for PPU {
             }
             PpuMode::Drawing => {
                 // Mode 3 - Drawing Pixels
-
-                // Discard pixels on new drawing line as needed
-                let discard_pixels = self.discarding_pixels > 0;
-                if discard_pixels {
-                    // Can discard pixel only when BG FIFO is not empty
-                    if ctx.ppu_mmio.pop_bg_pixel().is_some() {
-                        self.discarding_pixels -= 1;
-                    }
-                } else {
-                    todo!("LCD Tick - Mix & Push pixel to screen (if BG ready!)");
-                }
-
                 if self.bg_fetcher.fetching_mode() == BgFetchingMode::Bg {
                     let lcdc = ctx.ppu_mmio.lcdc_view();
                     let wx = ctx.ppu_mmio.wx();
@@ -206,25 +194,32 @@ impl Tick for PPU {
                         self.bg_fetcher.tick(bus, ctx);
                         // Mix BG & Sprite pixel if BG is ready and set pixel color to stream
                         if !ctx.ppu_mmio.bg_fifo().is_empty() {
+                            let discard_pixels = self.discarding_pixels > 0;
                             let obj_pixel= ctx.ppu_mmio.pop_obj_pixel();
-                            let mixed_pixel_fifo = Self::pixel_mixer(
-                                obj_pixel.as_ref(),
-                                &ctx.ppu_mmio.pop_bg_pixel().unwrap(),
-                            );
-                            // Get color by palette
-                            let color: GbColor;
-                            match mixed_pixel_fifo.palette() {
-                                PixelFifoPaletteRegister::Bgp => {
-                                    color = ctx.ppu_mmio.bgp_view().color(mixed_pixel_fifo.color_id());
+                            if discard_pixels {
+                                // Discard pixels on new drawing line as needed
+                                self.discarding_pixels -= 1;
+                            } else {
+                                // Streaming pixel for LCD
+                                let mixed_pixel_fifo = Self::pixel_mixer(
+                                    obj_pixel.as_ref(),
+                                    &ctx.ppu_mmio.pop_bg_pixel().unwrap(),
+                                );
+                                // Get color by palette
+                                let color: GbColor;
+                                match mixed_pixel_fifo.palette() {
+                                    PixelFifoPaletteRegister::Bgp => {
+                                        color = ctx.ppu_mmio.bgp_view().color(mixed_pixel_fifo.color_id());
+                                    }
+                                    PixelFifoPaletteRegister::Obp0 => {
+                                        color = ctx.ppu_mmio.obp0_view().color(mixed_pixel_fifo.color_id());
+                                    }
+                                    PixelFifoPaletteRegister::Obp1 => {
+                                        color = ctx.ppu_mmio.obp1_view().color(mixed_pixel_fifo.color_id());
+                                    }
                                 }
-                                PixelFifoPaletteRegister::Obp0 => {
-                                    color = ctx.ppu_mmio.obp0_view().color(mixed_pixel_fifo.color_id());
-                                }
-                                PixelFifoPaletteRegister::Obp1 => {
-                                    color = ctx.ppu_mmio.obp1_view().color(mixed_pixel_fifo.color_id());
-                                }
+                                ctx.ppu_mmio.stream_pixel(color);
                             }
-                            ctx.ppu_mmio.stream_pixel(color);
                         }
                     }
                     PpuFetchingMode::FetchSprite => {
