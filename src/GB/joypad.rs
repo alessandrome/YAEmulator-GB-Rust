@@ -78,6 +78,33 @@ impl JoypadMapping {
     }
 }
 
+#[derive(Copy, Clone, Debug)]
+pub struct JoypadInputs {
+    pub a: bool,
+    pub b: bool,
+    pub start: bool,
+    pub select: bool,
+    pub up: bool,
+    pub down: bool,
+    pub left: bool,
+    pub right: bool,
+}
+
+impl JoypadInputs {
+    pub fn symbolic_display(&self) -> String {
+        let mut string = String::new();
+        string.push(if self.up { '↑' } else { '_' });
+        string.push(if self.down { '↓' } else { '_' });
+        string.push(if self.left { '←' } else { '_' });
+        string.push(if self.right { '→' } else { '_' });
+        string.push(if self.a { 'A' } else { '_' });
+        string.push(if self.b { 'B' } else { '_' });
+        string.push(if self.start { '○' } else { '_' });
+        string.push(if self.select { '◙' } else { '_' });
+        string
+    }
+}
+
 /// Struct representing state of all buttons on Game Boy. Each button as 2 states: "true" when is pressed, "false" when is not.
 ///
 /// This input structure can write to memory to update status of buttons as reading 0xFF00 memory address returns the status of buttons (bit 0 if button pressed, 1 if not)
@@ -203,17 +230,23 @@ impl Joypad {
     //         | ((!self.down as u8) << (JoypadDPadBits::Down as u8).trailing_zeros() | (JoypadDPadBits::Down as u8))
     // }
 
+    #[inline]
+    pub fn joypad_view(&self) -> JoypadInputs {
+        JoypadInputs {
+            a: self.a,
+            b: self.b,
+            start: self.start,
+            select: self.select,
+            up: self.up,
+            down: self.down,
+            left: self.left,
+            right: self.right,
+        }
+    }
+
+    #[inline]
     pub fn symbolic_display(&self) -> String {
-        let mut string = String::new();
-        string.push(if self.up { '↑' } else { '_' });
-        string.push(if self.down { '↓' } else { '_' });
-        string.push(if self.left { '←' } else { '_' });
-        string.push(if self.right { '→' } else { '_' });
-        string.push(if self.a { 'A' } else { '_' });
-        string.push(if self.b { 'B' } else { '_' });
-        string.push(if self.start { '○' } else { '_' });
-        string.push(if self.select { '◙' } else { '_' });
-        string
+        self.joypad_view().symbolic_display()
     }
 }
 
