@@ -101,6 +101,7 @@ pub struct CPU {
     pub micro_code: MCycleOp, // Instruction microcode to execute
     pub micro_code_index: usize, // Index of Instruction's MicroOp
     pub micro_code_t_cycle: u8, // T-Cycles counting of a M-Cycle during instruction execution
+    pub micro_code_m_cycle: u8, // T-Cycles counting of a M-Cycle during instruction execution
 }
 
 impl CPU {
@@ -115,7 +116,48 @@ impl CPU {
             micro_code: MCycleOp::None,
             micro_code_index: 0,
             micro_code_t_cycle: 0,
+            micro_code_m_cycle: 0,
         }
+    }
+
+    #[inline]
+    pub fn registers(&self) -> &Registers {
+        &self.registers
+    }
+
+    #[inline]
+    pub fn ime(&self) -> bool {
+        self.ime
+    }
+
+    #[inline]
+    pub fn opcode(&self) -> u8 {
+        self.opcode
+    }
+
+    #[inline]
+    pub fn instruction(&self) -> &Option<&'static Instruction> {
+        &self.instruction
+    }
+
+    #[inline]
+    pub fn micro_code(&self) -> &MCycleOp {
+        &self.micro_code
+    }
+
+    #[inline]
+    pub fn micro_code_index(&self) -> usize {
+        self.micro_code_index
+    }
+
+    #[inline]
+    pub fn instruction_t_cycle(&self) -> u8 {
+        self.micro_code_t_cycle
+    }
+
+    #[inline]
+    pub fn instruction_m_cycle(&self) -> u8 {
+        self.micro_code_m_cycle
     }
 
     pub fn fetch_next(&mut self, bus: &bus::Bus, ctx: &mut bus::MmioContext) -> Byte {
@@ -832,6 +874,7 @@ impl Tick for CPU {
         let cpu_status;
         if self.micro_code_t_cycle == 0 {
             cpu_status = self.m_cycle_tick(bus, ctx, self.micro_code);
+            self.micro_code_m_cycle += 1;
         } else {
             cpu_status = CpuStatus::Execute;
         }
@@ -839,6 +882,7 @@ impl Tick for CPU {
         match cpu_status {
             CpuStatus::Execute => { /* Wait 'till execution complete */ }
             CpuStatus::Ready => {
+                self.micro_code_m_cycle = 0;
                 let interrupt = self.interrupt(ctx.cpu_mmio.interrupt_registers());
                 if interrupt.is_none() {
                     self.fetch_and_decode(bus, ctx, false);
