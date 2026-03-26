@@ -1,4 +1,4 @@
-mod instructions;
+pub mod instructions;
 pub mod registers;
 pub mod cpu_mmio;
 
@@ -170,6 +170,19 @@ impl CPU {
             }
         }
         interrupt
+    }
+
+    pub fn maneging_interrupt(&self) -> bool {
+        match self.instruction {
+            None => false,
+            Some(instruction) => {
+                std::ptr::eq(instruction, &instructions::INTERRUPT_VBLANK)
+                | std::ptr::eq(instruction, &instructions::INTERRUPT_LCD)
+                | std::ptr::eq(instruction, &instructions::INTERRUPT_TIMER)
+                | std::ptr::eq(instruction, &instructions::INTERRUPT_SERIAL)
+                | std::ptr::eq(instruction, &instructions::INTERRUPT_JOYPAD)
+            }
+        }
     }
 
     /**
