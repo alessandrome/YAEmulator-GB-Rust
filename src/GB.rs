@@ -181,8 +181,20 @@ impl GB {
         self.is_booting = use_boot;
         self.cpu_ctx.cpu.registers.set_pc(cartridge_addresses::ENTRY_POINT as u16);
     }
+    
+    pub fn cpu(&self) -> &cpu::CPU {
+        &self.cpu_ctx.cpu
+    }
 
-    pub fn get_cartridge(&self) -> &Option<cartridge::Cartridge> {
+    pub fn joypad(&self) -> &joypad::Joypad {
+        &self.joypad
+    }
+
+    pub fn joypad_view(&self) -> joypad::JoypadInputs {
+        self.joypad.joypad_view()
+    }
+
+    pub fn cartridge(&self) -> &Option<cartridge::Cartridge> {
         &self.cartridge
     }
 
@@ -190,7 +202,7 @@ impl GB {
     //     &self.bios
     // }
 
-    pub fn get_frame(&self) -> &[GbColor; PPU::SCREEN_PIXELS as usize] {
+    pub fn frame(&self) -> &[GbColor; PPU::SCREEN_PIXELS as usize] {
         self.ppu_ctx.lcd.screen()
     }
 }
