@@ -11,9 +11,8 @@ use crate::GB::{bus, GB};
 use instructions::microcode::{AluOp, MCycleOp, MicroOp};
 use registers::{core_registers::Registers, interrupt_registers::InterruptRegisters};
 use crate::GB::cpu::cpu_mmio::CpuMmio;
-use crate::GB::interrupt::Interrupt;
-use crate::GB::memory::hram::HRAM;
 use crate::GB::traits::Tick;
+pub use instructions::InterruptType;
 
 pub const DIVIDER_FREQUENCY: u64 = 16384; // Divider Update Frequency in Hz
 pub const CPU_INTERRUPT_CYCLES: u64 = 5; // Number of cycle to manage a requested Interrupt
@@ -172,15 +171,25 @@ impl CPU {
         interrupt
     }
 
-    pub fn maneging_interrupt(&self) -> bool {
+    pub fn maneging_interrupt(&self) -> Option<InterruptType> {
         match self.instruction {
-            None => false,
+            None => None,
             Some(instruction) => {
-                std::ptr::eq(instruction, &instructions::INTERRUPT_VBLANK)
-                | std::ptr::eq(instruction, &instructions::INTERRUPT_LCD)
-                | std::ptr::eq(instruction, &instructions::INTERRUPT_TIMER)
-                | std::ptr::eq(instruction, &instructions::INTERRUPT_SERIAL)
-                | std::ptr::eq(instruction, &instructions::INTERRUPT_JOYPAD)
+                let interrupt_type;
+                if std::ptr::eq(instruction, &instructions::INTERRUPT_VBLANK) {
+                    interrupt_type = InterruptType::VBlank;
+                } else if std::ptr::eq(instruction, &instructions::INTERRUPT_LCD) {
+                    interrupt_type = InterruptType::LCD;
+                } else if std::ptr::eq(instruction, &instructions::INTERRUPT_TIMER) {
+                    interrupt_type = InterruptType::Timer;
+                } else if std::ptr::eq(instruction, &instructions::INTERRUPT_SERIAL) {
+                    interrupt_type = InterruptType::Serial;
+                } else if std::ptr::eq(instruction, &instructions::INTERRUPT_JOYPAD) {
+                    interrupt_type = InterruptType::Joypad;
+                } else {
+                    return None;
+                }
+                Some(interrupt_type)
             }
         }
     }

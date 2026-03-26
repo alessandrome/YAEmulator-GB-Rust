@@ -1,7 +1,9 @@
 #[cfg(test)]
 mod test;
 pub mod microcode;
+pub mod interrupt;
 
+pub use interrupt::InterruptType;
 use super::registers::core_registers::{FlagBits};
 use microcode::{*};
 
