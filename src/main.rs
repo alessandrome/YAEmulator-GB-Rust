@@ -4,6 +4,7 @@ extern crate lazy_static;
 use clap::Parser;
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind};
 use std::{env, thread};
+use std::collections::HashMap;
 use std::fs;
 use std::fs::{File, OpenOptions};
 use std::io::{Read, stdout, Write};
@@ -18,16 +19,15 @@ mod gui;
 mod utils;
 #[cfg(test)]
 mod tests;
-mod types;
 
-use crate::GB::instructions::Instruction;
+use crate::GB::cpu::instructions::Instruction;
 use crate::GB::memory::Length;
-use crate::GB::ppu::tile::Tile;
+use crate::GB::ppu::tile::{GbColor, Tile};
 use GB::memory;
-use GB::cpu::{CPU, CPU_CLOCK_SPEED};
-use crate::GB::cpu::CPU_INTERRUPT_CYCLES;
+use GB::cpu::{CPU};
+use crate::GB::cpu::{InterruptType, CPU_INTERRUPT_CYCLES};
 use crate::GB::joypad::{JoypadButtonsBits, JoypadDPadBits};
-use crate::GB::memory::interrupts::InterruptFlagsMask;
+use crate::GB::ppu::PPU;
 // use winit::{event, event_loop, window};
 
 #[derive(Parser, Debug)]
@@ -44,6 +44,33 @@ struct Args {
     /// Number of times to greet
     #[arg(short, long, default_value_t = 1)]
     count: u8,
+
+    #[arg(long, default_value = "log\\output.txt")]
+    log_file: String,
+}
+
+lazy_static! {
+    pub static ref CONSOLE_PALETTE: HashMap<GbColor, char> = HashMap::from([
+        (GbColor::White, '█'),
+        (GbColor::LightGray, '▓'),
+        (GbColor::DarkGray, '▒'),
+        (GbColor::Black, '░'),
+    ]);
+}
+
+fn frame_string(frame: &[GbColor; PPU::SCREEN_PIXELS as usize], doubled: bool) -> String {
+    let mut s = "".to_string();
+    for i in 0..PPU::SCREEN_LINES {
+        for j in 0..PPU::SCREEN_COLUMNS {
+            let frame_char = CONSOLE_PALETTE[&frame[j as usize + i as usize * PPU::SCREEN_COLUMNS as usize]];
+            s.push(frame_char);
+            if doubled {
+                s.push(frame_char);
+            }
+        }
+        s.push('\n')
+    }
+    s
 }
 
 fn main() {
@@ -51,7 +78,7 @@ fn main() {
 
     let mut gb = GB::GB::new(Option::from(args.bios.clone()));
     gb.insert_cartridge(&args.rom);
-    println!("{}", gb.get_cartridge().as_ref().unwrap());
+    println!("{}", gb.cartridge().as_ref().unwrap());
 
     let mut ended = false;
     let mut i: u16 = 0;
@@ -62,7 +89,7 @@ fn main() {
         .write(true)
         .truncate(true)
         .create(true)
-        .open("logs\\output.txt");
+        .open(args.log_file);
     let mut log_line: u64 = 0;
 
     // ------------------------------------------------------------------------
@@ -90,12 +117,16 @@ fn main() {
         let start = Instant::now();
 
         if (cycles % (GB::CYCLES_PER_FRAME)) == 0  {
-            println!("\x1B[2J\x1B[H{}", gb.get_frame_string(true));
+            let frame = gb.frame();
+            let frame_str = frame_string(frame, true);
+            println!("\x1B[2J\x1B[H{}", frame_str);
             // println!("{}", gb.get_frame_string(true));
             println!("S/f: {:?}", (Instant::now() - time).as_secs_f64());
             println!("C/s: {:?}", cycles as f64/(Instant::now() - time).as_secs_f64());
-            println!("{}", gb.input.as_ref().borrow());
-            println!("{}", gb.input.as_ref().borrow().symbolic_display());
+
+            let joypad = gb.joypad();
+            println!("{}", joypad);
+            println!("{}", joypad.symbolic_display());
             stdout().flush().unwrap();
             time = Instant::now();
             cycles = 0;
@@ -118,7 +149,7 @@ fn main() {
             Err(_) => {}
         }
 
-        gb.cycle();
+        gb.tick();
         cycles += 1;
         let elapsed = start.elapsed();
         // if elapsed < cycle_duration {
@@ -127,7 +158,7 @@ fn main() {
     }
 
     {
-        println!("{}\n\n", gb.ppu.get_frame_string(true));
+        // println!("{}\n\n", gb.ppu.get_frame_string(true));
         // let map = gb.ppu.get_bg_map();
         // for i in 0..16 {
         //     for j in 0..16 {
@@ -137,7 +168,7 @@ fn main() {
         // }
         // println!("{}", gb.ppu.get_tile(0, true));
         // println!("{}", gb.ppu.get_tile_map(0));
-        let lines_to_print = 10;
+        // let lines_to_print = 10;
         // println!("{}\n", &(gb.ppu.get_bg_map())[..256*2*3*lines_to_print+lines_to_print]); // x3 because characters used in UTF-8 occupy 3 bytes + 1 byte per line for carriage return
         // println!("SCX {} | SCY {}", gb.ppu.get_scx(), gb.ppu.get_scy())
     }
@@ -167,10 +198,11 @@ fn log(log_channel: &mut File, gb: &GB::GB, log_line: u64) {
     let mut cycles = 0;
     let mut debug_i = 142268;
 
-    if !(gb.cpu_left_instruction_cycles() > 0) || (gb.is_cpu_managing_interrupt() && gb.cpu_left_instruction_cycles() == CPU_INTERRUPT_CYCLES) {
+    let cpu_interrupt = gb.cpu().maneging_interrupt();
+    if !(gb.cpu_left_instruction_cycles() > 0) || (cpu_interrupt.is_some() && gb.cpu_left_instruction_cycles() == CPU_INTERRUPT_CYCLES) {
         let mut memory_borrowed = gb.memory.borrow();
         let mut s = "".to_string();
-        let mut pc = gb.cpu.registers.get_pc();
+        let mut pc = gb.cpu().registers.get_pc();
         let addr = pc;
         let mut read_bytes: usize = 0;
         let mut opcode = memory_borrowed.read(pc);
@@ -180,16 +212,14 @@ fn log(log_channel: &mut File, gb: &GB::GB, log_line: u64) {
         pc += 1;
         read_bytes += 1;
 
-        match gb.is_managing_interrupt() {
-            (interrupt_type, Some(cycle)) => {
-                if cycle == 0 {
-                    match interrupt_type {
-                        InterruptFlagsMask::JoyPad => { s_ins = "JoyPad int.".to_string(); }
-                        InterruptFlagsMask::Serial => { s_ins = "Serial int.".to_string(); }
-                        InterruptFlagsMask::Timer => { s_ins = "Timer int.".to_string(); }
-                        InterruptFlagsMask::LCD => { s_ins = "LCD int.".to_string(); }
-                        InterruptFlagsMask::VBlank => { s_ins = "VBlank int.".to_string(); }
-                    }
+        match gb.cpu().maneging_interrupt() {
+            Some(interrupt_type) => {
+                match interrupt_type {
+                    InterruptType::Joypad => { s_ins = "JoyPad int.".to_string(); }
+                    InterruptType::Serial => { s_ins = "Serial int.".to_string(); }
+                    InterruptType::Timer => { s_ins = "Timer int.".to_string(); }
+                    InterruptType::LCD => { s_ins = "LCD int.".to_string(); }
+                    InterruptType::VBlank => { s_ins = "VBlank int.".to_string(); }
                 }
             }
             _ => {
@@ -241,8 +271,8 @@ fn log(log_channel: &mut File, gb: &GB::GB, log_line: u64) {
                         if !cb {
                             match ins.opcode {
                                 0xD9  => {
-                                    let b1 = memory_borrowed.read(gb.cpu.registers.get_sp() + 1);
-                                    let b2 = memory_borrowed.read(gb.cpu.registers.get_sp() + 2);
+                                    let b1 = memory_borrowed.read(gb.cpu().registers.get_sp() + 1);
+                                    let b2 = memory_borrowed.read(gb.cpu().registers.get_sp() + 2);
                                     s_ins += format!(" (${:02X}{:02X})", b2, b1).as_str();
                                 }
                                 _ => {}
@@ -263,14 +293,14 @@ fn log(log_channel: &mut File, gb: &GB::GB, log_line: u64) {
             let formatted = format!("| {:04} |  {:#06X} |  {} |  {}{}|  {} {} |  RxM B: {}/{}  |  {{AF: {:04X}, BC: {:04X}, DE: {:04X}, HL: {:04X}, SP: {:04X}}} | IE: {:02X} | IF: {:02X} | IME: {} | STAT: {:02X} | DIV: {:02X}",
                                     log_line, addr, s, s_ins, " ".repeat(16 - s_ins.len()), gb.ppu,
                                     mem_registers,
-                                    gb.get_cartridge().as_ref().unwrap().get_rom_bank(),
-                                    gb.get_cartridge().as_ref().unwrap().get_ram_bank(),
-                                    gb.cpu.registers.get_af(), gb.cpu.registers.get_bc(),
-                                    gb.cpu.registers.get_de(), gb.cpu.registers.get_hl(),
-                                    gb.cpu.registers.get_sp(),
+                                    gb.cartridge().as_ref().unwrap().rom_bank(),
+                                    gb.cartridge().as_ref().unwrap().ram_bank(),
+                                    gb.cpu().registers.get_af(), gb.cpu().registers.get_bc(),
+                                    gb.cpu().registers.get_de(), gb.cpu().registers.get_hl(),
+                                    gb.cpu().registers.get_sp(),
                                     memory_borrowed.read(memory::registers::IE),
                                     memory_borrowed.read(memory::registers::IF),
-                                    if gb.cpu.ime { "T" } else { "F" },
+                                    if gb.cpu().ime { "T" } else { "F" },
                                     memory_borrowed.read(memory::registers::STAT),
                                     memory_borrowed.read(memory::registers::DIV),
             );
