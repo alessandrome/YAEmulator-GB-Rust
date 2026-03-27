@@ -198,21 +198,21 @@ fn log(log_channel: &mut File, gb: &GB::GB, log_line: u64) {
     let mut cycles = 0;
     let mut debug_i = 142268;
 
-    let cpu_interrupt = gb.cpu().maneging_interrupt();
-    if !(gb.cpu_left_instruction_cycles() > 0) || (cpu_interrupt.is_some() && gb.cpu_left_instruction_cycles() == CPU_INTERRUPT_CYCLES) {
+    let cpu = gb.cpu();
+    if cpu.instruction_m_cycle() == 0 && cpu.instruction_t_cycle() == 0 {
         let mut memory_borrowed = gb.memory.borrow();
         let mut s = "".to_string();
-        let mut pc = gb.cpu().registers.get_pc();
+        let mut pc = cpu.registers().get_pc();
         let addr = pc;
         let mut read_bytes: usize = 0;
         let mut opcode = memory_borrowed.read(pc);
         let mut s_ins = "UNKNOWN".to_string();
-        let mut opt_ins = CPU::decode(opcode, false);
+        let mut opt_ins = cpu.instruction();
 
         pc += 1;
         read_bytes += 1;
 
-        match gb.cpu().maneging_interrupt() {
+        match cpu.maneging_interrupt() {
             Some(interrupt_type) => {
                 match interrupt_type {
                     InterruptType::Joypad => { s_ins = "JoyPad int.".to_string(); }
@@ -288,16 +288,17 @@ fn log(log_channel: &mut File, gb: &GB::GB, log_line: u64) {
             read_bytes += 1;
         }
 
+        let cartridge = gb.cartridge();
         let mem_registers = gb.memory.borrow().get_memory_registers();
         {
             let formatted = format!("| {:04} |  {:#06X} |  {} |  {}{}|  {} {} |  RxM B: {}/{}  |  {{AF: {:04X}, BC: {:04X}, DE: {:04X}, HL: {:04X}, SP: {:04X}}} | IE: {:02X} | IF: {:02X} | IME: {} | STAT: {:02X} | DIV: {:02X}",
                                     log_line, addr, s, s_ins, " ".repeat(16 - s_ins.len()), gb.ppu,
                                     mem_registers,
-                                    gb.cartridge().as_ref().unwrap().rom_bank(),
-                                    gb.cartridge().as_ref().unwrap().ram_bank(),
-                                    gb.cpu().registers.get_af(), gb.cpu().registers.get_bc(),
-                                    gb.cpu().registers.get_de(), gb.cpu().registers.get_hl(),
-                                    gb.cpu().registers.get_sp(),
+                                    cartridge.rom_bank(),
+                                    cartridge.ram_bank(),
+                                    cpu.registers().get_af(), gb.cpu().registers().get_bc(),
+                                    cpu.registers().get_de(), gb.cpu().registers().get_hl(),
+                                    cpu.registers().get_sp(),
                                     memory_borrowed.read(memory::registers::IE),
                                     memory_borrowed.read(memory::registers::IF),
                                     if gb.cpu().ime { "T" } else { "F" },
