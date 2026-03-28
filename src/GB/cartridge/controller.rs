@@ -7,6 +7,17 @@ use crate::GB::cartridge::header::RomHeader;
 pub trait RomController: BusDevice {
     fn load(&mut self, rom_path: &str) -> Result<(), std::io::Error>;
     fn header(&self) -> &RomHeader;
+
+    /// This should return the effective addressed Low ROM bank exposed to the GB system
+    fn low_rom_bank_addressed(&self) -> u16;
+    /// This should return the effective addressed High ROM bank exposed to the GB system
+    fn high_rom_bank_addressed(&self) -> u16;
+    /// This should return the effective addressed RAM bank exposed to the GB system
+    fn ram_bank_addressed(&self) -> u16;
+    /// This should return the internal value of ROM bank register stored in the cartridge
+    fn rom_bank_register(&self) -> u16;
+    /// This should return the internal value of RAM bank register stored in the cartridge
+    fn ram_bank_register(&self) -> u16;
 }
 
 #[derive(Copy, Clone, Debug, Ord, PartialOrd, Eq, PartialEq)]

@@ -83,25 +83,6 @@ impl Mbc1 {
         })
     }
 
-    #[inline]
-    /// Return the index of addressed RAM bank. Idx ∈ [0, 3]
-    pub fn ram_bank(&self) -> u8 {
-        self.ram_bank & Mbc1Mask::RAM_BANK
-    }
-
-    #[inline]
-    /// Return the $X0 ROM bank index based on Bank Mode. On advanced mode ram bank register is used to get the rom bank index.
-    ///
-    /// Idx ∈ {0x0, 0x20, 0x40, 0x60}
-    pub fn rom_bank_high(&self) -> u8 {
-        match self.banking_mode {
-            Mbc1BankMode::Simple => 0,
-            Mbc1BankMode::Advanced => {
-                self.ram_bank() << 5
-            }
-        }
-    }
-
     /// Return the $XX ROM bank index based on Bank Mode.
     /// If the lower 5 bits are equal to 0 the selected bank is the following one (e.g. rom bank value of 0x20 selects rom bank 0x21).
     ///
@@ -202,5 +183,48 @@ impl RomController for Mbc1 {
 
     fn header(&self) -> &RomHeader {
         &self.header
+    }
+
+    #[inline]
+    /// Return the $X0 ROM bank index based on Bank Mode. On simple mode ram bank register is used to get the rom bank index.
+    ///
+    /// Idx ∈ {0x0, 0x20, 0x40, 0x60}
+    fn low_rom_bank_addressed(&self) -> u16 {
+        match self.banking_mode {
+            Mbc1BankMode::Simple => (self.rom_bank as u16) << 5,
+            Mbc1BankMode::Advanced => 0,
+        }
+    }
+
+    /// Return the higher ROM bank index based on Bank Mode. On simple mode ram bank register is used to get the rom bank index.
+    ///
+    /// Idx ∈ [0, 0x7F]/{0x0, 0x20, 0x40, 0x60}
+    fn high_rom_bank_addressed(&self) -> u16 {
+        let rom_bank = (if self.rom_bank == 0 { 1 } else { self.rom_bank }) as u16;
+        match self.banking_mode {
+            Mbc1BankMode::Simple => self.low_rom_bank_addressed() | rom_bank,
+            Mbc1BankMode::Advanced => rom_bank,
+        }
+    }
+
+    #[inline]
+    /// Return the index of addressed RAM bank. Idx ∈ [0, 3]
+    fn ram_bank_addressed(&self) -> u16 {
+        match self.banking_mode {
+            Mbc1BankMode::Simple => 0,
+            Mbc1BankMode::Advanced => self.ram_bank as u16,
+        }
+    }
+
+    #[inline]
+    /// Return the value of ROM register. Value ∈ [0, 31]
+    fn rom_bank_register(&self) -> u16 {
+        self.rom_bank as u16
+    }
+
+    #[inline]
+    /// Return the value of RAM register. Value ∈ [0, 3]
+    fn ram_bank_register(&self) -> u16 {
+        self.ram_bank as u16
     }
 }
