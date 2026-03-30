@@ -15,7 +15,7 @@ use crate::GB::ppu::ppu_mmio::PpuMmio;
 use crate::GB::types::address::Address;
 use crate::GB::types::Byte;
 
-pub struct MmioContext<'a> {
+pub struct MmioContextWrite<'a> {
     pub cpu_mmio: &'a mut CpuMmio,
     pub rom_mmio: &'a mut Option<Cartridge>,
     pub ppu_mmio: &'a mut PpuMmio,
@@ -24,6 +24,38 @@ pub struct MmioContext<'a> {
     pub oam_mmio: &'a mut OamMemory,
     pub wram_mmio: &'a mut WRAM,
     pub joypad: &'a mut Joypad,
+}
+
+pub struct MmioContextRead<'a> {
+    pub cpu_mmio: &'a CpuMmio,
+    pub rom_mmio: &'a Option<Cartridge>,
+    pub ppu_mmio: &'a PpuMmio,
+    pub apu_mmio: &'a ApuMmio,
+    pub dma_mmio: &'a DmaMmio,
+    pub oam_mmio: &'a OamMemory,
+    pub wram_mmio: &'a WRAM,
+    pub joypad: &'a Joypad,
+}
+
+impl<'a> MmioContextWrite<'a> {
+    pub fn as_read(&'a self) -> MmioContextRead<'a> {
+        MmioContextRead {
+            cpu_mmio: &self.cpu_mmio,
+            rom_mmio: &self.rom_mmio,
+            ppu_mmio: &self.ppu_mmio,
+            apu_mmio: &self.apu_mmio,
+            dma_mmio: &self.dma_mmio,
+            oam_mmio: &self.oam_mmio,
+            wram_mmio: &self.wram_mmio,
+            joypad: &self.joypad,
+        }
+    }
+}
+
+impl<'a> From<&'a MmioContextWrite<'a>> for MmioContextRead<'a> {
+    fn from(ctx: &'a MmioContextWrite<'a>) -> Self {
+        ctx.as_read()
+    }
 }
 
 pub struct Bus {}
@@ -35,7 +67,7 @@ impl Bus {
 }
 
 impl Bus {
-    pub fn read(&self, ctx: &MmioContext, address: Address) -> Byte {
+    pub fn read(&self, ctx: &MmioContextRead, address: Address) -> Byte {
         match address {
             address if Cartridge::CART_ROM_RANGE_ADDRESS.contains(&address) => {
                 match ctx.rom_mmio.as_ref() {
@@ -79,7 +111,7 @@ impl Bus {
         }
     }
 
-    pub fn write(&mut self, ctx: &mut MmioContext, address: Address, data: Byte) {
+    pub fn write(&mut self, ctx: &mut MmioContextWrite, address: Address, data: Byte) {
         match address {
             address if Cartridge::CART_ROM_RANGE_ADDRESS.contains(&address) => {
                 match ctx.rom_mmio {

@@ -1,6 +1,6 @@
 pub mod dma_mmio;
 
-use crate::GB::bus::{Bus, MmioContext, BusDevice};
+use crate::GB::bus::{Bus, MmioContextWrite, BusDevice};
 use crate::GB::dma::dma_mmio::DmaMmio;
 use crate::GB::traits::Tick;
 use crate::GB::types::address::Address;
@@ -25,7 +25,7 @@ impl DMA {
 }
 
 impl Tick for DMA {
-    fn tick(&mut self, bus: &mut Bus, ctx: &mut MmioContext) {
+    fn tick(&mut self, bus: &mut Bus, ctx: &mut MmioContextWrite) {
         self.t_cycle = (self.t_cycle + 1) & 0b11;  // (T-Cycle + 1) % 4
 
         if self.to_disable {
@@ -37,7 +37,7 @@ impl Tick for DMA {
             let lsb_address = self.m_cycle as u16;
             let from_address = Address(((ctx.dma_mmio.value() as u16) << 8) | lsb_address);
             let to_address = Address(0xFE00 | lsb_address);
-            let transfer_byte = bus.read(ctx, from_address);
+            let transfer_byte = bus.read(&ctx.as_read(), from_address);
             ctx.oam_mmio.write(to_address, transfer_byte);  // DMA has direct Access to OAM
 
             self.m_cycle = (self.m_cycle + 1) % 160;

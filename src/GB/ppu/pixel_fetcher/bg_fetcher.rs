@@ -1,4 +1,4 @@
-use crate::GB::bus::{Bus, MmioContext};
+use crate::GB::bus::{Bus, MmioContextWrite};
 use crate::GB::ppu::pixel::{PixelFifo, PixelFifoPaletteRegister};
 use crate::GB::ppu::ppu_mode::PpuMode;
 use crate::GB::ppu::tile::{Tile, TileDataArea, TileMapArea};
@@ -92,7 +92,7 @@ impl BackgroundFetcher {
 }
 
 impl Tick for BackgroundFetcher {
-    fn tick(&mut self, bus: &mut Bus, ctx: &mut MmioContext) {
+    fn tick(&mut self, bus: &mut Bus, ctx: &mut MmioContextWrite) {
         let lcdc = ctx.ppu_mmio.lcdc_view();
         let wx = ctx.ppu_mmio.wx();
         let wy = ctx.ppu_mmio.wy();

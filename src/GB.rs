@@ -15,7 +15,7 @@ pub mod addresses;
 
 use crate::GB::cartridge::addresses as cartridge_addresses;
 use crate::GB::joypad::{JoypadButton, JoypadButtonsBits, JoypadDPadBits};
-use crate::GB::bus::MmioContext;
+use crate::GB::bus::{MmioContextRead, MmioContextWrite};
 use traits::Tick;
 use crate::GB::ppu::PPU;
 use crate::GB::ppu::tile::GbColor;
@@ -38,9 +38,9 @@ pub const SYSTEM_FREQUENCY_CLOCK: u64 = 1_048_576;
 pub const CYCLES_PER_FRAME: u64 = SYSTEM_FREQUENCY_CLOCK / 60;
 pub const FRAME_TIME: f64 = 1_f64 / 60_f64;
 
-macro_rules! gb_bus_ctx {
+macro_rules! gb_bus_ctx_mut {
     ($gb:ident) => {
-        MmioContext {
+        MmioContextWrite {
             cpu_mmio: &mut $gb.cpu_ctx.mmio,
             rom_mmio: &mut $gb.cartridge,
             ppu_mmio: &mut $gb.ppu_ctx.mmio,
@@ -49,6 +49,21 @@ macro_rules! gb_bus_ctx {
             oam_mmio: &mut $gb.oam_memory,
             wram_mmio: &mut $gb.wram,
             joypad: &mut $gb.joypad,
+        }
+    };
+}
+
+macro_rules! gb_bus_ctx {
+    ($gb:ident) => {
+        MmioContextRead {
+            cpu_mmio: &$gb.cpu_ctx.mmio,
+            rom_mmio: &$gb.cartridge,
+            ppu_mmio: &$gb.ppu_ctx.mmio,
+            apu_mmio: &$gb.apu_ctx.mmio,
+            dma_mmio: &$gb.dma_ctx.mmio,
+            oam_mmio: &$gb.oam_memory,
+            wram_mmio: &$gb.wram,
+            joypad: &$gb.joypad,
         }
     };
 }
@@ -151,7 +166,7 @@ impl GB {
     pub fn tick(&mut self) {
         // let time = Instant::now();
         // let mut ctx = self.bus_context();
-        let mut ctx = gb_bus_ctx!(self);
+        let mut ctx = gb_bus_ctx_mut!(self);
 
         // Tick every component
         self.apu_ctx.apu.tick(&mut self.bus, &mut ctx);
@@ -220,13 +235,13 @@ impl GB {
         self.ppu_ctx.lcd.screen()
     }
 
-    pub fn read(&mut self, address: Address) -> Byte {
+    pub fn read(&self, address: Address) -> Byte {
         let ctx = gb_bus_ctx!(self);
         self.bus.read(&ctx, address)
     }
 
     pub fn write(&mut self, address: Address, data: Byte) {
-        let mut ctx = gb_bus_ctx!(self);
+        let mut ctx = gb_bus_ctx_mut!(self);
         self.bus.write(&mut ctx, address, data)
     }
 }
