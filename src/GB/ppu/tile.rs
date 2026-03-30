@@ -154,7 +154,7 @@ impl fmt::Display for Tile {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         let mut data_s = "".to_string();
         for i in 0..self.data.len() {
-            data_s.push_str(format!("{:02X}", self.data[i]).as_str());
+            data_s.push_str(format!("{:02X}", self.data[i] as u8).as_str());
             if i != self.data.len() - 1 {
                 data_s.push(' ');
             }
