@@ -194,7 +194,7 @@ fn main() {
     }
 }
 
-fn log(log_channel: &mut File, gb: &mut GB::GB, log_line: u64) {
+fn log(log_channel: &mut File, gb: &GB::GB, log_line: u64) {
     let mut i: u32 = 0;
     let mut cb = false;
     let mut cycles = 0;
