@@ -18,6 +18,8 @@ use crate::GB::bus::MmioContext;
 use traits::Tick;
 use crate::GB::ppu::PPU;
 use crate::GB::ppu::tile::GbColor;
+use crate::GB::types::address::Address;
+use crate::GB::types::Byte;
 
 #[cfg(feature = "debug")]
 #[inline]
@@ -34,6 +36,21 @@ fn debug_print(_args: std::fmt::Arguments) {
 pub const SYSTEM_FREQUENCY_CLOCK: u64 = 1_048_576;
 pub const CYCLES_PER_FRAME: u64 = SYSTEM_FREQUENCY_CLOCK / 60;
 pub const FRAME_TIME: f64 = 1_f64 / 60_f64;
+
+macro_rules! gb_bus_ctx {
+    ($gb:ident) => {
+        MmioContext {
+            cpu_mmio: &mut $gb.cpu_ctx.mmio,
+            rom_mmio: &mut $gb.cartridge,
+            ppu_mmio: &mut $gb.ppu_ctx.mmio,
+            apu_mmio: &mut $gb.apu_ctx.mmio,
+            dma_mmio: &mut $gb.dma_ctx.mmio,
+            oam_mmio: &mut $gb.oam_memory,
+            wram_mmio: &mut $gb.wram,
+            joypad: &mut $gb.joypad,
+        }
+    };
+}
 
 // #[derive()]
 pub struct GB {
@@ -132,16 +149,8 @@ impl GB {
     */
     pub fn tick(&mut self) {
         // let time = Instant::now();
-        let mut ctx = MmioContext {
-            cpu_mmio: &mut self.cpu_ctx.mmio,
-            rom_mmio: &mut self.cartridge,
-            ppu_mmio: &mut self.ppu_ctx.mmio,
-            apu_mmio: &mut self.apu_ctx.mmio,
-            dma_mmio: &mut self.dma_ctx.mmio,
-            oam_mmio: &mut self.oam_memory,
-            wram_mmio: &mut self.wram,
-            joypad:&mut self.joypad,
-        };
+        // let mut ctx = self.bus_context();
+        let mut ctx = gb_bus_ctx!(self);
 
         // Tick every component
         self.apu_ctx.apu.tick(&mut self.bus, &mut ctx);
@@ -204,6 +213,16 @@ impl GB {
 
     pub fn frame(&self) -> &[GbColor; PPU::SCREEN_PIXELS as usize] {
         self.ppu_ctx.lcd.screen()
+    }
+
+    pub fn read(&mut self, address: Address) -> Byte {
+        let ctx = gb_bus_ctx!(self);
+        self.bus.read(&ctx, address)
+    }
+
+    pub fn write(&mut self, address: Address, data: Byte) {
+        let mut ctx = gb_bus_ctx!(self);
+        self.bus.write(&mut ctx, address, data)
     }
 }
 
