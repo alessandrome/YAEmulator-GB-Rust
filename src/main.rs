@@ -289,11 +289,11 @@ fn log(log_channel: &mut File, gb: &mut GB::GB, log_line: u64) {
             read_bytes += 1;
         }
 
-        let cartridge = gb.cartridge();
+        let cartridge = gb.cartridge().unwrap();
         {
-            let formatted = format!("| {:04} |  {:#06X} |  {} |  {}{}|  {} {} |  RxM B: {}/{}  |  {{AF: {:04X}, BC: {:04X}, DE: {:04X}, HL: {:04X}, SP: {:04X}}} | IE: {:02X} | IF: {:02X} | IME: {} | STAT: {:02X} | DIV: {:02X}",
-                                    log_line, addr, s, s_ins, " ".repeat(16 - s_ins.len()), gb.ppu,
-                                    mem_registers,
+            let formatted = format!("| {:04} |  {:#06X} |  {} |  {}{}|  {} {{}} |  RxM B: {}/{}  |  {{AF: {:04X}, BC: {:04X}, DE: {:04X}, HL: {:04X}, SP: {:04X}}} | IE: {:02X} | IF: {:02X} | IME: {} | STAT: {:02X} | DIV: {:02X}",
+                                    log_line, addr, s, s_ins, " ".repeat(16 - s_ins.len()), gb.ppu(),
+                                    // mem_registers,
                                     cartridge.rom_bank(),
                                     cartridge.ram_bank(),
                                     cpu.registers().get_af(), gb.cpu().registers().get_bc(),
