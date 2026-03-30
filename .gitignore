@@ -1,7 +1,7 @@
 /target
 /.idea
-/rom
-/rom/.gitkeep
+/rom/*
+!/rom/.gitkeep
 /bios/*
 !/bios/.gitkeep
 /logs/*
