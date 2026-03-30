@@ -82,14 +82,15 @@ impl BusDevice for Cartridge {
 impl std::fmt::Display for Cartridge {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
-            f, "TODO"
-            // "Cartridge \"{}\"(0x{:02x}) {{ ROM/RAM: {}KB/{}KB, ROM B.: {}, RAM B.: {}, Title: \"{}\", Path: \"{}\" }}",
-            // Self::get_cartridge_type_string(&self.cartridge_type),
+            f, /*"TODO"*/
+            "Cartridge \"{}\"(0x{:02x}) {{ ROM/RAM: {}KB/{}KB, ROM B.: {}, RAM B.: {}, Title: \"{}\", Path: \"{}\" }}",
+            self.cart_type() as u8, // TODO: This should be the string version of the controller
             // self.rom[addresses::CARTRIDGE_TYPE],
-            // self.rom.len() / 1024, self.ram.len() / 1024,
-            // self.rom_bank, self.ram_bank,
-            // self.get_title(),
-            // self.rom_path,
+            self.cart_type() as u8,
+            self.header().rom_banks() * 0x4000 / 1024, self.header().ram_banks() * 0x2000 / 1024,
+            self.rom_bank(), self.ram_bank(),
+            self.title(),
+            self.rom_path,
         )
     }
 }

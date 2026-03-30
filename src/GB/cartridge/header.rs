@@ -55,7 +55,7 @@ impl RomHeader {
     pub fn new(header_slice: &[Byte; Self::HEADER_SIZE]) -> Self {
         let title_result = String::from_utf8(
             Vec::from(&header_slice[
-                (Self::HEADER_TITLE_START_ADDRESS.as_usize() - Self::HEADER_START_ADDRESS.as_usize())..=(Self::HEADER_TITLE_START_ADDRESS.as_usize() - Self::HEADER_END_ADDRESS.as_usize())
+                (Self::HEADER_TITLE_START_ADDRESS.as_usize() - Self::HEADER_START_ADDRESS.as_usize())..=(Self::HEADER_TITLE_END_ADDRESS.as_usize() - Self::HEADER_START_ADDRESS.as_usize())
                 ])
         ).unwrap();
 
