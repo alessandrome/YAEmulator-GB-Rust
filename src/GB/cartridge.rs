@@ -59,6 +59,14 @@ impl Cartridge {
     pub fn cart_type(&self) -> CartridgeControllerType {
         self.header().rom_controller_type()
     }
+
+    pub fn rom_bank(&self) -> u16 {
+        self.rom.high_rom_bank_addressed()
+    }
+
+    pub fn ram_bank(&self) -> u16 {
+        self.rom.ram_bank_addressed()
+    }
 }
 
 impl BusDevice for Cartridge {
