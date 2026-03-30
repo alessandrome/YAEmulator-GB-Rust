@@ -11,6 +11,7 @@ pub mod utils;
 mod timer;
 mod interrupt;
 pub mod dma;
+pub mod addresses;
 
 use crate::GB::cartridge::addresses as cartridge_addresses;
 use crate::GB::joypad::{JoypadButton, JoypadButtonsBits, JoypadDPadBits};
