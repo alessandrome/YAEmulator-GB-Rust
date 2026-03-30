@@ -25,9 +25,11 @@ use crate::GB::memory::Length;
 use crate::GB::ppu::tile::{GbColor, Tile};
 use GB::memory;
 use GB::cpu::{CPU};
+use crate::GB::addresses;
 use crate::GB::cpu::{InterruptType, CPU_INTERRUPT_CYCLES};
 use crate::GB::joypad::{JoypadButtonsBits, JoypadDPadBits};
 use crate::GB::ppu::PPU;
+use crate::GB::types::address::Address;
 // use winit::{event, event_loop, window};
 
 #[derive(Parser, Debug)]
@@ -143,7 +145,7 @@ fn main() {
 
         match file_result {
             Ok(ref mut file) => {
-                log(file, &gb, log_line);
+                log(file, &mut gb, log_line);
                 log_line += 1;
             }
             Err(_) => {}
@@ -192,7 +194,7 @@ fn main() {
     }
 }
 
-fn log(log_channel: &mut File, gb: &GB::GB, log_line: u64) {
+fn log(log_channel: &mut File, gb: &mut GB::GB, log_line: u64) {
     let mut i: u32 = 0;
     let mut cb = false;
     let mut cycles = 0;
@@ -200,12 +202,11 @@ fn log(log_channel: &mut File, gb: &GB::GB, log_line: u64) {
 
     let cpu = gb.cpu();
     if cpu.instruction_m_cycle() == 0 && cpu.instruction_t_cycle() == 0 {
-        let mut memory_borrowed = gb.memory.borrow();
         let mut s = "".to_string();
         let mut pc = cpu.registers().get_pc();
         let addr = pc;
         let mut read_bytes: usize = 0;
-        let mut opcode = memory_borrowed.read(pc);
+        let mut opcode = gb.read(Address(pc));
         let mut s_ins = "UNKNOWN".to_string();
         let mut opt_ins = cpu.instruction();
 
@@ -231,7 +232,7 @@ fn log(log_channel: &mut File, gb: &GB::GB, log_line: u64) {
                         s += format!("{:02X} ", opcode).as_str();
                         cb = opcode == 0xCB;
                         if cb {
-                            opcode = memory_borrowed.read(pc);
+                            opcode = gb.read(Address(pc));
                             ins = CPU::decode(opcode, cb).unwrap();
                             s += format!("{:02X} ", opcode).as_str();
                             s_ins = ins.name.to_string();
@@ -241,7 +242,7 @@ fn log(log_channel: &mut File, gb: &GB::GB, log_line: u64) {
                         let mut shift: u16 = 0;
                         let mut immediate_val: u16 = 0;
                         for j in read_bytes as u8..ins.size {
-                            let val = memory_borrowed.read(pc) as u16;
+                            let val = gb.read(Address(pc)) as u16;
                             s += format!("{:02X} ", val).as_str();
                             immediate_val |= val << shift;
                             pc += 1;
@@ -271,8 +272,8 @@ fn log(log_channel: &mut File, gb: &GB::GB, log_line: u64) {
                         if !cb {
                             match ins.opcode {
                                 0xD9  => {
-                                    let b1 = memory_borrowed.read(gb.cpu().registers.get_sp() + 1);
-                                    let b2 = memory_borrowed.read(gb.cpu().registers.get_sp() + 2);
+                                    let b1 = gb.read(Address(gb.cpu().registers.get_sp() + 1));
+                                    let b2 = gb.read(Address(gb.cpu().registers.get_sp() + 2));
                                     s_ins += format!(" (${:02X}{:02X})", b2, b1).as_str();
                                 }
                                 _ => {}
@@ -289,7 +290,6 @@ fn log(log_channel: &mut File, gb: &GB::GB, log_line: u64) {
         }
 
         let cartridge = gb.cartridge();
-        let mem_registers = gb.memory.borrow().get_memory_registers();
         {
             let formatted = format!("| {:04} |  {:#06X} |  {} |  {}{}|  {} {} |  RxM B: {}/{}  |  {{AF: {:04X}, BC: {:04X}, DE: {:04X}, HL: {:04X}, SP: {:04X}}} | IE: {:02X} | IF: {:02X} | IME: {} | STAT: {:02X} | DIV: {:02X}",
                                     log_line, addr, s, s_ins, " ".repeat(16 - s_ins.len()), gb.ppu,
@@ -299,11 +299,11 @@ fn log(log_channel: &mut File, gb: &GB::GB, log_line: u64) {
                                     cpu.registers().get_af(), gb.cpu().registers().get_bc(),
                                     cpu.registers().get_de(), gb.cpu().registers().get_hl(),
                                     cpu.registers().get_sp(),
-                                    memory_borrowed.read(memory::registers::IE),
-                                    memory_borrowed.read(memory::registers::IF),
-                                    if gb.cpu().ime { "T" } else { "F" },
-                                    memory_borrowed.read(memory::registers::STAT),
-                                    memory_borrowed.read(memory::registers::DIV),
+                                    gb.read(addresses::cpu::INTERRUPT_ENABLED_REGISTER),
+                                    gb.read(addresses::cpu::INTERRUPT_FLAGS_REGISTER),
+                                    if gb.cpu().ime() { "T" } else { "F" },
+                                    gb.read(addresses::ppu::STAT_REGISTER),
+                                    gb.read(addresses::ppu::LCDC_REGISTER),
             );
             writeln!(log_channel, "{}", formatted).expect("TODO: panic message");
         }
