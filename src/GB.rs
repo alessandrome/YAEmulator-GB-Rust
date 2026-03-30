@@ -195,6 +195,10 @@ impl GB {
     pub fn cpu(&self) -> &cpu::CPU {
         &self.cpu_ctx.cpu
     }
+    
+    pub fn ppu(&self) -> &ppu::PPU {
+        &self.ppu_ctx.ppu
+    }
 
     pub fn joypad(&self) -> &joypad::Joypad {
         &self.joypad
@@ -204,8 +208,8 @@ impl GB {
         self.joypad.joypad_view()
     }
 
-    pub fn cartridge(&self) -> &Option<cartridge::Cartridge> {
-        &self.cartridge
+    pub fn cartridge(&self) -> Option<&cartridge::Cartridge> {
+        self.cartridge.as_ref()
     }
 
     // pub fn get_bios(&self) -> &BIOS {
