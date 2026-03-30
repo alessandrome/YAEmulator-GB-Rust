@@ -1,4 +1,4 @@
-use crate::GB::bus::{Bus, MmioContext};
+use crate::GB::bus::{Bus, MmioContextWrite};
 use crate::GB::ppu::lcd_control::ObjSize;
 use crate::GB::ppu::pixel::{PixelFifo, PixelFifoPaletteRegister};
 use crate::GB::ppu::ppu_mode::PpuMode;
@@ -44,7 +44,7 @@ impl SpriteFetcher {
 }
 
 impl Tick for SpriteFetcher {
-    fn tick(&mut self, bus: &mut Bus, ctx: &mut MmioContext) {
+    fn tick(&mut self, bus: &mut Bus, ctx: &mut MmioContextWrite) {
         let lcdc = ctx.ppu_mmio.lcdc_view();
 
         // Reset here OAM buffer and X on starting phases

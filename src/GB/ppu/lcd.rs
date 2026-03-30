@@ -1,4 +1,4 @@
-use crate::GB::bus::{Bus, MmioContext};
+use crate::GB::bus::{Bus, MmioContextWrite};
 use crate::GB::ppu::palette::GbPalette;
 use crate::GB::ppu::pixel::{PixelFifo, PixelFifoPaletteRegister};
 use crate::GB::ppu::PPU;
@@ -32,7 +32,7 @@ impl LCD {
 }
 
 impl Tick for LCD {
-    fn tick(&mut self, bus: &mut Bus, ctx: &mut MmioContext) {
+    fn tick(&mut self, bus: &mut Bus, ctx: &mut MmioContextWrite) {
         match ctx.ppu_mmio.consume_pixel() {
             None => (),
             Some(color) => {

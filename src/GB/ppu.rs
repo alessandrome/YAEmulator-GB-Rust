@@ -3,7 +3,7 @@ use ppu_mode::PpuMode;
 use std::fmt;
 use std::fmt::Formatter;
 use winit::dpi::Pixel;
-use crate::GB::bus::{Bus, BusDevice, MmioContext};
+use crate::GB::bus::{Bus, BusDevice, MmioContextWrite};
 use crate::GB::memory::oam_memory::OamMemory;
 use crate::GB::ppu::ppu_mmio::PpuMmio;
 use crate::GB::ppu::oam::{OAM};
@@ -92,7 +92,7 @@ impl PPU {
 }
 
 impl Tick for PPU {
-    fn tick(&mut self, bus: &mut Bus, ctx: &mut MmioContext) {
+    fn tick(&mut self, bus: &mut Bus, ctx: &mut MmioContextWrite) {
         let stat_view = ctx.ppu_mmio.stat_view();
         let lcdc_view = ctx.ppu_mmio.lcdc_view();
 

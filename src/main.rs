@@ -200,20 +200,19 @@ fn log(log_channel: &mut File, gb: &mut GB::GB, log_line: u64) {
     let mut cycles = 0;
     let mut debug_i = 142268;
 
-    let cpu = gb.cpu();
-    if cpu.instruction_m_cycle() == 0 && cpu.instruction_t_cycle() == 0 {
+    if gb.cpu().instruction_m_cycle() == 0 && gb.cpu().instruction_t_cycle() == 0 {
         let mut s = "".to_string();
-        let mut pc = cpu.registers().get_pc();
+        let mut pc = gb.cpu().registers().get_pc();
         let addr = pc;
         let mut read_bytes: usize = 0;
         let mut opcode = gb.read(Address(pc));
         let mut s_ins = "UNKNOWN".to_string();
-        let mut opt_ins = cpu.instruction();
+        let mut opt_ins = gb.cpu().instruction();
 
         pc += 1;
         read_bytes += 1;
 
-        match cpu.maneging_interrupt() {
+        match gb.cpu().maneging_interrupt() {
             Some(interrupt_type) => {
                 match interrupt_type {
                     InterruptType::Joypad => { s_ins = "JoyPad int.".to_string(); }
@@ -296,9 +295,9 @@ fn log(log_channel: &mut File, gb: &mut GB::GB, log_line: u64) {
                                     // mem_registers,
                                     cartridge.rom_bank(),
                                     cartridge.ram_bank(),
-                                    cpu.registers().get_af(), gb.cpu().registers().get_bc(),
-                                    cpu.registers().get_de(), gb.cpu().registers().get_hl(),
-                                    cpu.registers().get_sp(),
+                                    gb.cpu().registers().get_af(), gb.cpu().registers().get_bc(),
+                                    gb.cpu().registers().get_de(), gb.cpu().registers().get_hl(),
+                                    gb.cpu().registers().get_sp(),
                                     gb.read(addresses::cpu::INTERRUPT_ENABLED_REGISTER),
                                     gb.read(addresses::cpu::INTERRUPT_FLAGS_REGISTER),
                                     if gb.cpu().ime() { "T" } else { "F" },

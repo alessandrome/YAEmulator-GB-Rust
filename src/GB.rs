@@ -15,7 +15,7 @@ pub mod addresses;
 
 use crate::GB::cartridge::addresses as cartridge_addresses;
 use crate::GB::joypad::{JoypadButton, JoypadButtonsBits, JoypadDPadBits};
-use crate::GB::bus::MmioContext;
+use crate::GB::bus::MmioContextWrite;
 use traits::Tick;
 use crate::GB::ppu::PPU;
 use crate::GB::ppu::tile::GbColor;
@@ -40,7 +40,7 @@ pub const FRAME_TIME: f64 = 1_f64 / 60_f64;
 
 macro_rules! gb_bus_ctx {
     ($gb:ident) => {
-        MmioContext {
+        MmioContextWrite {
             cpu_mmio: &mut $gb.cpu_ctx.mmio,
             rom_mmio: &mut $gb.cartridge,
             ppu_mmio: &mut $gb.ppu_ctx.mmio,

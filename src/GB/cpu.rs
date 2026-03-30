@@ -2,7 +2,7 @@ pub mod instructions;
 pub mod registers;
 pub mod cpu_mmio;
 
-use crate::GB::bus::{Bus, MmioContext, BusDevice};
+use crate::GB::bus::{Bus, MmioContextWrite, BusDevice};
 use crate::GB::types::{address::Address, Byte};
 use crate::GB::cpu::instructions::microcode::{CheckCondition, IduOp, MicroFlow, SetFlag, SetFlagZ};
 use crate::GB::cpu::instructions::{Instruction, InstructionMicroOpIndex};
@@ -160,7 +160,7 @@ impl CPU {
         self.micro_code_m_cycle
     }
 
-    pub fn fetch_next(&mut self, bus: &bus::Bus, ctx: &mut bus::MmioContext) -> Byte {
+    pub fn fetch_next(&mut self, bus: &bus::Bus, ctx: &mut bus::MmioContextWrite) -> Byte {
         let addr = self.registers.get_and_inc_pc();
         bus.read(ctx, Address(addr))
     }
@@ -173,7 +173,7 @@ impl CPU {
         instructions::OPCODES[opcode_usize]
     }
 
-    pub fn fetch_and_decode(&mut self, bus: &bus::Bus, ctx: &mut bus::MmioContext, cb_optable: bool) -> (Option<&'static Instruction>, Byte) {
+    pub fn fetch_and_decode(&mut self, bus: &bus::Bus, ctx: &mut bus::MmioContextWrite, cb_optable: bool) -> (Option<&'static Instruction>, Byte) {
         let opcode = self.fetch_next(bus, ctx);
         (Self::decode(opcode, cb_optable), opcode)
     }
@@ -240,7 +240,7 @@ impl CPU {
        CPU Push 1-byte using SP register (to not confuse with instruction PUSH r16, that PUSH in a 2-bytes value from a double-register)
     */
     #[inline]
-    pub fn push(&mut self, bus: &mut Bus, ctx: &mut MmioContext, byte: u8) {
+    pub fn push(&mut self, bus: &mut Bus, ctx: &mut MmioContextWrite, byte: u8) {
         bus.write(ctx, self.registers.get_sp_as_address(), byte);
         self.registers.set_sp(self.registers.get_sp() - 1);
     }
@@ -249,7 +249,7 @@ impl CPU {
        CPU Pop 1-byte using SP register (to not confuse with instruction POP r16, that pop out a 2-bytes value to put in a double-register)
     */
     #[inline]
-    pub fn pop(&mut self, bus: &mut Bus, ctx: &mut MmioContext) -> Byte {
+    pub fn pop(&mut self, bus: &mut Bus, ctx: &mut MmioContextWrite) -> Byte {
         self.registers.set_sp(self.registers.get_sp() + 1);
         bus.read(ctx, self.registers.get_sp_as_address())
     }
@@ -257,7 +257,7 @@ impl CPU {
     fn m_cycle_tick(
         &mut self,
         bus: &mut bus::Bus,
-        ctx: &mut bus::MmioContext,
+        ctx: &mut bus::MmioContextWrite,
         m_cycle_op: MCycleOp,
     ) -> CpuStatus {
         let mut flow: MicroFlow;
@@ -353,7 +353,7 @@ impl CPU {
     fn micro_tick(
         &mut self,
         bus: &mut bus::Bus,
-        ctx: &mut bus::MmioContext,
+        ctx: &mut bus::MmioContextWrite,
         micro_op: MicroOp,
     ) -> MicroFlow {
         let mut micro_flow = MicroFlow::Next;
@@ -869,7 +869,7 @@ impl CPU {
 }
 
 impl Tick for CPU {
-    fn tick(&mut self, bus: &mut bus::Bus, ctx: &mut bus::MmioContext) {
+    fn tick(&mut self, bus: &mut bus::Bus, ctx: &mut bus::MmioContextWrite) {
         self.micro_code_t_cycle = (self.micro_code_t_cycle + 1) & 0b0000_0011; // Just a Bit version of (value = value % 4)
         let cpu_status;
         if self.micro_code_t_cycle == 0 {

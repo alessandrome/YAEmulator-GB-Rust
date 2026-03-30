@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 use crate::{mask_flag_enum_default_impl, default_enum_u8_bit_ops};
-use crate::GB::bus::{Bus, BusDevice, MmioContext};
+use crate::GB::bus::{Bus, BusDevice, MmioContextWrite};
 use crate::GB::cpu::cpu_mmio::CpuMmio;
 use crate::GB::cpu::registers::interrupt_registers::{InterruptFlagsMask, InterruptRegisters};
 use crate::GB::types::address::Address;
