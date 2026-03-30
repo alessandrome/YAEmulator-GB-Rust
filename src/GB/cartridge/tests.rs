@@ -1,4 +1,4 @@
-use crate::GB::cartridge::{Cartridge, CartridgeType};
+use crate::GB::cartridge::{Cartridge, CartridgeControllerType};
 
 #[test]
 fn test_new() {
@@ -6,7 +6,7 @@ fn test_new() {
     println!("{}", cart);
     assert_eq!(cart.get_rom_size(), 2 * 1024 * 1024);
     assert_eq!(cart.get_ram_size(), 8 * 1024);
-    assert_eq!(cart.get_cart_type(), CartridgeType::Mbc1RamBattery);
+    assert_eq!(cart.get_cart_type(), CartridgeControllerType::Mbc1RamBattery);
 }
 
 #[test]

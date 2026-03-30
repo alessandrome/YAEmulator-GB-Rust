@@ -3,11 +3,11 @@ use std::cell::RefCell;
 use crate::GB::cpu::CPU;
 use crate::GB::memory;
 use crate::GB::memory::{RAM, USER_PROGRAM_ADDRESS, WRAM_ADDRESS};
-use crate::GB::input::GBInput as GBInput;
+use crate::GB::joypad::Joypad as GBInput;
 
 macro_rules! create_memory {
     () => {
-        Rc::new(RefCell::new(RAM::new(Rc::new(RefCell::new(GBInput::default())))))
+        Rc::new(RefCell::new(RAM::new(Rc::new(RefCell::new(Joypad::default())))))
     };
 }
 

@@ -1,19 +1,31 @@
 use std::collections::HashMap;
 use std::fmt;
 use std::fmt::Formatter;
+use crate::{default_enum_u8_bit_ops, default_enum_u8};
+use crate::GB::types::Byte;
+use crate::utils::expand_byte_bits;
 
-pub const TILE_SIZE: usize = 16; // In Bytes
-pub const TILE_WIDTH: usize = 8;
-pub const TILE_HEIGHT: usize = 8;
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub enum TileMapArea {
+    MapBlock0,
+    MapBlock1,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub enum TileDataArea {
+    DataBlock01,
+    DataBlock12,
+}
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 #[repr(u8)]
-pub enum GbPalette {
+pub enum GbColor {
     White = 0u8,
     LightGray = 1u8,
     DarkGray = 2u8,
     Black = 3u8,
 }
+default_enum_u8!(GbColor {White = 0u8, LightGray = 1u8, DarkGray = 2u8, Black = 3u8});
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 #[repr(u8)]
@@ -22,6 +34,19 @@ pub enum GbPaletteId {
     Id1 = 1u8,
     Id2 = 2u8,
     Id3 = 3u8,
+}
+
+impl GbPaletteId {
+    #[inline]
+    pub fn half_nibble_to_palette_map(byte: Byte) -> GbPaletteId {
+        match byte & 0b0000_0011 {
+            0 => GbPaletteId::Id0,
+            1 => GbPaletteId::Id1,
+            2 => GbPaletteId::Id2,
+            3 => GbPaletteId::Id3,
+            _ => unreachable!()
+        }
+    }
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -34,11 +59,11 @@ pub enum RGBPalette {
 }
 
 lazy_static! {
-    pub static ref CONSOLE_PALETTE: HashMap<GbPalette, char> = HashMap::from([
-        (GbPalette::White, '█'),
-        (GbPalette::LightGray, '▓'),
-        (GbPalette::DarkGray, '▒'),
-        (GbPalette::Black, '░'),
+    pub static ref CONSOLE_PALETTE: HashMap<GbColor, char> = HashMap::from([
+        (GbColor::White, '█'),
+        (GbColor::LightGray, '▓'),
+        (GbColor::DarkGray, '▒'),
+        (GbColor::Black, '░'),
     ]);
 }
 
@@ -51,56 +76,45 @@ lazy_static! {
     ]);
 }
 
-#[derive(Debug, Default, Clone)]
-pub struct Tile {
-    pub data: [u8; TILE_SIZE],
-}
+const TILE_SIZE: u8 = 16;
+pub const TILE_WIDTH: u8 = 8;
+pub const TILE_HEIGHT: u8 = 8;
 
-pub fn expand_bits(byte: u8) -> u16 {
-    let mut result: u16 = 0;
-    for i in 0..8 {
-        result |= ((byte & (1 << i)) as u16) << i
-    }
-    result
+#[derive(Copy, Clone, Debug)]
+pub struct Tile {
+    pub data: [GbPaletteId; (TILE_WIDTH * TILE_HEIGHT) as usize],
 }
 
 impl Tile {
-    pub fn new(tile: [u8; 8 * 2]) -> Self {
+    pub const TILE_SIZE: u8 = TILE_SIZE; // In Bytes
+    pub const TILE_WIDTH: u8 = TILE_WIDTH;
+    pub const TILE_HEIGHT: u8 = TILE_HEIGHT;
+    pub const TILE_DOTS: u8 = Self::TILE_WIDTH * Self::TILE_HEIGHT;
+
+    pub fn new(tile: [GbPaletteId; Self::TILE_DOTS as usize]) -> Self {
         Self { data: tile }
     }
 
-    pub fn get_tile_map(&self) -> [GbPaletteId; 64] {
-        self.to_picture_map()
-    }
-
-    pub fn to_picture_map(&self) -> [GbPaletteId; 64] {
-        let mut picture = [GbPaletteId::Id0; 8 * 8];
-        for i in 0..8 {
-            let byte1 = self.data[i * 2];
-            let byte2 = self.data[i * 2 + 1];
-            let byte1_expanded = expand_bits(byte1);
-            let byte2_expanded = expand_bits(byte2) << 1;
-            let resulting_byte = byte2_expanded | byte1_expanded;
-            for j in 0..8 {
-                let shift = (7 - j) * 2;
-                picture[i * 8 + j] = Self::half_nibble_to_palette_map(((resulting_byte & (3 << shift)) >> shift) as u8);
+    pub fn from_bytes(bytes: &[Byte; 8 * 2]) -> Self {
+        let mut pixels = [GbPaletteId::Id0; Self::TILE_DOTS as usize];
+        for row in 0_usize..8 {
+            let byte_1 = bytes[row * 2];
+            let byte_2 = bytes[row * 2 + 1];
+            let word = (expand_byte_bits(byte_2) << 1) | expand_byte_bits(byte_1);
+            for col in 0_usize..8 {
+                pixels[row * Self::TILE_WIDTH as usize + col] = GbPaletteId::half_nibble_to_palette_map(((word >> ((7 - col) * 2)) as Byte) & 0b11);
             }
         }
-        picture
+
+        Self { data: pixels }
     }
 
-    pub fn half_nibble_to_palette_map(byte: u8) -> GbPaletteId {
-        match byte & 3 {
-            0 => GbPaletteId::Id0,
-            1 => GbPaletteId::Id1,
-            2 => GbPaletteId::Id2,
-            3 => GbPaletteId::Id3,
-            _ => GbPaletteId::Id0
-        }
+    pub fn tile(&self) -> &[GbPaletteId; Self::TILE_DOTS as usize] {
+        &self.data
     }
 
     pub fn get_printable_id_map(&self, doubled: bool) -> String {
-        Self::palette_id_map_to_printable_id_map(&self.get_tile_map(), doubled)
+        Self::palette_id_map_to_printable_id_map(&self.tile(), doubled)
     }
 
     pub fn palette_id_map_to_printable_id_map(array_map: &[GbPaletteId; 8 * 8], doubled: bool) -> String {
@@ -122,8 +136,8 @@ impl Tile {
         let s_lines: Vec<&str> = s.lines().collect();
 
         // Verify that String has the same number of line as the height of a tile
-        if s_lines.len() != TILE_HEIGHT {
-            let err = format!("String to concat with should have {} lines!", TILE_HEIGHT);
+        if s_lines.len() != Self::TILE_HEIGHT as usize {
+            let err = format!("String to concat with should have {} lines!", Self::TILE_HEIGHT);
             return Err(err);
         }
 
@@ -155,22 +169,22 @@ impl fmt::Display for Tile {
 
 #[cfg(test)]
 mod test {
-    use crate::GB::ppu::tile::{expand_bits, GbPaletteId, Tile};
+    use crate::GB::ppu::tile::{expand_byte_bits, GbPaletteId, Tile};
 
     #[test]
     fn test_bit_expander() {
         let mut byte = 0b1111_1111;
-        let mut expanded = expand_bits(byte);
+        let mut expanded = expand_byte_bits(byte);
         let mut expected: u16 = 0b01010101_01010101;
         assert_eq!(expanded, expected);
 
         byte = 0b1001_0110;
-        expanded = expand_bits(byte);
+        expanded = expand_byte_bits(byte);
         expected = 0b01000001_00010100;
         assert_eq!(expanded, expected);
 
         byte = 0b0000_0000;
-        expanded = expand_bits(byte);
+        expanded = expand_byte_bits(byte);
         expected = 0b00000000_00000000;
         assert_eq!(expanded, expected);
     }

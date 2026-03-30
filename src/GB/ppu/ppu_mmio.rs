@@ -1,8 +1,11 @@
 use std::collections::VecDeque;
 use crate::GB::bus::BusDevice;
 use crate::GB::memory::vram::VRAM;
-use crate::GB::ppu::lcd_control::{LCDCMasks, ObjSize, TileDataArea, TileMapArea, LCDC};
+use crate::GB::ppu::tile::{GbColor, TileDataArea, TileMapArea};
+use crate::GB::ppu::lcd_control::{LCDCMasks, ObjSize, LCDC};
 use crate::GB::ppu::lcd_stat::{LCDStatMasks, LcdStat};
+use crate::GB::ppu::oam::OAM;
+use crate::GB::ppu::palette::GbPalette;
 use crate::GB::ppu::pixel::PixelFifo;
 use crate::GB::types::address::{Address, AddressRangeInclusive};
 use crate::GB::types::Byte;
@@ -12,13 +15,16 @@ use super::PPU;
 pub struct PpuMmio {
     ppu_mode: PpuMode,
     prev_ppu_mode: PpuMode, // PPU Mode in tha last T-Cycle tick
+    oam_buffer: Vec<OAM>,
     obj_fifo: VecDeque<PixelFifo>,
     background_fifo: VecDeque<PixelFifo>,
+    pixel_output: Option<GbColor>,
     vram: VRAM,
     lcdc: Byte,
     stat: Byte,
     scy: Byte,
     scx: Byte,
+    lx: u8, // This is NOT a register, just a internal pixel screen counter
     ly: Byte,
     lyc: Byte,
     bgp: Byte,
@@ -29,22 +35,6 @@ pub struct PpuMmio {
 }
 
 impl PpuMmio {
-    pub const VRAM_BLOCK_0_START: Address = Address(0x8000);
-    pub const VRAM_BLOCK_0_END: Address = Address(0x87FF);
-    pub const VRAM_BLOCK_0_RANGE: AddressRangeInclusive = Self::VRAM_BLOCK_0_START..=Self::VRAM_BLOCK_0_END;
-    pub const VRAM_BLOCK_1_START: Address = Address(0x8800);
-    pub const VRAM_BLOCK_1_END: Address = Address(0x8FFF);
-    pub const VRAM_BLOCK_1_RANGE: AddressRangeInclusive = Self::VRAM_BLOCK_1_START..=Self::VRAM_BLOCK_1_END;
-    pub const VRAM_BLOCK_2_START: Address = Address(0x9000);
-    pub const VRAM_BLOCK_2_END: Address = Address(0x97FF);
-    pub const VRAM_BLOCK_2_RANGE: AddressRangeInclusive = Self::VRAM_BLOCK_2_START..=Self::VRAM_BLOCK_2_END;
-    pub const VRAM_TILE_MAP_0_START: Address = Address(0x9800);
-    pub const VRAM_TILE_MAP_0_END: Address = Address(0x9BFF);
-    pub const VRAM_TILE_MAP_0_RANGE: AddressRangeInclusive = Self::VRAM_TILE_MAP_0_START..=Self::VRAM_TILE_MAP_0_END;
-    pub const VRAM_TILE_MAP_1_START: Address = Address(0x9C00);
-    pub const VRAM_TILE_MAP_1_END: Address = Address(0x9FFF);
-    pub const VRAM_TILE_MAP_1_RANGE: AddressRangeInclusive = Self::VRAM_TILE_MAP_1_START..=Self::VRAM_TILE_MAP_1_END;
-
     pub const LCDC_ADDRESS: Address = Address(0xFF40);
     pub const STAT_ADDRESS: Address = Address(0xFF41);
     pub const SCY_ADDRESS: Address = Address(0xFF42);
@@ -63,13 +53,16 @@ impl PpuMmio {
         Self {
             ppu_mode: PpuMode::OAMScan,
             prev_ppu_mode: PpuMode::HBlank,
+            oam_buffer: Vec::with_capacity(10),
             obj_fifo: VecDeque::with_capacity(16),
             background_fifo: VecDeque::with_capacity(16),
+            pixel_output: None,
             vram: VRAM::new(),
             lcdc: 0,
             stat: 0,
             scy: 0,
             scx: 0,
+            lx: 0,
             ly: 0,
             lyc: 0,
             bgp: 0,
@@ -91,7 +84,7 @@ impl PpuMmio {
     }
 
     #[inline]
-    pub fn next_mode(&mut self) {
+    fn next_mode(&mut self) {
         match self.ppu_mode {
             PpuMode::OAMScan => self.ppu_mode = PpuMode::Drawing,
             PpuMode::Drawing => self.ppu_mode = PpuMode::HBlank,
@@ -107,9 +100,37 @@ impl PpuMmio {
     }
 
     #[inline]
+    pub fn tick(&mut self, next_mode: bool) {
+        self.prev_ppu_mode = self.ppu_mode;
+        if next_mode {
+            self.next_mode();
+        }
+    }
+
+    #[inline]
     /// Increment LY Register
     pub fn next_ly(&mut self) {
         self.ly = (self.ly + 1) % PPU::SCAN_LINES as u8;
+    }
+
+    #[inline]
+    pub fn push_oam_buffer(&mut self, oam: OAM) {
+        self.oam_buffer.push(oam);
+    }
+
+    #[inline]
+    pub fn pop_oam_buffer(&mut self) -> Option<OAM> {
+        self.oam_buffer.pop()
+    }
+
+    #[inline]
+    pub fn sort_oam_buffer(&mut self) {
+        self.oam_buffer.sort();
+    }
+
+    #[inline]
+    pub fn clear_oam_buffer(&mut self) {
+        self.oam_buffer.clear();
     }
 
     #[inline]
@@ -133,6 +154,21 @@ impl PpuMmio {
     }
 
     #[inline]
+    pub fn clear_obj_fifo(&mut self) {
+        self.obj_fifo.clear();
+    }
+
+    #[inline]
+    pub fn clear_bg_fifo(&mut self) {
+        self.background_fifo.clear();
+    }
+
+    #[inline]
+    pub fn oam_buffer(&self) -> &Vec<OAM> {
+        &self.oam_buffer
+    }
+
+    #[inline]
     pub fn obj_fifo(&self) -> &VecDeque<PixelFifo> {
         &self.obj_fifo
     }
@@ -140,6 +176,31 @@ impl PpuMmio {
     #[inline]
     pub fn bg_fifo(&self) -> &VecDeque<PixelFifo> {
         &self.background_fifo
+    }
+
+    #[inline]
+    pub fn consume_pixel(&mut self) -> Option<GbColor> {
+        self.pixel_output.take()
+    }
+
+    #[inline]
+    pub fn stream_pixel(&mut self, color: GbColor) {
+        self.pixel_output = Some(color);
+    }
+
+    #[inline]
+    pub fn lx(&self) -> u8 {
+        self.lx
+    }
+
+    #[inline]
+    pub fn next_lx(&mut self) {
+        self.lx += 1;
+    }
+
+    #[inline]
+    pub fn reset_lx(&mut self) {
+        self.lx = 0;
     }
 
     #[inline]
@@ -259,6 +320,21 @@ impl PpuMmio {
             obj_enabled: (self.lcdc & LCDCMasks::ObjEnabled) != 0,
             bg_win_enabled: (self.lcdc & LCDCMasks::BgWinEnabled) != 0,
         }
+    }
+
+    #[inline]
+    pub fn bgp_view(&self) -> GbPalette {
+        GbPalette::from_byte(self.bgp)
+    }
+
+    #[inline]
+    pub fn obp0_view(&self) -> GbPalette {
+        GbPalette::from_byte(self.obp0)
+    }
+
+    #[inline]
+    pub fn obp1_view(&self) -> GbPalette {
+        GbPalette::from_byte(self.obp1)
     }
 }
 

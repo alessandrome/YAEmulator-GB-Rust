@@ -2,7 +2,7 @@ pub mod cpu;
 pub mod ppu;
 pub mod apu;
 pub mod cartridge;
-pub mod input;
+pub mod joypad;
 pub mod memory;
 pub mod bus;
 pub mod types;
@@ -11,19 +11,25 @@ pub mod utils;
 mod timer;
 mod interrupt;
 pub mod dma;
+pub mod addresses;
 
 use crate::GB::cartridge::addresses as cartridge_addresses;
-use crate::GB::input::{GBInputButtonsBits, GBInputDPadBits};
+use crate::GB::joypad::{JoypadButton, JoypadButtonsBits, JoypadDPadBits};
 use crate::GB::bus::MmioContext;
 use traits::Tick;
-
+use crate::GB::ppu::PPU;
+use crate::GB::ppu::tile::GbColor;
+use crate::GB::types::address::Address;
+use crate::GB::types::Byte;
 
 #[cfg(feature = "debug")]
+#[inline]
 fn debug_print(args: std::fmt::Arguments) {
     println!("{}", args);
 }
 
 #[cfg(not(feature = "debug"))]
+#[inline]
 fn debug_print(_args: std::fmt::Arguments) {
     // Do nothing
 }
@@ -32,6 +38,21 @@ pub const SYSTEM_FREQUENCY_CLOCK: u64 = 1_048_576;
 pub const CYCLES_PER_FRAME: u64 = SYSTEM_FREQUENCY_CLOCK / 60;
 pub const FRAME_TIME: f64 = 1_f64 / 60_f64;
 
+macro_rules! gb_bus_ctx {
+    ($gb:ident) => {
+        MmioContext {
+            cpu_mmio: &mut $gb.cpu_ctx.mmio,
+            rom_mmio: &mut $gb.cartridge,
+            ppu_mmio: &mut $gb.ppu_ctx.mmio,
+            apu_mmio: &mut $gb.apu_ctx.mmio,
+            dma_mmio: &mut $gb.dma_ctx.mmio,
+            oam_mmio: &mut $gb.oam_memory,
+            wram_mmio: &mut $gb.wram,
+            joypad: &mut $gb.joypad,
+        }
+    };
+}
+
 // #[derive()]
 pub struct GB {
     is_booting: bool,
@@ -39,11 +60,11 @@ pub struct GB {
     pub wram: memory::wram::WRAM,
     pub oam_memory: memory::oam_memory::OamMemory,
     // pub bios: BIOS, // todo!("Add Bios")
-    pub cpu_ctx: cpu::CpuCtx,
+    cpu_ctx: cpu::CpuCtx,
     ppu_ctx: ppu::PpuCtx,
     dma_ctx: dma::DmaCtx,
     apu_ctx: apu::ApuCtx,
-    pub input: input::GBInput,
+    joypad: joypad::Joypad,
     cartridge: Option<cartridge::Cartridge>,
     cycles: u64, // Number to cycle needed to complete current CPU instruction. cpu.cycle() is skipped if different from 0
     cycles_overflows: u64, // Number of time cycles has overflowed
@@ -53,28 +74,17 @@ impl GB {
     pub const SYSTEM_FREQUENCY_CLOCK: u32 = 4_194_304;
 
     pub fn new(bios: Option<String>) -> Self {
-        let inputs = input::GBInput {
-            a: false,
-            b: false,
-            start: false,
-            select: false,
-            up: false,
-            down: false,
-            left: false,
-            right: false,
-        };
-
         // Todo!("Add Bios")
         // let mut rom = BIOS::new();
         let mut is_booting = false;
 
-        match bios {
-            None => {}
-            Some(bios) => {
-                rom.load_bios(&bios);
-                is_booting = true;
-            }
-        }
+        // match bios {
+        //     None => {}
+        //     Some(bios) => {
+        //         rom.load_bios(&bios);
+        //         is_booting = true;
+        //     }
+        // }
 
         Self {
             is_booting,
@@ -99,7 +109,7 @@ impl GB {
             oam_memory: memory::oam_memory::OamMemory::new(),
             wram: memory::wram::WRAM::new(),
             cartridge: None,
-            input: input::GBInput::default(),
+            joypad: joypad::Joypad::new(),
             cycles: 0,
             cycles_overflows: 0,
         }
@@ -121,14 +131,16 @@ impl GB {
         // self.cpu.registers.set_pc(0);
     }
 
-    pub fn insert_cartridge(&mut self, path: &String) {
+    pub fn insert_cartridge(&mut self, path: &String) -> Result<(), std::io::Error> {
         let cartridge = cartridge::Cartridge::new((*path).clone());
         match cartridge {
             Ok(c) => {
-                self.set_cartridge(Rc::new(RefCell::new(Option::from(c))));
+                self.cartridge = Option::from(c);
+                Ok(())
             }
-            Err(_) => {
-                self.set_cartridge(Rc::new(RefCell::new(None)));
+            Err(err) => {
+                self.cartridge = Option::None;
+                Err(err)
             }
         }
     }
@@ -138,21 +150,15 @@ impl GB {
     */
     pub fn tick(&mut self) {
         // let time = Instant::now();
-        let mut ctx = MmioContext {
-            cpu_mmio: &mut self.cpu_ctx.mmio,
-            ppu_mmio: &mut self.ppu_ctx.mmio,
-            apu_mmio: &mut self.apu_ctx.mmio,
-            dma_mmio: &mut self.dma_ctx.mmio,
-            oam_mmio: &mut self.oam_memory,
-            wram_mmio: &mut self.wram,
-        };
+        // let mut ctx = self.bus_context();
+        let mut ctx = gb_bus_ctx!(self);
 
         // Tick every component
         self.apu_ctx.apu.tick(&mut self.bus, &mut ctx);
         self.ppu_ctx.ppu.tick(&mut self.bus, &mut ctx);
         self.dma_ctx.dma.tick(&mut self.bus, &mut ctx);
-        self.cpu_ctx.cpu.tick(&mut self.bus, &mut ctx);
         self.ppu_ctx.lcd.tick(&mut self.bus, &mut ctx);
+        self.cpu_ctx.cpu.tick(&mut self.bus, &mut ctx);
 
         // if self.cpu.dma_transfer {
         //     self.dma_transfer();
@@ -165,65 +171,63 @@ impl GB {
         }
     }
 
-    pub fn press_dpad(&mut self, dpad: GBInputDPadBits, pressed: bool) {
-        let mut input = self.input.borrow_mut();
-        match dpad {
-            GBInputDPadBits::Right => {
-                input.right = pressed;
-            }
-            GBInputDPadBits::Left => {
-                input.left = pressed;
-            }
-            GBInputDPadBits::Up => {
-                input.up = pressed;
-            }
-            GBInputDPadBits::Down => {
-                input.down = pressed;
-            }
-        }
-
-        // Update IF (Interrupt Flags) for button pressed
-        if pressed {
-            let interrupt_flags = self.memory.borrow().read(addresses::interrupt::IF as u16);
-            self.memory.borrow_mut().write(
-                addresses::interrupt::IF as u16,
-                interrupt_flags | interrupts::InterruptFlagsMask::JoyPad,
-            );
-        }
+    pub fn press_dpad(&mut self, dpad: JoypadDPadBits, pressed: bool) {
+        self.joypad.set_button_status(
+            self.cpu_ctx.mmio.interrupt_registers_mut(),
+            JoypadButton::DPad(dpad),
+            pressed,
+        )
     }
 
-    pub fn press_button(&mut self, dpad: GBInputButtonsBits, pressed: bool) {
-        match dpad {
-            GBInputButtonsBits::A => {
-                self.input.a = pressed;
-            }
-            GBInputButtonsBits::B => {
-                self.input.b = pressed;
-            }
-            GBInputButtonsBits::Select => {
-                self.input.select = pressed;
-            }
-            GBInputButtonsBits::Start => {
-                self.input.start = pressed;
-            }
-        }
+    pub fn press_button(&mut self, btn: JoypadButtonsBits, pressed: bool) {
+        self.joypad.set_button_status(
+            self.cpu_ctx.mmio.interrupt_registers_mut(),
+            JoypadButton::Button(btn),
+            pressed,
+        )
     }
 
     pub fn set_use_boot(&mut self, use_boot: bool) {
         self.is_booting = use_boot;
-        self.cpu.registers.set_pc(cartridge_addresses::ENTRY_POINT as u16);
+        self.cpu_ctx.cpu.registers.set_pc(cartridge_addresses::ENTRY_POINT as u16);
+    }
+    
+    pub fn cpu(&self) -> &cpu::CPU {
+        &self.cpu_ctx.cpu
+    }
+    
+    pub fn ppu(&self) -> &ppu::PPU {
+        &self.ppu_ctx.ppu
     }
 
-    pub fn get_cartridge(&self) -> &Option<cartridge::Cartridge> {
-        &self.cartridge
+    pub fn joypad(&self) -> &joypad::Joypad {
+        &self.joypad
     }
 
-    pub fn get_bios(&self) -> &BIOS {
-        &self.bios
+    pub fn joypad_view(&self) -> joypad::JoypadInputs {
+        self.joypad.joypad_view()
     }
 
-    pub fn get_frame_string(&self, doubled: bool) -> String {
-        self.ppu_ctx.get_frame_string(doubled)
+    pub fn cartridge(&self) -> Option<&cartridge::Cartridge> {
+        self.cartridge.as_ref()
+    }
+
+    // pub fn get_bios(&self) -> &BIOS {
+    //     &self.bios
+    // }
+
+    pub fn frame(&self) -> &[GbColor; PPU::SCREEN_PIXELS as usize] {
+        self.ppu_ctx.lcd.screen()
+    }
+
+    pub fn read(&mut self, address: Address) -> Byte {
+        let ctx = gb_bus_ctx!(self);
+        self.bus.read(&ctx, address)
+    }
+
+    pub fn write(&mut self, address: Address, data: Byte) {
+        let mut ctx = gb_bus_ctx!(self);
+        self.bus.write(&mut ctx, address, data)
     }
 }
 

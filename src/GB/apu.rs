@@ -1,3 +1,4 @@
+use crate::GB::apu::apu_mmio::ApuMmio;
 use crate::GB::bus::{Bus, BusDevice, MmioContext, MmioDevice};
 use crate::GB::traits::Tick;
 use crate::GB::types::address::Address;
@@ -39,5 +40,5 @@ impl Tick for APU {
 
 pub struct ApuCtx {
     pub apu: APU,
-    pub mmio: ApuCtx
+    pub mmio: ApuMmio
 }

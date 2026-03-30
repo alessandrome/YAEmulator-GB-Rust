@@ -1,15 +1,16 @@
-use crate::GB::ppu::tile::{GbPalette, GbPaletteId};
+use crate::GB::ppu::tile::{GbColor, GbPaletteId};
 use crate::GB::types::Byte;
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum PixelFifoPaletteRegister {
+    Bgp,
     Obp0,
     Obp1,
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub struct PixelFifo {
-    color: GbPaletteId,
+    color_id: GbPaletteId,
     palette: PixelFifoPaletteRegister,
     priority: bool
 }
@@ -17,15 +18,15 @@ pub struct PixelFifo {
 impl PixelFifo {
     pub fn new(color: GbPaletteId, palette: PixelFifoPaletteRegister, priority: bool) -> Self {
         Self {
-            color,
+            color_id: color,
             palette,
             priority,
         }
     }
 
     #[inline]
-    pub fn color(&self) -> GbPaletteId {
-        self.color
+    pub fn color_id(&self) -> GbPaletteId {
+        self.color_id
     }
 
     #[inline]
