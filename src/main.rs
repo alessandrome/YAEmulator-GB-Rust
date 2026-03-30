@@ -14,7 +14,6 @@ use std::time::{Duration, Instant};
 use winit;
 
 mod GB;
-mod gui;
 #[macro_use]
 mod utils;
 #[cfg(test)]
@@ -23,14 +22,12 @@ mod tests;
 use crate::GB::cpu::instructions::Instruction;
 use crate::GB::memory::Length;
 use crate::GB::ppu::tile::{GbColor, Tile};
-use GB::memory;
 use GB::cpu::{CPU};
 use crate::GB::addresses;
 use crate::GB::cpu::{InterruptType, CPU_INTERRUPT_CYCLES};
 use crate::GB::joypad::{JoypadButtonsBits, JoypadDPadBits};
 use crate::GB::ppu::PPU;
 use crate::GB::types::address::Address;
-// use winit::{event, event_loop, window};
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
