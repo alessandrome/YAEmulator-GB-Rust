@@ -137,8 +137,8 @@ impl Tick for PPU {
                     let oam_byte_idx1 = oam_byte_idx0 + 1;
 
                     // Get OAM Byte 0/1 with oam_scans even, OAM Byte 2/3 if odd
-                    self.oam_loading[oam_byte_idx0 as usize] = ctx.oam_mmio.read(oam_base_addr + oam_byte_idx0 as u16);
-                    self.oam_loading[oam_byte_idx1 as usize] = ctx.oam_mmio.read(oam_base_addr + oam_byte_idx1 as u16);
+                    self.oam_loading.push(ctx.oam_mmio.read(oam_base_addr + oam_byte_idx0 as u16));
+                    self.oam_loading.push(ctx.oam_mmio.read(oam_base_addr + oam_byte_idx1 as u16));
 
                     // 4 Bytes = 1 OAM - Push it to OAM Buffer
                     if !(self.oam_loading.len() < OAM::OAM_BYTES as usize) {
