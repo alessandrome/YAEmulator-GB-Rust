@@ -162,7 +162,7 @@ impl CPU {
 
     pub fn fetch_next(&mut self, bus: &bus::Bus, ctx: &mut bus::MmioContextWrite) -> Byte {
         let addr = self.registers.get_and_inc_pc();
-        bus.read(ctx, Address(addr))
+        bus.read(&ctx.as_read(), Address(addr))
     }
 
     pub fn decode(opcode: u8, cb_optable: bool) -> Option<&'static Instruction> {
@@ -251,7 +251,7 @@ impl CPU {
     #[inline]
     pub fn pop(&mut self, bus: &mut Bus, ctx: &mut MmioContextWrite) -> Byte {
         self.registers.set_sp(self.registers.get_sp() + 1);
-        bus.read(ctx, self.registers.get_sp_as_address())
+        bus.read(&ctx.as_read(), self.registers.get_sp_as_address())
     }
 
     fn m_cycle_tick(
@@ -372,7 +372,7 @@ impl CPU {
             }
             MicroOp::Read8H(lhs, rhs) => {
                 let addr = Address(0xFF00 | self.registers.get_byte(rhs) as u16);
-                let value = bus.read(ctx, addr);
+                let value = bus.read(&ctx.as_read(), addr);
                 self.registers.set_byte(lhs, value);
             }
             MicroOp::Write8H(lhs, rhs) => {
@@ -382,42 +382,42 @@ impl CPU {
             }
             MicroOp::Read8(lhs, rhs) => {
                 let addr = Address(self.registers.get_word(rhs));
-                let value = bus.read(ctx, addr);
+                let value = bus.read(&ctx.as_read(), addr);
                 self.registers.set_byte(lhs, value);
             }
             MicroOp::Read8Inc(lhs, rhs) => {
                 let addr = Address(self.registers.get_word(rhs));
-                let value = bus.read(ctx, addr);
+                let value = bus.read(&ctx.as_read(), addr);
                 self.registers.set_byte(lhs, value);
                 self.registers.set_word(rhs, addr.as_u16().wrapping_add(1));
             }
             MicroOp::Read8Dec(lhs, rhs) => {
                 let addr = Address(self.registers.get_word(rhs));
-                let value = bus.read(ctx, addr);
+                let value = bus.read(&ctx.as_read(), addr);
                 self.registers.set_byte(lhs, value);
                 self.registers.set_word(rhs, addr.as_u16().wrapping_sub(1));
             }
             MicroOp::Read16msbInc(lhs, rhs) => {
                 let addr = Address(self.registers.get_word(rhs));
-                let value = bus.read(ctx, addr);
+                let value = bus.read(&ctx.as_read(), addr);
                 self.registers.set_word_msb(lhs, value);
                 self.registers.set_word(rhs, addr.as_u16().wrapping_add(1));
             }
             MicroOp::Read16msbDec(lhs, rhs) => {
                 let addr = Address(self.registers.get_word(rhs));
-                let value = bus.read(ctx, addr);
+                let value = bus.read(&ctx.as_read(), addr);
                 self.registers.set_word_msb(lhs, value);
                 self.registers.set_word(rhs, addr.as_u16().wrapping_sub(1));
             }
             MicroOp::Read16lsbInc(lhs, rhs) => {
                 let addr = Address(self.registers.get_word(rhs));
-                let value = bus.read(ctx, addr);
+                let value = bus.read(&ctx.as_read(), addr);
                 self.registers.set_word_lsb(lhs, value);
                 self.registers.set_word(rhs, addr.as_u16().wrapping_add(1));
             }
             MicroOp::Read16lsbDec(lhs, rhs) => {
                 let addr = Address(self.registers.get_word(rhs));
-                let value = bus.read(ctx, addr);
+                let value = bus.read(&ctx.as_read(), addr);
                 self.registers.set_word_lsb(lhs, value);
                 self.registers.set_word(rhs, addr.as_u16().wrapping_sub(1));
             }

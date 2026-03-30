@@ -38,7 +38,7 @@ pub struct MmioContextRead<'a> {
 }
 
 impl<'a> MmioContextWrite<'a> {
-    fn as_read(&'a self) -> MmioContextRead<'a> {
+    pub fn as_read(&'a self) -> MmioContextRead<'a> {
         MmioContextRead {
             cpu_mmio: &self.cpu_mmio,
             rom_mmio: &self.rom_mmio,
