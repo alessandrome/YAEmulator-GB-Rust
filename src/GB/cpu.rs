@@ -532,7 +532,7 @@ impl CPU {
             }
             MicroOp::PrefixCB => {
                 micro_flow = MicroFlow::PrefixCB;
-                (self.instruction, self.opcode) = self.fetch_and_decode(bus, ctx, false);
+                (self.instruction, self.opcode) = self.fetch_and_decode(bus, ctx, true);
                 self.micro_code = self.instruction.unwrap().micro_ops[self.micro_code_index];
             }
             MicroOp::Idle => {}
@@ -885,12 +885,14 @@ impl Tick for CPU {
                 self.micro_code_m_cycle = 0;
                 let interrupt = self.interrupt(ctx.cpu_mmio.interrupt_registers());
                 if interrupt.is_none() {
-                    self.fetch_and_decode(bus, ctx, false);
+                    let (instr, opcode) = self.fetch_and_decode(bus, ctx, false);
+                    self.instruction = instr;
+                    self.opcode = opcode;
                 } else {
                     self.instruction = interrupt;
-                    self.micro_code_index = 0;
-                    self.micro_code = self.instruction.unwrap().micro_ops[0];
                 }
+                self.micro_code_index = 0;
+                self.micro_code = self.instruction.unwrap().micro_ops[0];
             }
         }
     }
