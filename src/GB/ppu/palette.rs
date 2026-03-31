@@ -31,9 +31,9 @@ impl GbPalette {
     pub fn from_byte(byte: Byte) -> Self {
         Self {
             id0: GbColor::from(byte & GbPaletteMask::Id0 as u8),
-            id1: GbColor::from((byte & GbPaletteMask::Id1 as u8) << (GbPaletteMask::Id1 as u8).trailing_zeros()),
-            id2: GbColor::from((byte & GbPaletteMask::Id2 as u8) << (GbPaletteMask::Id2 as u8).trailing_zeros()),
-            id3: GbColor::from((byte & GbPaletteMask::Id3 as u8) << (GbPaletteMask::Id3 as u8).trailing_zeros()),
+            id1: GbColor::from((byte & GbPaletteMask::Id1 as u8) >> (GbPaletteMask::Id1 as u8).trailing_zeros()),
+            id2: GbColor::from((byte & GbPaletteMask::Id2 as u8) >> (GbPaletteMask::Id2 as u8).trailing_zeros()),
+            id3: GbColor::from((byte & GbPaletteMask::Id3 as u8) >> (GbPaletteMask::Id3 as u8).trailing_zeros()),
         }
     }
 
