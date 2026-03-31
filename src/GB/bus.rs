@@ -11,6 +11,7 @@ use crate::GB::dma::DMA;
 use crate::GB::dma::dma_mmio::DmaMmio;
 use crate::GB::joypad::Joypad;
 use crate::GB::memory::oam_memory::OamMemory;
+use crate::GB::memory::vram::VRAM;
 use crate::GB::ppu::ppu_mmio::PpuMmio;
 use crate::GB::types::address::Address;
 use crate::GB::types::Byte;
@@ -89,6 +90,9 @@ impl Bus {
                     }
                 }
             }
+            address if VRAM::VRAM_ADDRESS_RANGE.contains(&address) => {
+                ctx.ppu_mmio.read(address)
+            }
             address if HRAM::HRAM_ADDRESS_RANGE.contains(&address) => {
                 ctx.cpu_mmio.read(address)
             }
@@ -137,6 +141,9 @@ impl Bus {
                         rom.write(address, data);
                     }
                 }
+            }
+            address if VRAM::VRAM_ADDRESS_RANGE.contains(&address) => {
+                ctx.ppu_mmio.write(address, data)
             }
             address if HRAM::HRAM_ADDRESS_RANGE.contains(&address) => {
                 ctx.cpu_mmio.write(address, data)
