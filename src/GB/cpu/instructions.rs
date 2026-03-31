@@ -506,7 +506,7 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         size: 2,
         flags: &[],
         micro_ops: &[
-            MCycleOp::Cc(MicroOp::Fetch8(Lhs8Bit::Z), CheckCondition::NZ, 3),
+            MCycleOp::Cc(MicroOp::Fetch8(Lhs8Bit::Z), CheckCondition::NZ, 2),
             MCycleOp::End(MicroOp::Idle),
             MCycleOp::Main(MicroOp::SumSignedByte16(Lhs16Bit::PC, Rhs16Bit::WZ, false)),
             MCycleOp::End(MicroOp::Idu(IduOp::None(Rhs16Bit::PC, Lhs16Bit::WZ))),
@@ -595,7 +595,7 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         size: 2,
         flags: &[],
         micro_ops: &[
-            MCycleOp::Cc(MicroOp::Fetch8(Lhs8Bit::Z), CheckCondition::Z, 3),
+            MCycleOp::Cc(MicroOp::Fetch8(Lhs8Bit::Z), CheckCondition::Z, 2),
             MCycleOp::End(MicroOp::Idle),
             MCycleOp::Main(MicroOp::SumSignedByte16(Lhs16Bit::PC, Rhs16Bit::WZ, false)),
             MCycleOp::End(MicroOp::Idu(IduOp::None(Rhs16Bit::PC, Lhs16Bit::WZ))),
@@ -682,7 +682,7 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         size: 2,
         flags: &[],
         micro_ops: &[
-            MCycleOp::Cc(MicroOp::Fetch8(Lhs8Bit::Z), CheckCondition::NC, 3),
+            MCycleOp::Cc(MicroOp::Fetch8(Lhs8Bit::Z), CheckCondition::NC, 2),
             MCycleOp::End(MicroOp::Idle),
             MCycleOp::Main(MicroOp::SumSignedByte16(Lhs16Bit::PC, Rhs16Bit::WZ, false)),
             MCycleOp::End(MicroOp::Idu(IduOp::None(Rhs16Bit::PC, Lhs16Bit::WZ))),
@@ -775,7 +775,7 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         size: 2,
         flags: &[],
         micro_ops: &[
-            MCycleOp::Cc(MicroOp::Fetch8(Lhs8Bit::Z), CheckCondition::C, 3),
+            MCycleOp::Cc(MicroOp::Fetch8(Lhs8Bit::Z), CheckCondition::C, 2),
             MCycleOp::End(MicroOp::Idle),
             MCycleOp::Main(MicroOp::SumSignedByte16(Lhs16Bit::PC, Rhs16Bit::WZ, false)),
             MCycleOp::End(MicroOp::Idu(IduOp::None(Rhs16Bit::PC, Lhs16Bit::WZ))),

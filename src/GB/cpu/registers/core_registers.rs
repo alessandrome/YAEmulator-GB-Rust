@@ -132,12 +132,12 @@ impl Registers {
 
     #[inline]
     pub fn get_sp_lsb(&self) -> u8 {
-        (self.sp & 0xF) as u8
+        (self.sp & 0xFF) as u8
     }
 
     #[inline]
     pub fn set_sp_lsb(&mut self, value: u8) {
-        self.sp = (self.sp & 0xF0) | (value as u16);
+        self.sp = (self.sp & 0xFF00) | (value as u16);
     }
 
     #[inline]
@@ -147,27 +147,27 @@ impl Registers {
 
     #[inline]
     pub fn set_sp_msb(&mut self, value: u8) {
-        self.sp = (self.sp & 0x0F) | ((value as u16) << 8);
+        self.sp = (self.sp & 0x00FF) | ((value as u16) << 8);
     }
 
     #[inline]
     pub fn get_pc_lsb(&self) -> u8 {
-        (self.pc & 0xF) as u8
+        (self.pc & 0xFF) as u8
     }
 
     #[inline]
     pub fn set_pc_lsb(&mut self, value: u8) {
-        self.pc = (self.pc & 0xF0) | (value as u16);
+        self.pc = (self.pc & 0xFF00) | (value as u16);
     }
 
     #[inline]
     pub fn get_pc_msb(&self) -> u8 {
-        (self.pc >> 0xF) as u8
+        (self.pc >> 8) as u8
     }
 
     #[inline]
     pub fn set_pc_msb(&mut self, value: u8) {
-        self.pc = (self.pc & 0x0F) | ((value as u16) << 8);
+        self.pc = (self.pc & 0x00FF) | ((value as u16) << 8);
     }
 
     #[inline]
