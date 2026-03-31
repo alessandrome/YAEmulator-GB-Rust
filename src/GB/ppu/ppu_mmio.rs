@@ -103,6 +103,8 @@ impl PpuMmio {
     pub fn tick(&mut self, next_mode: bool) {
         self.prev_ppu_mode = self.ppu_mode;
         if next_mode {
+            let ppu_mode_u8 = self.ppu_mode as u8;
+            self.stat = (self.stat & !(LCDStatMasks::PPUMode as u8)) | ppu_mode_u8;
             self.next_mode();
         }
     }

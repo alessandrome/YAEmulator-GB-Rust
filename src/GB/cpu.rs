@@ -314,7 +314,6 @@ impl CPU {
             }
             MCycleOp::End(end_micro_op) => {
                 self.micro_tick(bus, ctx, end_micro_op);
-                // TODO: interrupt checks
                 flow = MicroFlow::End;
             }
             MCycleOp::None => {
