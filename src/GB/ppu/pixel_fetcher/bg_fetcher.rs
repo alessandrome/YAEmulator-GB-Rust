@@ -19,7 +19,7 @@ pub struct BackgroundFetcher {
     fetching_mode: BgFetchingMode,
     first_cycle: bool,
     bg_tile_x: u8,
-    wy: u8, // Internal WY
+    window_line: u8, // Internal Window Line
     pixel_shift: u8,
     tile_map_id: u16,
     tile_id: u8,
@@ -39,7 +39,7 @@ impl BackgroundFetcher {
             fetching_mode: BgFetchingMode::Bg,
             first_cycle: true,
             bg_tile_x: 0,
-            wy: 0,
+            window_line: 0,
             pixel_shift: 0,
             tile_map_id: 0,
             tile_id: 0,
@@ -68,13 +68,20 @@ impl BackgroundFetcher {
     }
 
     #[inline]
-    pub fn reset(&mut self, new_line: bool) {
+    pub fn reset_line(&mut self) {
         self.bg_tile_x = 0;
-        if new_line {
-            self.wy += 1;
-        } else {
-            self.wy = 0;
+        if self.window_drawn {
+            self.window_line += 1;
         }
+        self.window_drawn = false;
+        self.discarding_pixels = 0;
+        self.state = PixelFetcherState::FetchTileT1;
+    }
+
+    #[inline]
+    pub fn reset_frame(&mut self) {
+        self.bg_tile_x = 0;
+        self.window_line = 0;
         self.window_drawn = false;
         self.discarding_pixels = 0;
         self.state = PixelFetcherState::FetchTileT1;
@@ -164,7 +171,7 @@ impl Tick for BackgroundFetcher {
                         // Window: Get tile line low data
                         self.line_low_byte = ctx.ppu_mmio.vram().tile_line_lsb_byte(
                             self.tile_id,
-                            self.wy,
+                            self.window_line,
                             tile_data_area
                         );
                     }
@@ -191,7 +198,7 @@ impl Tick for BackgroundFetcher {
                         // Window: Get tile line low data
                         self.line_low_byte = ctx.ppu_mmio.vram().tile_line_msb_byte(
                             self.tile_id,
-                            self.wy,
+                            self.window_line,
                             tile_data_area
                         );
                     }
@@ -200,6 +207,7 @@ impl Tick for BackgroundFetcher {
             }
             PixelFetcherState::FetchTileDataHighT2 => {
                 if self.first_cycle {
+                    // This has been a warmup cycle
                     self.first_cycle = false;
                     self.state = PixelFetcherState::FetchTileT1;
                 } else {
@@ -209,7 +217,6 @@ impl Tick for BackgroundFetcher {
             PixelFetcherState::PushT1 => {
                 self.tile_line = TileLine::new(self.line_high_byte, self.line_low_byte);
                 if ctx.ppu_mmio.bg_fifo().is_empty() {
-                    // Todo: add shifting of pixel
                     for pixel in 0..Tile::TILE_WIDTH {
                         ctx.ppu_mmio.push_bg_pixel(PixelFifo::new(
                             self.tile_line.line()[pixel as usize],
@@ -225,6 +232,5 @@ impl Tick for BackgroundFetcher {
                 self.state = PixelFetcherState::FetchTileT1;
             }
         }
-        todo!()
     }
 }
