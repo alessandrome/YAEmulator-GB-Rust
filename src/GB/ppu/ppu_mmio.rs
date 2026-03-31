@@ -3,7 +3,7 @@ use crate::GB::bus::BusDevice;
 use crate::GB::memory::vram::VRAM;
 use crate::GB::ppu::tile::{GbColor, TileDataArea, TileMapArea};
 use crate::GB::ppu::lcd_control::{LCDCMasks, ObjSize, LCDC};
-use crate::GB::ppu::lcd_stat::{LCDStatMasks, LcdStat};
+use crate::GB::ppu::lcd_stat::{LCDStatMasks, LcdStat, LCD_STAT_WRITEABLE_MASK};
 use crate::GB::ppu::oam::OAM;
 use crate::GB::ppu::palette::GbPalette;
 use crate::GB::ppu::pixel::PixelFifo;
@@ -363,7 +363,7 @@ impl BusDevice for PpuMmio {
         match address {
             address if VRAM::VRAM_ADDRESS_RANGE.contains(&address) => self.vram.write(address, data),
             Self::LCDC_ADDRESS => self.lcdc = data,
-            Self::STAT_ADDRESS => self.stat = data,
+            Self::STAT_ADDRESS => self.stat = (data & LCD_STAT_WRITEABLE_MASK) | (self.stat & !LCD_STAT_WRITEABLE_MASK),
             Self::SCY_ADDRESS => self.scy = data,
             Self::SCX_ADDRESS => self.scx = data,
             Self::LY_ADDRESS => (), // Read-Only

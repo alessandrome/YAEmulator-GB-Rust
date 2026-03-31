@@ -1,6 +1,8 @@
 use crate::{mask_flag_enum_default_impl, default_enum_u8_bit_ops};
+use crate::GB::types::Byte;
 use super::ppu_mode::PpuMode;
 
+pub const LCD_STAT_WRITEABLE_MASK: Byte = 0b1111_1000;
 #[derive(Copy, Clone, Debug)]
 #[repr(u8)]
 pub enum LCDStatMasks {
