@@ -165,6 +165,20 @@ impl BusDevice for Mbc1 {
             address if Self::MBC1_ROM_BANK_MODE_RANGE.contains(&address) => {
                 self.banking_mode = if (data & Mbc1Mask::ROM_BANK_MODE) != 0 { Mbc1BankMode::Advanced } else { Mbc1BankMode::Simple };
             }
+            address if Self::MBC1_RAM_BANK_0_RANGE.contains(&address) => {
+                let ram_bank_idx = address.as_usize() - Self::MBC1_RAM_BANK_0_START.as_usize();
+                let ram_bank;
+                match self.banking_mode {
+                    Mbc1BankMode::Simple => {
+                        ram_bank = 0;
+                    }
+                    Mbc1BankMode::Advanced => {
+                        ram_bank = self.ram_bank;
+                    }
+                }
+                let base_offset = ram_bank as usize * Cartridge::RAM_BANK_SIZE;
+                self.ram[base_offset + ram_bank_idx] = data;
+            }
             _ => unreachable!(),
         }
     }
