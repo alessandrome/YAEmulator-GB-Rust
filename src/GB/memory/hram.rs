@@ -11,7 +11,7 @@ pub struct HRAM {
 }
 
 impl HRAM {
-    pub const HRAM_START_ADDRESS: Address = Address(0xFF00); // Working memory
+    pub const HRAM_START_ADDRESS: Address = Address(0xFF80); // Working memory
     pub const HRAM_END_ADDRESS: Address = Address(0xFFFE); // Working memory
     pub const HRAM_ADDRESS_RANGE: AddressRangeInclusive = Self::HRAM_START_ADDRESS..=Self::HRAM_END_ADDRESS; // Working memory
 
