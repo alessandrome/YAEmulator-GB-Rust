@@ -47,6 +47,7 @@ impl PpuMmio {
     pub const OBP1_ADDRESS: Address = Address(0xFF49);
     pub const WY_ADDRESS: Address = Address(0xFF4A);
     pub const WX_ADDRESS: Address = Address(0xFF4B);
+    pub const PPU_MMIO_RANGE: AddressRangeInclusive = Self::LCDC_ADDRESS..=Self::WX_ADDRESS;
 }
 
 impl PpuMmio {

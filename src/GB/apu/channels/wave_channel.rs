@@ -1,3 +1,5 @@
+use crate::GB::types::address::{Address, AddressRangeInclusive};
+
 pub struct WaveChannel {
     nr30: u8,  // DAC Enabled
     nr31: u8,  // Length Timer
@@ -5,6 +7,17 @@ pub struct WaveChannel {
     nr33: u8,  // Period Low
     nr34: u8,  // Period High & Control
     ram: [u8; 16]
+}
+
+impl WaveChannel {
+    pub const APU_NR30_CHANNEL_DAC_ADDRESS: Address = Address(0xFF1A);
+    pub const APU_NR31_CHANNEL_TIMER_ADDRESS: Address = Address(0xFF1B);
+    pub const APU_NR32_CHANNEL_OUTPUT_LEVEL_ADDRESS: Address = Address(0xFF1C);
+    pub const APU_NR34_CHANNEL_PERIOD_LOW_ADDRESS: Address = Address(0xFF1D);
+    pub const APU_NR34_CHANNEL_PERIOD_HIGH_ADDRESS: Address = Address(0xFF1E);
+    pub const APU_WAVE_PATTERN_START_ADDRESS: Address = Address(0xFF30);
+    pub const APU_WAVE_PATTERN_END_ADDRESS: Address = Address(0xFF3F);
+    pub const APU_WAVE_PATTERN_RANGE: AddressRangeInclusive = Self::APU_WAVE_PATTERN_START_ADDRESS..=Self::APU_WAVE_PATTERN_END_ADDRESS;
 }
 
 impl WaveChannel {

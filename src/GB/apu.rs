@@ -1,7 +1,7 @@
 use crate::GB::apu::apu_mmio::ApuMmio;
 use crate::GB::bus::{Bus, BusDevice, MmioContextWrite, MmioDevice};
 use crate::GB::traits::Tick;
-use crate::GB::types::address::Address;
+use crate::GB::types::address::{Address, AddressRangeInclusive};
 use crate::GB::types::Byte;
 
 mod channels;
@@ -34,7 +34,7 @@ impl APU {
 
 impl Tick for APU {
     fn tick(&mut self, bus: &mut Bus, ctx: &mut MmioContextWrite) {
-        todo!()
+        // todo!()
     }
 }
 

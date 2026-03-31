@@ -104,6 +104,15 @@ impl Bus {
             address if OamMemory::OAM_ADDRESS_RANGE.contains(&address) => {
                 ctx.oam_mmio.read(address)
             }
+            address if ApuMmio::APU_REGISTERS_RANGE.contains(&address) => {
+                ctx.apu_mmio.read(address)
+            }
+            address if ApuMmio::APU_WAVE_RANGE.contains(&address) => {
+                ctx.apu_mmio.read(address)
+            }
+            address if PpuMmio::PPU_MMIO_RANGE.contains(&address) => {
+                ctx.ppu_mmio.read(address)
+            }
             Joypad::JOYPAD_REGISTER_ADDRESS => {
                 ctx.joypad.read(address)
             }
@@ -143,6 +152,15 @@ impl Bus {
             }
             address if OamMemory::OAM_ADDRESS_RANGE.contains(&address) => {
                 ctx.oam_mmio.write(address, data)
+            }
+            address if ApuMmio::APU_REGISTERS_RANGE.contains(&address) => {
+                ctx.apu_mmio.write(address, data)
+            }
+            address if ApuMmio::APU_WAVE_RANGE.contains(&address) => {
+                ctx.apu_mmio.write(address, data)
+            }
+            address if PpuMmio::PPU_MMIO_RANGE.contains(&address) => {
+                ctx.ppu_mmio.write(address, data)
             }
             Joypad::JOYPAD_REGISTER_ADDRESS => {
                 ctx.joypad.write(address, data)

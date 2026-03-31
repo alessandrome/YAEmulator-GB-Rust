@@ -1,5 +1,5 @@
 use crate::GB::bus::BusDevice;
-use crate::GB::types::address::Address;
+use crate::GB::types::address::{Address, AddressRangeInclusive};
 use crate::GB::types::Byte;
 use crate::GB::apu::channels::envelope::{Envelope, EnvelopeDirection};
 use crate::GB::apu::{mmio, ApuBusChannel, AudioPeriod, AudioVolume};
@@ -64,6 +64,16 @@ impl NoiseChannel {
     const LFSR_OUTPUT_BIT: u16 = 0;
     const LFSR_OUTPUT_MASK: u16 = 1;
 
+    pub const APU_NR41_CHANNEL_TIMER_ADDRESS: Address = Address(0xFF20);
+    pub const APU_NR42_CHANNEL_VOLUME_ADDRESS: Address = Address(0xFF21);
+    pub const APU_NR43_CHANNEL_FREQUENCY_ADDRESS: Address = Address(0xFF22);
+    pub const APU_NR44_CHANNEL_CONTROL_ADDRESS: Address = Address(0xFF23);
+    pub const APU_NOISE_CHANNEL_START_ADDRESS: Address = Self::APU_NR41_CHANNEL_TIMER_ADDRESS;
+    pub const APU_NOISE_CHANNEL_END_ADDRESS: Address = Self::APU_NR44_CHANNEL_CONTROL_ADDRESS;
+    pub const APU_NOISE_CHANNEL_RANGE: AddressRangeInclusive = Self::APU_NOISE_CHANNEL_START_ADDRESS..=Self::APU_NOISE_CHANNEL_END_ADDRESS;
+}
+
+impl NoiseChannel {
     pub fn new() -> NoiseChannel {
         NoiseChannel {
             nr41: 0,
