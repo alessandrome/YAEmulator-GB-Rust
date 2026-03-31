@@ -44,7 +44,7 @@ struct Args {
     #[arg(short, long, default_value_t = 1)]
     count: u8,
 
-    #[arg(long, default_value = "log\\output.txt")]
+    #[arg(long, default_value = ".\\logs\\output.txt")]
     log_file: String,
 }
 
