@@ -2,7 +2,6 @@ use crate::GB::ppu::tile::{GbColor, GbPaletteId};
 use ppu_mode::PpuMode;
 use std::fmt;
 use std::fmt::Formatter;
-use winit::dpi::Pixel;
 use crate::GB::bus::{Bus, BusDevice, MmioContextWrite};
 use crate::GB::memory::oam_memory::OamMemory;
 use crate::GB::ppu::ppu_mmio::PpuMmio;

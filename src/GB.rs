@@ -17,6 +17,7 @@ use crate::GB::cartridge::addresses as cartridge_addresses;
 use crate::GB::joypad::{JoypadButton, JoypadButtonsBits, JoypadDPadBits};
 use crate::GB::bus::{MmioContextRead, MmioContextWrite};
 use traits::Tick;
+use crate::GB::cpu::registers::interrupt_registers::InterruptFlagsMask;
 use crate::GB::ppu::PPU;
 use crate::GB::ppu::tile::GbColor;
 use crate::GB::types::address::Address;
@@ -168,12 +169,21 @@ impl GB {
         // let mut ctx = self.bus_context();
         let mut ctx = gb_bus_ctx_mut!(self);
 
+        // Get IRQ statuses before tick the system
+        let old_stat_irq = ctx.ppu_mmio.irq();
+
         // Tick every component
         self.apu_ctx.apu.tick(&mut self.bus, &mut ctx);
         self.ppu_ctx.ppu.tick(&mut self.bus, &mut ctx);
         self.dma_ctx.dma.tick(&mut self.bus, &mut ctx);
         self.ppu_ctx.lcd.tick(&mut self.bus, &mut ctx);
         self.cpu_ctx.cpu.tick(&mut self.bus, &mut ctx);
+
+        // Get IRQ statuses after ticked the system and check for interrupt enabling rising-edge/falling-edge
+        let new_stat_irq = ctx.ppu_mmio.irq();
+        if !old_stat_irq && new_stat_irq {
+            ctx.cpu_mmio.interrupt_registers_mut().set_if_bit(InterruptFlagsMask::LCD);
+        }
 
         // if self.cpu.dma_transfer {
         //     self.dma_transfer();

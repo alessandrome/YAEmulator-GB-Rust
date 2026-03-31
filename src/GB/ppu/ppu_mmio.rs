@@ -9,6 +9,7 @@ use crate::GB::ppu::palette::GbPalette;
 use crate::GB::ppu::pixel::PixelFifo;
 use crate::GB::types::address::{Address, AddressRangeInclusive};
 use crate::GB::types::Byte;
+use crate::GB::utils::write_masked_byte;
 use super::ppu_mode::PpuMode;
 use super::PPU;
 
@@ -198,11 +199,21 @@ impl PpuMmio {
     #[inline]
     pub fn next_lx(&mut self) {
         self.lx += 1;
+        self.stat = write_masked_byte(
+            self.stat,
+            if self.ly == self.lyc { LCDStatMasks::LYCeLY as u8 } else { 0 },
+            LCDStatMasks::LYCeLY as u8
+        );
     }
 
     #[inline]
     pub fn reset_lx(&mut self) {
         self.lx = 0;
+        self.stat = write_masked_byte(
+            self.stat,
+            if self.ly == self.lyc { LCDStatMasks::LYCeLY as u8 } else { 0 },
+            LCDStatMasks::LYCeLY as u8
+        );
     }
 
     #[inline]
@@ -338,6 +349,17 @@ impl PpuMmio {
     pub fn obp1_view(&self) -> GbPalette {
         GbPalette::from_byte(self.obp1)
     }
+
+    #[inline]
+    /// Check if the interrupt request is true or false.
+    /// Remember that irq set the IF register bit flag only if irq pass from a "false" to a "true" value
+    pub fn irq(&self) -> bool {
+        let stat_view = self.stat_view();
+        (stat_view.lyc_interrupt_enabled && stat_view.lcy_eq_ly)
+            || (stat_view.hblank_interrupt_enabled && (stat_view.ppu_mode == PpuMode::HBlank))
+            || (stat_view.vblank_interrupt_enabled && (stat_view.ppu_mode == PpuMode::VBlank))
+            || (stat_view.oam_scan_interrupt_enabled && (stat_view.ppu_mode == PpuMode::OAMScan))
+    }
 }
 
 impl BusDevice for PpuMmio {
@@ -363,11 +385,18 @@ impl BusDevice for PpuMmio {
         match address {
             address if VRAM::VRAM_ADDRESS_RANGE.contains(&address) => self.vram.write(address, data),
             Self::LCDC_ADDRESS => self.lcdc = data,
-            Self::STAT_ADDRESS => self.stat = (data & LCD_STAT_WRITEABLE_MASK) | (self.stat & !LCD_STAT_WRITEABLE_MASK),
+            Self::STAT_ADDRESS => self.stat = write_masked_byte(self.stat, data, LCD_STAT_WRITEABLE_MASK),
             Self::SCY_ADDRESS => self.scy = data,
             Self::SCX_ADDRESS => self.scx = data,
             Self::LY_ADDRESS => (), // Read-Only
-            Self::LYC_ADDRESS => self.lyc = data,
+            Self::LYC_ADDRESS => {
+                self.lyc = data;
+                self.stat = write_masked_byte(
+                    self.stat,
+                    if self.ly == self.lyc { LCDStatMasks::LYCeLY as u8 } else { 0 },
+                    LCDStatMasks::LYCeLY as u8
+                );
+            },
             Self::BGP_ADDRESS => self.bgp = data,
             Self::OBP0_ADDRESS => self.obp0 = data,
             Self::OBP1_ADDRESS => self.obp1 = data,
