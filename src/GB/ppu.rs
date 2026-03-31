@@ -100,15 +100,28 @@ impl Tick for PPU {
         ctx.ppu_mmio.tick(self.switch_mode);
         self.switch_mode = false;
 
+        // Mode is changing
         if ctx.ppu_mmio.prev_ppu_mode() != ctx.ppu_mmio.ppu_mode() {
             match ctx.ppu_mmio.ppu_mode() {
                 PpuMode::OAMScan => {
+                    // Clearing OAM buffer & Pixel FIFOs
                     self.oam_scans = 0;
                     self.oam_loading.clear();
                     self.dot = 0;
+                    ctx.ppu_mmio.clear_bg_fifo();
+                    ctx.ppu_mmio.clear_obj_fifo();
                     ctx.ppu_mmio.reset_lx();
+                    match ctx.ppu_mmio.prev_ppu_mode() {
+                        PpuMode::VBlank => {
+                            self.bg_fetcher.reset_frame();
+                        }
+                        _ => {
+                            self.bg_fetcher.reset_line();
+                        }
+                    }
                 }
                 PpuMode::Drawing => {
+                    // Prepare OAM Buffer for Pixel FIFOs and check how many pixels discard
                     ctx.ppu_mmio.sort_oam_buffer();
                     self.fetching_mode = PpuFetchingMode::FetchBg;
                     let lcdc = ctx.ppu_mmio.lcdc_view();
