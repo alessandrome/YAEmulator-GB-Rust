@@ -659,7 +659,7 @@ impl CPU {
             }
             AluOp::Dec(rhs) => {
                 let old_lhs = self.registers.get_byte(rhs);
-                let new_lhs = old_lhs.wrapping_add(1);
+                let new_lhs = old_lhs.wrapping_sub(1);
                 self.registers.set_byte(rhs, new_lhs);
                 self.registers.set_flags(Flags::new(
                     new_lhs == 0,
