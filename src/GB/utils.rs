@@ -39,3 +39,8 @@ where
 
     end.checked_sub(start)
 }
+
+#[inline]
+pub fn write_masked_byte(old: u8, new: u8, mask: u8) -> u8 {
+    (old & !mask) | (new & mask)
+}
