@@ -199,10 +199,10 @@ fn log(log_channel: &mut File, gb: &GB::GB, log_line: u64) {
 
     if gb.cpu().instruction_m_cycle() == 0 && gb.cpu().instruction_t_cycle() == 0 {
         let mut s = "".to_string();
-        let mut pc = gb.cpu().registers().get_pc();
+        let mut pc = gb.cpu().registers().get_pc() - 1;
         let addr = pc;
         let mut read_bytes: usize = 0;
-        let mut opcode = gb.read(Address(pc));
+        let mut opcode = gb.cpu().opcode();
         let mut s_ins = "UNKNOWN".to_string();
         let mut opt_ins = gb.cpu().instruction();
 
