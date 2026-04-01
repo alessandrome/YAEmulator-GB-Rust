@@ -108,7 +108,7 @@ impl Registers {
             c: 0x13,
             d: 0,
             e: 0xD8,
-            f: 0x0B,
+            f: 0x00,
             h: 0x01,
             l: 0x4D,
             z: 0,
