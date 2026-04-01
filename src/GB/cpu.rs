@@ -642,8 +642,8 @@ impl CPU {
                 self.registers.set_flags(Flags::new(
                     new_lhs == 0,
                     true,
-                    Flags::add_half_carry(old_lhs, rhs, false),
-                    Flags::add_carry(old_lhs, rhs, false),
+                    Flags::sub_half_carry(old_lhs, rhs, false),
+                    Flags::sub_carry(old_lhs, rhs, false),
                 ));
             }
             AluOp::Inc(rhs) => {
