@@ -163,8 +163,8 @@ impl Tick for PPU {
                         );
 
                         let obj_height = lcdc_view.obj_size as u8;
-                        let ly = ctx.ppu_mmio.ly();
-                        if (ly >= oam.y()) && (ly < (oam.y() + obj_height)) {
+                        let adj_ly = ctx.ppu_mmio.ly() + 16;
+                        if (adj_ly >= oam.y()) && (adj_ly < (oam.y() + obj_height)) {
                             ctx.ppu_mmio.push_oam_buffer(oam);
                         }
                     }
