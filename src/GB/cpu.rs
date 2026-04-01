@@ -672,7 +672,7 @@ impl CPU {
                 let old_lhs = self.registers.get_byte(lhs);
                 let rhs = self.registers.get_byte(rhs);
                 let new_lhs = old_lhs & rhs;
-                // CP update only Flags
+                self.registers.set_byte(lhs, new_lhs);
                 self.registers
                     .set_flags(Flags::new(new_lhs == 0, false, true, false));
             }
@@ -680,7 +680,7 @@ impl CPU {
                 let old_lhs = self.registers.get_byte(lhs);
                 let rhs = self.registers.get_byte(rhs);
                 let new_lhs = old_lhs | rhs;
-                // CP update only Flags
+                self.registers.set_byte(lhs, new_lhs);
                 self.registers
                     .set_flags(Flags::new(new_lhs == 0, false, false, false));
             }
@@ -688,7 +688,7 @@ impl CPU {
                 let old_lhs = self.registers.get_byte(lhs);
                 let rhs = self.registers.get_byte(rhs);
                 let new_lhs = old_lhs ^ rhs;
-                // CP update only Flags
+                self.registers.set_byte(lhs, new_lhs);
                 self.registers
                     .set_flags(Flags::new(new_lhs == 0, false, false, false));
             }
