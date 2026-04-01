@@ -166,6 +166,7 @@ impl BusDevice for Mbc1 {
                 self.banking_mode = if (data & Mbc1Mask::ROM_BANK_MODE) != 0 { Mbc1BankMode::Advanced } else { Mbc1BankMode::Simple };
             }
             address if Self::MBC1_RAM_BANK_0_RANGE.contains(&address) => {
+                // TODO: allowing writing only if ram is enabled
                 let ram_bank_idx = address.as_usize() - Self::MBC1_RAM_BANK_0_START.as_usize();
                 let ram_bank;
                 match self.banking_mode {

@@ -120,7 +120,7 @@ impl Bus {
             Joypad::JOYPAD_REGISTER_ADDRESS => {
                 ctx.joypad.read(address)
             }
-            _ => todo!("Implement all other ranges"),
+            _ => 0xFF//todo!("Implement all other ranges"),
         }
     }
 
@@ -172,7 +172,7 @@ impl Bus {
             Joypad::JOYPAD_REGISTER_ADDRESS => {
                 ctx.joypad.write(address, data)
             }
-            _ => todo!("Implement all other ranges"),
+            _ => ()//todo!("Implement all other ranges"),
         }
     }
 }
