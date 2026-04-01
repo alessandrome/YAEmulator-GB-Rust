@@ -376,7 +376,7 @@ impl CPU {
             }
             MicroOp::Write8H(lhs, rhs) => {
                 let addr = Address(0xFF00 | self.registers.get_byte(lhs) as u16);
-                let value =  self.registers.get_byte(lhs);
+                let value =  self.registers.get_byte(rhs);
                 bus.write(ctx, addr, value);
             }
             MicroOp::Read8(lhs, rhs) => {
