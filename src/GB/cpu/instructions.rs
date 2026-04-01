@@ -1577,7 +1577,7 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         size: 1,
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
         micro_ops: &[
-            MCycleOp::End(MicroOp::Read8(Rhs8Bit::Z, AddressRegister::HL)),
+            MCycleOp::Main(MicroOp::Read8(Rhs8Bit::Z, AddressRegister::HL)),
             MCycleOp::End(MicroOp::Alu(AluOp::Add(Rhs8Bit::A, Rhs8Bit::Z))),
         ],
     });
@@ -1658,7 +1658,7 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         size: 1,
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
         micro_ops: &[
-            MCycleOp::End(MicroOp::Read8(Rhs8Bit::Z, AddressRegister::HL)),
+            MCycleOp::Main(MicroOp::Read8(Rhs8Bit::Z, AddressRegister::HL)),
             MCycleOp::End(MicroOp::Alu(AluOp::Adc(Rhs8Bit::A, Rhs8Bit::Z))),
         ],
     });
@@ -1739,7 +1739,7 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         size: 1,
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
         micro_ops: &[
-            MCycleOp::End(MicroOp::Read8(Rhs8Bit::Z, AddressRegister::HL)),
+            MCycleOp::Main(MicroOp::Read8(Rhs8Bit::Z, AddressRegister::HL)),
             MCycleOp::End(MicroOp::Alu(AluOp::Sub(Rhs8Bit::A, Rhs8Bit::Z))),
         ],
     });
@@ -1820,7 +1820,7 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         size: 1,
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
         micro_ops: &[
-            MCycleOp::End(MicroOp::Read8(Rhs8Bit::Z, AddressRegister::HL)),
+            MCycleOp::Main(MicroOp::Read8(Rhs8Bit::Z, AddressRegister::HL)),
             MCycleOp::End(MicroOp::Alu(AluOp::Sbc(Rhs8Bit::A, Rhs8Bit::Z))),
         ],
     });
@@ -1901,7 +1901,7 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         size: 1,
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
         micro_ops: &[
-            MCycleOp::End(MicroOp::Read8(Rhs8Bit::Z, AddressRegister::HL)),
+            MCycleOp::Main(MicroOp::Read8(Rhs8Bit::Z, AddressRegister::HL)),
             MCycleOp::End(MicroOp::Alu(AluOp::And(Rhs8Bit::A, Rhs8Bit::Z))),
         ],
     });
@@ -1982,7 +1982,7 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         size: 1,
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
         micro_ops: &[
-            MCycleOp::End(MicroOp::Read8(Rhs8Bit::Z, AddressRegister::HL)),
+            MCycleOp::Main(MicroOp::Read8(Rhs8Bit::Z, AddressRegister::HL)),
             MCycleOp::End(MicroOp::Alu(AluOp::Xor(Rhs8Bit::A, Rhs8Bit::Z))),
         ],
     });
@@ -2144,7 +2144,7 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         size: 1,
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
         micro_ops: &[
-            MCycleOp::End(MicroOp::Read8(Rhs8Bit::Z, AddressRegister::HL)),
+            MCycleOp::Main(MicroOp::Read8(Rhs8Bit::Z, AddressRegister::HL)),
             MCycleOp::End(MicroOp::Alu(AluOp::Cp(Rhs8Bit::A, Rhs8Bit::Z))),
         ],
     });
@@ -2248,7 +2248,7 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         size: 2,
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
         micro_ops: &[
-            MCycleOp::End(MicroOp::Fetch8(Rhs8Bit::Z)),
+            MCycleOp::Main(MicroOp::Fetch8(Rhs8Bit::Z)),
             MCycleOp::End(MicroOp::Alu(AluOp::Add(Rhs8Bit::A, Rhs8Bit::Z))),
         ],
     });
@@ -2355,7 +2355,7 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         size: 2,
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
         micro_ops: &[
-            MCycleOp::End(MicroOp::Fetch8(Rhs8Bit::Z)),
+            MCycleOp::Main(MicroOp::Fetch8(Rhs8Bit::Z)),
             MCycleOp::End(MicroOp::Alu(AluOp::Adc(Rhs8Bit::A, Rhs8Bit::Z))),
         ],
     });
@@ -2449,7 +2449,7 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         size: 2,
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
         micro_ops: &[
-            MCycleOp::End(MicroOp::Fetch8(Rhs8Bit::Z)),
+            MCycleOp::Main(MicroOp::Fetch8(Rhs8Bit::Z)),
             MCycleOp::End(MicroOp::Alu(AluOp::Sub(Rhs8Bit::A, Rhs8Bit::Z))),
         ],
     });
@@ -2531,7 +2531,7 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         size: 2,
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
         micro_ops: &[
-            MCycleOp::End(MicroOp::Fetch8(Rhs8Bit::Z)),
+            MCycleOp::Main(MicroOp::Fetch8(Rhs8Bit::Z)),
             MCycleOp::End(MicroOp::Alu(AluOp::Sbc(Rhs8Bit::A, Rhs8Bit::Z))),
         ],
     });
@@ -2746,7 +2746,7 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         size: 2,
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
         micro_ops: &[
-            MCycleOp::End(MicroOp::Fetch8(Rhs8Bit::Z)),
+            MCycleOp::Main(MicroOp::Fetch8(Rhs8Bit::Z)),
             MCycleOp::End(MicroOp::Alu(AluOp::Or(Rhs8Bit::A, Rhs8Bit::Z))),
         ],
     });
@@ -2816,7 +2816,7 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         size: 2,
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
         micro_ops: &[
-            MCycleOp::End(MicroOp::Fetch8(Rhs8Bit::Z)),
+            MCycleOp::Main(MicroOp::Fetch8(Rhs8Bit::Z)),
             MCycleOp::End(MicroOp::Alu(AluOp::Cp(Rhs8Bit::A, Rhs8Bit::Z))),
         ],
     });
