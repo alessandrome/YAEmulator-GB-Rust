@@ -206,7 +206,7 @@ impl RomController for Mbc1 {
     /// Idx ∈ {0x0, 0x20, 0x40, 0x60}
     fn low_rom_bank_addressed(&self) -> u16 {
         match self.banking_mode {
-            Mbc1BankMode::Simple => (self.rom_bank as u16) << 5,
+            Mbc1BankMode::Simple => (self.ram_bank as u16) << 5,
             Mbc1BankMode::Advanced => 0,
         }
     }
