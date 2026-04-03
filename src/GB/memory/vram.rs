@@ -1,5 +1,6 @@
 use crate::GB::bus::BusDevice;
-use crate::GB::ppu::tile::{Tile, TileDataArea, TileMapArea};
+use crate::GB::ppu::PPU;
+use crate::GB::ppu::tile::{GbPaletteId, Tile, TileDataArea, TileMapArea};
 use super::{Length, Memory};
 use crate::GB::types::address::{Address, AddressRangeInclusive};
 use crate::GB::types::Byte;
@@ -30,6 +31,7 @@ impl VRAM {
     pub const VRAM_START_ADDRESS: Address = Self::VRAM_TILE_BLOCK_0_START; // Video memory
     pub const VRAM_END_ADDRESS: Address = Self::VRAM_TILE_MAP_1_END; // Video memory
     pub const VRAM_ADDRESS_RANGE: AddressRangeInclusive = Self::VRAM_START_ADDRESS..=Self::VRAM_END_ADDRESS; // Video memory
+    pub const VRAM_TILES_PER_MAP: u16 = Self::VRAM_TILE_MAP_1_START.as_u16() - Self::VRAM_TILE_MAP_0_START.as_u16();
 
     pub fn new() -> Self {
         Self {
@@ -56,7 +58,7 @@ impl VRAM {
 
     pub fn tile(&self, id: u8, tile_block: TileDataArea) -> Tile {
         let memory_idx = Self::tile_memory_index(id, tile_block);
-        let slice = &self.memory[memory_idx..memory_idx + Tile::TILE_SIZE as usize];
+        let slice = &self.memory[memory_idx..(memory_idx + Tile::TILE_SIZE as usize)];
         Tile::from_bytes(<&[Byte; 16]>::try_from(slice).expect("Expecting 16 bytes"))
     }
 
@@ -87,6 +89,33 @@ impl VRAM {
                 self.memory[base_index + (id & 0x3FF) as usize]
             }
         }
+    }
+
+    pub fn tile_id_map(&self, map_area: TileMapArea) -> [u8; Self::VRAM_TILES_PER_MAP as usize] {
+        let map_range;
+        match map_area {
+            TileMapArea::MapBlock0 => {
+                map_range = Self::VRAM_TILE_MAP_0_RANGE;
+            }
+            TileMapArea::MapBlock1 => {
+                map_range = Self::VRAM_TILE_MAP_1_RANGE;
+            }
+        }
+        let mut map_id = [0; Self::VRAM_TILES_PER_MAP as usize];
+        let base_offset = map_range.start().as_usize() - Self::VRAM_TILE_BLOCK_0_START.as_usize();
+        for idx in 0..Self::VRAM_TILES_PER_MAP as usize {
+            map_id[idx] = self.memory[base_offset + idx];
+        }
+        map_id
+    }
+
+    pub fn tile_map(&self, map_area: TileMapArea, data_area: TileDataArea) -> [Tile; Self::VRAM_TILES_PER_MAP as usize] {
+        let map_id = self.tile_id_map(map_area);
+        let mut tile_map = [Tile::default(); Self::VRAM_TILES_PER_MAP as usize];
+        for idx in 0..Self::VRAM_TILES_PER_MAP as usize {
+            tile_map[idx] = self.tile(map_id[idx], data_area);
+        }
+        tile_map
     }
 }
 
