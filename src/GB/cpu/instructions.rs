@@ -1588,7 +1588,7 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         size: 1,
         flags: &[FlagBits::Z, FlagBits::N, FlagBits::H, FlagBits::C],
         micro_ops: &[
-            MCycleOp::End(MicroOp::Alu(AluOp::Add(Rhs8Bit::A, Rhs8Bit::B))),
+            MCycleOp::End(MicroOp::Alu(AluOp::Add(Rhs8Bit::A, Rhs8Bit::A))),
         ],
     });
     opcodes[0x88] = Some(&Instruction {
