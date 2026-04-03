@@ -148,6 +148,25 @@ impl Tile {
         }
         Ok(concat_s)
     }
+    
+    pub fn colored_tile(&self, palette: [GbColor; 4]) -> [GbColor; Self::TILE_DOTS as usize] {
+        let mut colored_tile = [GbColor::Black; Self::TILE_DOTS as usize];
+        for i in 0..Self::TILE_DOTS as usize {
+            colored_tile[i] = palette[match self.data[i] {
+                GbPaletteId::Id0 => { 0 },
+                GbPaletteId::Id1 => { 1 },
+                GbPaletteId::Id2 => { 2 },
+                GbPaletteId::Id3 => { 3 },
+            }];
+        }
+        colored_tile
+    }
+}
+
+impl std::default::Default for Tile {
+    fn default() -> Self {
+        Self::new([GbPaletteId::Id0; Self::TILE_DOTS as usize])
+    }
 }
 
 impl fmt::Display for Tile {
