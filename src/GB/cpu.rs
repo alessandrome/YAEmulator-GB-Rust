@@ -13,6 +13,7 @@ use registers::{core_registers::Registers, interrupt_registers::InterruptRegiste
 use crate::GB::cpu::cpu_mmio::CpuMmio;
 use crate::GB::traits::Tick;
 pub use instructions::InterruptType;
+use crate::GB::cpu::registers::interrupt_registers::InterruptFlagsMask;
 
 pub const DIVIDER_FREQUENCY: u64 = 16384; // Divider Update Frequency in Hz
 pub const CPU_INTERRUPT_CYCLES: u64 = 5; // Number of cycle to manage a requested Interrupt
@@ -889,6 +890,24 @@ impl Tick for CPU {
                     self.opcode = opcode;
                 } else {
                     self.instruction = interrupt;
+                    self.ime = false;
+                    match self.maneging_interrupt().unwrap() {
+                        InterruptType::VBlank => {
+                            ctx.cpu_mmio.interrupt_registers_mut().reset_if_bit(InterruptFlagsMask::VBlank);
+                        }
+                        InterruptType::LCD => {
+                            ctx.cpu_mmio.interrupt_registers_mut().reset_if_bit(InterruptFlagsMask::LCD);
+                        }
+                        InterruptType::Timer => {
+                            ctx.cpu_mmio.interrupt_registers_mut().reset_if_bit(InterruptFlagsMask::Timer);
+                        }
+                        InterruptType::Serial => {
+                            ctx.cpu_mmio.interrupt_registers_mut().reset_if_bit(InterruptFlagsMask::Serial);
+                        }
+                        InterruptType::Joypad => {
+                            ctx.cpu_mmio.interrupt_registers_mut().reset_if_bit(InterruptFlagsMask::JoyPad);
+                        }
+                    }
                 }
                 self.micro_code_index = 0;
                 self.micro_code = self.instruction.unwrap().micro_ops[0];
