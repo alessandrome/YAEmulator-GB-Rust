@@ -532,8 +532,6 @@ impl CPU {
             }
             MicroOp::PrefixCB => {
                 micro_flow = MicroFlow::PrefixCB;
-                (self.instruction, self.opcode) = self.fetch_and_decode(bus, ctx, true);
-                self.micro_code = self.instruction.unwrap().micro_ops[self.micro_code_index];
             }
             MicroOp::Idle => {}
         }
