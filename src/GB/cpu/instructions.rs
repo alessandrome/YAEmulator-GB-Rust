@@ -2236,8 +2236,8 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         flags: &[],
         micro_ops: &[
             MCycleOp::Main(MicroOp::Dec16(Rhs16Bit::SP)),
-            MCycleOp::Main(MicroOp::Write8Inc(AddressRegister::SP, Rhs8Bit::B)), // MSB
-            MCycleOp::Main(MicroOp::Write8(AddressRegister::SP, Rhs8Bit::C)), // lsb
+            MCycleOp::Main(MicroOp::Write16msbDec(AddressRegister::SP, Rhs16Bit::BC)),
+            MCycleOp::Main(MicroOp::Write16lsb(AddressRegister::SP, Rhs16Bit::BC)),
             MCycleOp::End(MicroOp::Idle),
         ],
     });
@@ -2437,8 +2437,8 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         flags: &[],
         micro_ops: &[
             MCycleOp::Main(MicroOp::Dec16(Rhs16Bit::SP)),
-            MCycleOp::Main(MicroOp::Write8Inc(AddressRegister::SP, Rhs8Bit::D)), // MSB
-            MCycleOp::Main(MicroOp::Write8(AddressRegister::SP, Rhs8Bit::E)), // lsb
+            MCycleOp::Main(MicroOp::Write16msbDec(AddressRegister::SP, Rhs16Bit::DE)),
+            MCycleOp::Main(MicroOp::Write16lsb(AddressRegister::SP, Rhs16Bit::DE)),
             MCycleOp::End(MicroOp::Idle),
         ],
     });
@@ -2591,8 +2591,8 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         flags: &[],
         micro_ops: &[
             MCycleOp::Main(MicroOp::Dec16(Rhs16Bit::SP)),
-            MCycleOp::Main(MicroOp::Write8Inc(AddressRegister::SP, Rhs8Bit::H)), // MSB
-            MCycleOp::Main(MicroOp::Write8(AddressRegister::SP, Rhs8Bit::L)), // lsb
+            MCycleOp::Main(MicroOp::Write16msbDec(AddressRegister::SP, Rhs16Bit::HL)),
+            MCycleOp::Main(MicroOp::Write16lsb(AddressRegister::SP, Rhs16Bit::HL)),
             MCycleOp::End(MicroOp::Idle),
         ],
     });
@@ -2734,8 +2734,8 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         flags: &[],
         micro_ops: &[
             MCycleOp::Main(MicroOp::Dec16(Rhs16Bit::SP)),
-            MCycleOp::Main(MicroOp::Write8Inc(AddressRegister::SP, Rhs8Bit::A)), // MSB
-            MCycleOp::Main(MicroOp::Write8(AddressRegister::SP, Rhs8Bit::F)), // lsb
+            MCycleOp::Main(MicroOp::Write16msbDec(AddressRegister::SP, Rhs16Bit::AF)),
+            MCycleOp::Main(MicroOp::Write16lsb(AddressRegister::SP, Rhs16Bit::AF)),
             MCycleOp::End(MicroOp::Idle),
         ],
     });
