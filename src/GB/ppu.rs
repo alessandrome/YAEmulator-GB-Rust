@@ -231,6 +231,7 @@ impl Tick for PPU {
                                     }
                                 }
                                 ctx.ppu_mmio.stream_pixel(color);
+                                ctx.ppu_mmio.next_lx();
                             }
                         }
                     }
@@ -262,7 +263,7 @@ impl Tick for PPU {
             }
         } else if self.dot == Self::OAM_SCAN_DOTS {
             self.switch_mode = true;
-        } else if self.screen_dot >= Self::SCREEN_COLUMNS as u8 {
+        } else if (ctx.ppu_mmio.lx() >= Self::SCREEN_COLUMNS as u8) && (ctx.ppu_mmio.ppu_mode() == PpuMode::Drawing) {
             self.switch_mode = true;
         }
     }
