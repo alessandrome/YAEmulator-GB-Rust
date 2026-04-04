@@ -4,6 +4,8 @@ use super::{Length, Memory};
 use crate::GB::types::address::{Address, AddressRangeInclusive};
 use crate::GB::types::Byte;
 
+const OAM_ITEMS: u8 = 40;
+
 pub struct OamMemory {
     #[cfg(test)]
     pub memory: Memory<u8>,
@@ -15,7 +17,7 @@ impl OamMemory {
     pub const OAM_START_ADDRESS: Address = Address(0xFE00);
     pub const OAM_END_ADDRESS: Address = Address(0xFE9F);
     pub const OAM_ADDRESS_RANGE: AddressRangeInclusive = Self::OAM_START_ADDRESS..=Self::OAM_END_ADDRESS; // Working memory
-    pub const OAM_ITEMS: u8 = 40;
+    pub const OAM_ITEMS: u8 = OAM_ITEMS;
 
     pub fn new() -> Self {
         Self {

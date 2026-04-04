@@ -18,6 +18,7 @@ use crate::GB::joypad::{JoypadButton, JoypadButtonsBits, JoypadDPadBits};
 use crate::GB::bus::{MmioContextRead, MmioContextWrite};
 use traits::Tick;
 use crate::GB::cpu::registers::interrupt_registers::InterruptFlagsMask;
+use crate::GB::memory::vram::VRAM;
 use crate::GB::ppu::PPU;
 use crate::GB::ppu::tile::GbColor;
 use crate::GB::types::address::Address;
@@ -223,6 +224,10 @@ impl GB {
     
     pub fn ppu(&self) -> &ppu::PPU {
         &self.ppu_ctx.ppu
+    }
+    
+    pub fn vram(&self) -> &VRAM {
+        self.ppu_ctx.mmio.vram()
     }
 
     pub fn joypad(&self) -> &joypad::Joypad {

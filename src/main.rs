@@ -21,11 +21,12 @@ mod tests;
 
 use crate::GB::cpu::instructions::Instruction;
 use crate::GB::memory::Length;
-use crate::GB::ppu::tile::{GbColor, Tile};
+use crate::GB::ppu::tile::{GbColor, Tile, TileDataArea, TileMapArea};
 use GB::cpu::{CPU};
 use crate::GB::addresses;
 use crate::GB::cpu::{InterruptType, CPU_INTERRUPT_CYCLES};
 use crate::GB::joypad::{JoypadButtonsBits, JoypadDPadBits};
+use crate::GB::memory::vram::VRAM;
 use crate::GB::ppu::PPU;
 use crate::GB::types::address::Address;
 
@@ -70,6 +71,34 @@ fn frame_string(frame: &[GbColor; PPU::SCREEN_PIXELS as usize], doubled: bool) -
         s.push('\n')
     }
     s
+}
+
+fn tile_map_string(tile_map: &[Tile; VRAM::VRAM_TILES_PER_MAP as usize], doubled: bool) -> String {
+    let mut vec: Vec<String> = Vec::with_capacity(256);
+    for i in 0..32_usize {
+        let colored_tile_line: Vec<[GbColor; 64]> = tile_map[(i*32)..(i*32+32)]
+            .iter()
+            .map(|t| t.colored_tile([
+                GbColor::White,
+                GbColor::LightGray,
+                GbColor::DarkGray,
+                GbColor::Black
+            ])).collect();
+        for j in 0..8_usize {
+            let mut str_tile_line = "".to_string();
+            for k in 0..32_usize {
+                let colored_tile = &colored_tile_line[k];
+                for l in j*8..(j*8+8) {
+                    str_tile_line.push(CONSOLE_PALETTE[&colored_tile[l]]);
+                    if doubled {
+                        str_tile_line.push(CONSOLE_PALETTE[&colored_tile[l]]);
+                    }
+                }
+            }
+            vec.push(str_tile_line);
+        }
+    }
+    vec.join("\n")
 }
 
 fn main() {
@@ -119,6 +148,8 @@ fn main() {
             let frame = gb.frame();
             let frame_str = frame_string(frame, true);
             println!("\x1B[2J\x1B[H{}", frame_str);
+            // let map_str = tile_map_string(&gb.vram().tile_map(TileMapArea::MapBlock0, TileDataArea::DataBlock12), true);
+            // println!("\x1B[2J\x1B[H{}", map_str);
             // println!("{}", gb.get_frame_string(true));
             println!("S/f: {:?}", (Instant::now() - time).as_secs_f64());
             println!("C/s: {:?}", cycles as f64/(Instant::now() - time).as_secs_f64());
@@ -267,11 +298,11 @@ fn log(log_channel: &mut File, gb: &GB::GB, log_line: u64) {
                         // Extra data
                         if !cb {
                             match ins.opcode {
-                                0xD9  => {
-                                    let b1 = gb.read(Address(gb.cpu().registers.get_sp() + 1));
-                                    let b2 = gb.read(Address(gb.cpu().registers.get_sp() + 2));
-                                    s_ins += format!(" (${:02X}{:02X})", b2, b1).as_str();
-                                }
+                                // 0xD9  => {
+                                //     let b1 = gb.read(Address(gb.cpu().registers.get_sp() + 1));
+                                //     let b2 = gb.read(Address(gb.cpu().registers.get_sp() + 2));
+                                //     s_ins += format!(" (${:02X}{:02X})", b2, b1).as_str();
+                                // }
                                 _ => {}
                             }
                         }
@@ -287,7 +318,7 @@ fn log(log_channel: &mut File, gb: &GB::GB, log_line: u64) {
 
         let cartridge = gb.cartridge().unwrap();
         {
-            let formatted = format!("| {:04} |  {:#06X} |  {} |  {}{}|  {} {{}} |  RxM B: {}/{}  |  {{AF: {:04X}, BC: {:04X}, DE: {:04X}, HL: {:04X}, SP: {:04X}}} | IE: {:02X} | IF: {:02X} | IME: {} | STAT: {:02X} | DIV: {:02X}",
+            let formatted = format!("| {:04} |  {:#06X} |  {} |  {}{}|  {} {{}} |  RxM B: {}/{}  |  {{AF: {:04X}, BC: {:04X}, DE: {:04X}, HL: {:04X}, SP: {:04X}}} | IE: {:02X} | IF: {:02X} | IME: {} | STAT: {:02X} | LCDC: {:02X}",
                                     log_line, addr, s, s_ins, " ".repeat(16 - s_ins.len()), gb.ppu(),
                                     // mem_registers,
                                     cartridge.rom_bank(),

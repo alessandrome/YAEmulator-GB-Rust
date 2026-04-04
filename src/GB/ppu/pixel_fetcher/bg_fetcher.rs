@@ -106,23 +106,6 @@ impl Tick for BackgroundFetcher {
         let lx = ctx.ppu_mmio.lx();
         let ly = ctx.ppu_mmio.ly();
 
-        // Reset here OAM buffer and X on starting phases
-        // if ctx.ppu_mmio.prev_ppu_mode() != ctx.ppu_mmio.ppu_mode() {
-        //     match ctx.ppu_mmio.ppu_mode() {
-        //         PpuMode::OAMScan => {
-        //             self.bg_tile_x = 0;
-        //             self.wy = 0;
-        //             self.window_drawn = false;
-        //         }
-        //         PpuMode::Drawing => {
-        //             self.first_cycle = true;
-        //             self.pixel_shift = ctx.ppu_mmio.scx() & 0x07;
-        //         }
-        //         PpuMode::HBlank => {}
-        //         PpuMode::VBlank => {}
-        //     }
-        // }
-
         match self.state {
             PixelFetcherState::FetchTileT1 => {
                 let scx = ctx.ppu_mmio.scx();
