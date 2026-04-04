@@ -11,6 +11,8 @@ pub struct LCD {
 }
 
 impl LCD {
+    pub const LCD_OFF_FRAME: [GbColor; PPU::SCREEN_PIXELS as usize] = [GbColor::White; PPU::SCREEN_PIXELS as usize];
+
     pub fn new() -> Self {
         Self {
             screen: Box::new([GbColor::White; PPU::SCREEN_PIXELS as usize]),

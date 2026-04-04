@@ -19,6 +19,7 @@ use crate::GB::bus::{MmioContextRead, MmioContextWrite};
 use traits::Tick;
 use crate::GB::cpu::registers::interrupt_registers::InterruptFlagsMask;
 use crate::GB::memory::vram::VRAM;
+use crate::GB::ppu::lcd::LCD;
 use crate::GB::ppu::PPU;
 use crate::GB::ppu::tile::GbColor;
 use crate::GB::types::address::Address;
@@ -247,7 +248,10 @@ impl GB {
     // }
 
     pub fn frame(&self) -> &[GbColor; PPU::SCREEN_PIXELS as usize] {
-        self.ppu_ctx.lcd.screen()
+        if self.ppu_ctx.mmio.lcdc_view().lcd_enabled {
+            return self.ppu_ctx.lcd.screen();
+        }
+        &LCD::LCD_OFF_FRAME
     }
 
     pub fn read(&self, address: Address) -> Byte {
