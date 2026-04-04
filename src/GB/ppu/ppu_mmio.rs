@@ -115,6 +115,11 @@ impl PpuMmio {
     /// Increment LY Register
     pub fn next_ly(&mut self) {
         self.ly = (self.ly + 1) % PPU::SCAN_LINES as u8;
+        self.stat = write_masked_byte(
+            self.stat,
+            if self.ly == self.lyc { LCDStatMasks::LYCeLY as u8 } else { 0 },
+            LCDStatMasks::LYCeLY as u8
+        );
     }
 
     #[inline]
@@ -200,21 +205,11 @@ impl PpuMmio {
     #[inline]
     pub fn next_lx(&mut self) {
         self.lx += 1;
-        self.stat = write_masked_byte(
-            self.stat,
-            if self.ly == self.lyc { LCDStatMasks::LYCeLY as u8 } else { 0 },
-            LCDStatMasks::LYCeLY as u8
-        );
     }
 
     #[inline]
     pub fn reset_lx(&mut self) {
         self.lx = 0;
-        self.stat = write_masked_byte(
-            self.stat,
-            if self.ly == self.lyc { LCDStatMasks::LYCeLY as u8 } else { 0 },
-            LCDStatMasks::LYCeLY as u8
-        );
     }
 
     #[inline]
