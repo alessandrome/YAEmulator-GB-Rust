@@ -157,7 +157,7 @@ impl InterruptRegisters {
 
     #[inline]
     pub fn irq_byte(&self) -> Byte {
-        self.ie & self.ie & InterruptFlagsMask::Flags
+        self.iflag & self.ie & InterruptFlagsMask::Flags
     }
 
     #[inline]
