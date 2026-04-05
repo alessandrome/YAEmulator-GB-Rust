@@ -20,6 +20,7 @@ pub enum InterruptEnableMask {
     Timer = 0b0000_0100,
     LCD = 0b0000_0010,
     VBlank = 0b0000_0001,
+    Flags = 0b0001_1111,
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -30,6 +31,7 @@ pub enum InterruptFlagsMask {
     Timer = 0b0000_0100,
     LCD = 0b0000_0010,
     VBlank = 0b0000_0001,
+    Flags = 0b0001_1111,
 }
 
 mask_flag_enum_default_impl!(InterruptEnableMask);
@@ -76,7 +78,7 @@ impl InterruptRegisters {
     pub fn new() -> Self {
         Self {
             ie: 0,
-            iflag: 0,
+            iflag: 0xE1,
         }
     }
 
@@ -151,6 +153,16 @@ impl InterruptRegisters {
     #[inline]
     pub fn reset_if_bit(&mut self, bit: InterruptFlagsMask) {
         self.iflag &= !(bit as Byte);
+    }
+
+    #[inline]
+    pub fn irq_byte(&self) -> Byte {
+        self.ie & self.ie & InterruptFlagsMask::Flags
+    }
+
+    #[inline]
+    pub fn some_irq(&self) -> bool {
+        self.irq_byte() != 0
     }
 }
 
