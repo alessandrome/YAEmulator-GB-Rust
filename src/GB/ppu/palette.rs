@@ -11,6 +11,7 @@ pub enum GbPaletteMask {
 }
 default_enum_u8!(GbPaletteMask {Id0 = 0b0000_0011, Id1 = 0b0000_1100, Id2 = 0b0011_0000, Id3 = 0b1100_0000});
 
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub struct GbPalette {
     id0: GbColor,
     id1: GbColor,
@@ -19,6 +20,7 @@ pub struct GbPalette {
 }
 
 impl GbPalette {
+    #[inline]
     pub fn new(id0: GbColor, id1: GbColor, id2: GbColor, id3: GbColor) -> Self {
         Self { id0, id1, id2, id3 }
     }
@@ -28,6 +30,7 @@ impl GbPalette {
         (self.id0 as u8) | (self.id1 as u8) << 2 | (self.id2 as u8) << 4 | (self.id3 as u8) << 6
     }
 
+    #[inline]
     pub fn from_byte(byte: Byte) -> Self {
         Self {
             id0: GbColor::from(byte & GbPaletteMask::Id0 as u8),
@@ -44,6 +47,16 @@ impl GbPalette {
             GbPaletteId::Id1 => self.id1,
             GbPaletteId::Id2 => self.id2,
             GbPaletteId::Id3 => self.id3,
+        }
+    }
+
+    #[inline]
+    pub fn set_color(&mut self, id: GbPaletteId, color: GbColor) {
+        match id {
+            GbPaletteId::Id0 => self.id0 = color,
+            GbPaletteId::Id1 => self.id1 = color,
+            GbPaletteId::Id2 => self.id2 = color,
+            GbPaletteId::Id3 => self.id3 = color,
         }
     }
 }

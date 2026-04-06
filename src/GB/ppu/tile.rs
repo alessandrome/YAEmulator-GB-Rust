@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::fmt;
 use std::fmt::Formatter;
 use crate::{default_enum_u8_bit_ops, default_enum_u8};
+use crate::GB::ppu::palette::GbPalette;
 use crate::GB::types::Byte;
 use crate::utils::expand_byte_bits;
 
@@ -91,6 +92,7 @@ impl Tile {
     pub const TILE_HEIGHT: u8 = TILE_HEIGHT;
     pub const TILE_DOTS: u8 = Self::TILE_WIDTH * Self::TILE_HEIGHT;
 
+    #[inline]
     pub fn new(tile: [GbPaletteId; Self::TILE_DOTS as usize]) -> Self {
         Self { data: tile }
     }
@@ -109,12 +111,13 @@ impl Tile {
         Self { data: pixels }
     }
 
-    pub fn tile(&self) -> &[GbPaletteId; Self::TILE_DOTS as usize] {
+    #[inline]
+    pub fn dots(&self) -> &[GbPaletteId; Self::TILE_DOTS as usize] {
         &self.data
     }
 
     pub fn get_printable_id_map(&self, doubled: bool) -> String {
-        Self::palette_id_map_to_printable_id_map(&self.tile(), doubled)
+        Self::palette_id_map_to_printable_id_map(&self.dots(), doubled)
     }
 
     pub fn palette_id_map_to_printable_id_map(array_map: &[GbPaletteId; 8 * 8], doubled: bool) -> String {
@@ -148,18 +151,10 @@ impl Tile {
         }
         Ok(concat_s)
     }
-    
-    pub fn colored_tile(&self, palette: [GbColor; 4]) -> [GbColor; Self::TILE_DOTS as usize] {
-        let mut colored_tile = [GbColor::Black; Self::TILE_DOTS as usize];
-        for i in 0..Self::TILE_DOTS as usize {
-            colored_tile[i] = palette[match self.data[i] {
-                GbPaletteId::Id0 => { 0 },
-                GbPaletteId::Id1 => { 1 },
-                GbPaletteId::Id2 => { 2 },
-                GbPaletteId::Id3 => { 3 },
-            }];
-        }
-        colored_tile
+
+    #[inline]
+    pub fn colored_tile(&self, palette: GbPalette) -> ColoredTile {
+        ColoredTile::new(self, palette)
     }
 }
 
@@ -183,6 +178,47 @@ impl fmt::Display for Tile {
             "Tile {{ Data: [{}] }}",
             data_s,
         )
+    }
+}
+
+pub struct ColoredTile {
+    data: [GbColor; Tile::TILE_DOTS as usize],
+    tile: Tile,
+    palette: GbPalette,
+}
+
+impl ColoredTile {
+    pub fn new(tile: &Tile, palette: GbPalette) -> Self {
+        let mut colored_tile = [GbColor::Black; Tile::TILE_DOTS as usize];
+        for i in 0..Tile::TILE_DOTS as usize {
+            colored_tile[i] = match tile.data[i] {
+                GbPaletteId::Id0 => { palette.color(GbPaletteId::Id0 )},
+                GbPaletteId::Id1 => { palette.color(GbPaletteId::Id1 )},
+                GbPaletteId::Id2 => { palette.color(GbPaletteId::Id2 )},
+                GbPaletteId::Id3 => { palette.color(GbPaletteId::Id3 )},
+            };
+        }
+        Self { data: colored_tile, tile: tile.clone(), palette }
+    }
+
+    #[inline]
+    pub fn tile(&self) -> &Tile {
+        &self.tile
+    }
+
+    #[inline]
+    pub fn tile_mut(&mut self) -> &mut Tile {
+        &mut self.tile
+    }
+
+    #[inline]
+    pub fn palette(&self) -> GbPalette {
+        self.palette
+    }
+
+    #[inline]
+    pub fn dots(&self) -> &[GbColor; Tile::TILE_DOTS as usize] {
+        &self.data
     }
 }
 
