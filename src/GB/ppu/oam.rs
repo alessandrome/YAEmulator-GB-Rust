@@ -1,6 +1,8 @@
 use std::cmp::Ordering;
-use crate::GB::ppu::tile::{TILE_HEIGHT, TILE_WIDTH};
+use crate::GB::ppu::tile::{ColoredTile, Tile, TileDataArea, TILE_HEIGHT, TILE_WIDTH};
 use crate::{default_enum_u8, default_enum_u8_bit_ops};
+use crate::GB::memory::vram::VRAM;
+use crate::GB::ppu::palette::GbPalette;
 use crate::GB::types::Byte;
 
 pub mod test;
@@ -111,6 +113,7 @@ impl OAM {
             | (self.original_attributes & 0x0F)
     }
 
+    #[inline]
     /// Return a OamBytes structure with u8 representation of OAM data.
     pub fn get_oam_bytes(&self) -> OamBytes {
         let attributes: Byte = self.attributes_byte();
@@ -123,16 +126,29 @@ impl OAM {
         }
     }
 
+    #[inline]
     pub fn get_y_screen(&self) -> isize {
         self.y as isize - TILE_HEIGHT as isize * 2
     }
 
+    #[inline]
     pub fn get_x_screen(&self) -> isize {
         self.x as isize - TILE_WIDTH as isize
     }
 
+    #[inline]
     pub fn get_tile_id(&self) -> u8 {
         self.tile_id
+    }
+
+    #[inline]
+    pub fn tile(&self, vram: &VRAM) -> Tile {
+        vram.tile(self.tile_id, TileDataArea::DataBlock01)
+    }
+
+    pub fn colored_tile(&self, vram: &VRAM, obp0: GbPalette, obp1: GbPalette) -> ColoredTile {
+        let tile = self.tile(vram);
+        tile.colored_tile(if self.palette { obp1 } else { obp0 })
     }
 }
 
