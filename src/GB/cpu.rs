@@ -92,17 +92,20 @@ mod test {
 enum CpuStatus {
     Execute,
     Ready,
+    Halt
 }
 
 pub struct CPU {
     pub registers: Registers,
     pub ime: bool,  // Interrupt Master Enable - True if you want to enable and intercept interrupts
+    interrupt: Option<InterruptType>,
     pub opcode: u8, // Running Instruction Opcode - Known as IR (Instruction Register),
     pub instruction: Option<&'static Instruction>, // Instruction microcode to execute
     pub micro_code: MCycleOp, // Instruction microcode to execute
     pub micro_code_index: usize, // Index of Instruction's MicroOp
     pub micro_code_t_cycle: u8, // T-Cycles counting of a M-Cycle during instruction execution
     pub micro_code_m_cycle: u8, // T-Cycles counting of a M-Cycle during instruction execution
+    status: CpuStatus,
 }
 
 impl CPU {
@@ -112,12 +115,14 @@ impl CPU {
         Self {
             registers: Registers::new(),
             ime: false,
+            interrupt: None,
             opcode: 0,
             instruction: None,
             micro_code: MCycleOp::None,
             micro_code_index: 0,
             micro_code_t_cycle: 0,
             micro_code_m_cycle: 0,
+            status: CpuStatus::Execute,
         }
     }
 
@@ -188,53 +193,59 @@ impl CPU {
         // self.registers.set_pc(USER_PROGRAM_ADDRESS as u16);
     }
 
+    pub fn interrupt_request(&self, interrupt_registers: &InterruptRegisters) -> Option<InterruptType> {
+        let interrupt_type;
+        if interrupt_registers.some_irq() {
+            if interrupt_registers.get_vblank_enabled() && interrupt_registers.get_vblank_interrupt() {
+                // Bit 0
+                interrupt_type = Some(InterruptType::VBlank);
+            } else if interrupt_registers.get_lcd_enabled() && interrupt_registers.get_lcd_interrupt() {
+                // Bit 1
+                interrupt_type = Some(InterruptType::LCD);
+            } else if interrupt_registers.get_timer_enabled() && interrupt_registers.get_timer_interrupt() {
+                // Bit 2
+                interrupt_type = Some(InterruptType::Timer);
+            } else if interrupt_registers.get_serial_enabled() && interrupt_registers.get_serial_interrupt() {
+                // Bit 3
+                interrupt_type = Some(InterruptType::Serial);
+            } else if interrupt_registers.get_joypad_enabled() && interrupt_registers.get_joypad_interrupt() {
+                // Bit 4
+                interrupt_type = Some(InterruptType::Joypad);
+            } else {
+                let err_msg = format!("Invalid interrupt type with IF ${:02X} and IE ${:02X} (IRQ byte: ${:02X})",
+                                interrupt_registers.get_if(),
+                                interrupt_registers.get_ie(),
+                                interrupt_registers.irq_byte());
+                unreachable!("{}", err_msg);
+            }
+        } else {
+            interrupt_type = None;
+        }
+        interrupt_type
+    }
+
     /// Check and jump to requested interrupt address after take a snapshot of status on stack.
     ///
     /// Interrupt bit has priority from lower bit to higher (bit 0 has the higher priority).
-    pub fn interrupt(&mut self, interrupt_registers: &InterruptRegisters) -> Option<&'static Instruction> {
-        let mut interrupt = None;
+    pub fn interrupt_instruction(&self, interrupt_registers: &InterruptRegisters) -> Option<&'static Instruction> {
+        let interrupt;
         if self.ime {
-            if interrupt_registers.get_vblank_enabled() && interrupt_registers.get_vblank_interrupt() {
-                // Bit 0
-                interrupt = Some(&instructions::INTERRUPT_VBLANK);
-            } else if interrupt_registers.get_lcd_enabled() && interrupt_registers.get_lcd_interrupt() {
-                // Bit 1
-                interrupt = Some(&instructions::INTERRUPT_LCD);
-            } else if interrupt_registers.get_timer_enabled() && interrupt_registers.get_timer_interrupt() {
-                // Bit 2
-                interrupt = Some(&instructions::INTERRUPT_TIMER);
-            } else if interrupt_registers.get_serial_enabled() && interrupt_registers.get_serial_interrupt() {
-                // Bit 3
-                interrupt = Some(&instructions::INTERRUPT_SERIAL);
-            } else if interrupt_registers.get_joypad_enabled() && interrupt_registers.get_joypad_interrupt() {
-                // Bit 4
-                interrupt = Some(&instructions::INTERRUPT_JOYPAD);
+            match self.interrupt_request(interrupt_registers) {
+                None => {
+                    interrupt = None;
+                }
+                Some(interrupt_type) => {
+                    interrupt = Some(interrupt_type.instruction());
+                }
             }
+        } else {
+            interrupt = None;
         }
         interrupt
     }
 
     pub fn maneging_interrupt(&self) -> Option<InterruptType> {
-        match self.instruction {
-            None => None,
-            Some(instruction) => {
-                let interrupt_type;
-                if std::ptr::eq(instruction, &instructions::INTERRUPT_VBLANK) {
-                    interrupt_type = InterruptType::VBlank;
-                } else if std::ptr::eq(instruction, &instructions::INTERRUPT_LCD) {
-                    interrupt_type = InterruptType::LCD;
-                } else if std::ptr::eq(instruction, &instructions::INTERRUPT_TIMER) {
-                    interrupt_type = InterruptType::Timer;
-                } else if std::ptr::eq(instruction, &instructions::INTERRUPT_SERIAL) {
-                    interrupt_type = InterruptType::Serial;
-                } else if std::ptr::eq(instruction, &instructions::INTERRUPT_JOYPAD) {
-                    interrupt_type = InterruptType::Joypad;
-                } else {
-                    return None;
-                }
-                Some(interrupt_type)
-            }
-        }
+        self.interrupt
     }
 
     /**
@@ -317,6 +328,9 @@ impl CPU {
                 self.micro_tick(bus, ctx, end_micro_op);
                 flow = MicroFlow::End;
             }
+            MCycleOp::Halt => {
+                flow = MicroFlow::Halt;
+            }
             MCycleOp::None => {
                 flow = MicroFlow::End;
             }
@@ -342,6 +356,9 @@ impl CPU {
                 (self.instruction, self.opcode) = self.fetch_and_decode(bus, ctx, true);
                 self.micro_code = self.instruction.unwrap().micro_ops[self.micro_code_index];
                 cpu_status = CpuStatus::Execute;
+            }
+            MicroFlow::Halt => {
+                cpu_status = CpuStatus::Halt;
             }
             MicroFlow::End => {
                 cpu_status = CpuStatus::Ready;
@@ -868,28 +885,33 @@ impl CPU {
 
 impl Tick for CPU {
     fn tick(&mut self, bus: &mut bus::Bus, ctx: &mut bus::MmioContextWrite) {
-        self.micro_code_t_cycle = (self.micro_code_t_cycle + 1) & 0b0000_0011; // Just a Bit version of (value = value % 4)
-        let cpu_status;
-        if self.micro_code_t_cycle == 0 {
-            cpu_status = self.m_cycle_tick(bus, ctx, self.micro_code);
-            self.micro_code_m_cycle += 1;
-        } else {
-            cpu_status = CpuStatus::Execute;
+        match self.status {
+            CpuStatus::Execute => {
+                self.micro_code_t_cycle = (self.micro_code_t_cycle + 1) & 0b0000_0011; // Just a Bit version of (value = value % 4)
+                if self.micro_code_t_cycle == 0 {
+                    self.status = self.m_cycle_tick(bus, ctx, self.micro_code);
+                    self.micro_code_m_cycle += 1;
+                } else {
+                    self.status = CpuStatus::Execute;
+                }},
+            _ => {},
         }
 
-        match cpu_status {
-            CpuStatus::Execute => { /* Wait 'till execution complete */ }
+        match self.status {
+            CpuStatus::Execute => { /* Wait 'till execution complete */}
             CpuStatus::Ready => {
-                self.micro_code_m_cycle = 0;
-                let interrupt = self.interrupt(ctx.cpu_mmio.interrupt_registers());
-                if interrupt.is_none() {
+                let interrupt = self.interrupt_request(ctx.cpu_mmio.interrupt_registers());
+                if !self.ime || interrupt.is_none() {
                     let (instr, opcode) = self.fetch_and_decode(bus, ctx, false);
+                    self.interrupt = None;
                     self.instruction = instr;
                     self.opcode = opcode;
                 } else {
-                    self.instruction = interrupt;
+                    let instruction_type = interrupt.unwrap();
+                    self.interrupt = interrupt;
+                    self.instruction = Some(instruction_type.instruction());
                     self.ime = false;
-                    match self.maneging_interrupt().unwrap() {
+                    match instruction_type {
                         InterruptType::VBlank => {
                             ctx.cpu_mmio.interrupt_registers_mut().reset_if_bit(InterruptFlagsMask::VBlank);
                         }
@@ -907,8 +929,20 @@ impl Tick for CPU {
                         }
                     }
                 }
+                self.micro_code_m_cycle = 0;
                 self.micro_code_index = 0;
                 self.micro_code = self.instruction.unwrap().micro_ops[0];
+                self.status = CpuStatus::Execute;
+            }
+            CpuStatus::Halt => {
+                let interrupt_registers = ctx.cpu_mmio.interrupt_registers();
+                if (interrupt_registers.get_ie() & interrupt_registers.get_if()) != 0 {
+                    self.status = CpuStatus::Ready;
+
+                    if !self.ime {
+                        todo!("Implement HALT bug");
+                    }
+                }
             }
         }
     }

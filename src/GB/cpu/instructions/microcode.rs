@@ -149,6 +149,7 @@ pub enum MCycleOp {
     Main(MicroOp),
     Cc(MicroOp, CheckCondition, usize), // Check Condition - If true micro-code index to execute must be changed with the given one
     End(MicroOp),
+    Halt,
     None,
 }
 
@@ -157,5 +158,6 @@ pub enum MicroFlow {
     Next,
     Jump(usize),
     End,
+    Halt,
     PrefixCB,
 }

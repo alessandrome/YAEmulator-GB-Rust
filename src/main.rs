@@ -27,6 +27,7 @@ use crate::GB::addresses;
 use crate::GB::cpu::{InterruptType, CPU_INTERRUPT_CYCLES};
 use crate::GB::joypad::{JoypadButtonsBits, JoypadDPadBits};
 use crate::GB::memory::vram::VRAM;
+use crate::GB::ppu::palette::GbPalette;
 use crate::GB::ppu::PPU;
 use crate::GB::types::address::Address;
 
@@ -73,17 +74,12 @@ fn frame_string(frame: &[GbColor; PPU::SCREEN_PIXELS as usize], doubled: bool) -
     s
 }
 
-fn tile_map_string(tile_map: &[Tile; VRAM::VRAM_TILES_PER_MAP as usize], doubled: bool) -> String {
+fn tile_map_string(tile_map: &[Tile; VRAM::VRAM_TILES_PER_MAP as usize], palette: GbPalette, doubled: bool) -> String {
     let mut vec: Vec<String> = Vec::with_capacity(256);
     for i in 0..32_usize {
         let colored_tile_line: Vec<[GbColor; 64]> = tile_map[(i*32)..(i*32+32)]
             .iter()
-            .map(|t| t.colored_tile([
-                GbColor::White,
-                GbColor::LightGray,
-                GbColor::DarkGray,
-                GbColor::Black
-            ])).collect();
+            .map(|t| *t.colored_tile(palette).dots()).collect();
         for j in 0..8_usize {
             let mut str_tile_line = "".to_string();
             for k in 0..32_usize {
@@ -148,7 +144,13 @@ fn main() {
             let frame = gb.frame();
             let frame_str = frame_string(frame, true);
             println!("\x1B[2J\x1B[H{}", frame_str);
-            // let map_str = tile_map_string(&gb.vram().tile_map(TileMapArea::MapBlock0, TileDataArea::DataBlock12), true);
+            // let palette = GbPalette::new(
+            //     GbColor::White,
+            //     GbColor::LightGray,
+            //     GbColor::DarkGray,
+            //     GbColor::Black
+            // );
+            // let map_str = tile_map_string(&gb.vram().tile_map(TileMapArea::MapBlock0, TileDataArea::DataBlock12), palette, true);
             // println!("\x1B[2J\x1B[H{}", map_str);
             // println!("{}", gb.get_frame_string(true));
             println!("S/f: {:?}", (Instant::now() - time).as_secs_f64());

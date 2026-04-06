@@ -1414,8 +1414,8 @@ const fn create_opcodes() -> [Option<&'static Instruction>; 256] {
         size: 1,
         flags: &[],
         micro_ops: &[
-            // Todo: implement HALT microcode
-            MCycleOp::End(MicroOp::Idle),
+            // Halt is not a simple instruction, it alters CPU ticking flux
+            MCycleOp::Halt,
         ],
     });
     opcodes[0x77] = Some(&Instruction {
