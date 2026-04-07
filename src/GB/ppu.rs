@@ -9,6 +9,7 @@ use crate::GB::ppu::oam::{OAM};
 use crate::GB::traits::Tick;
 use crate::GB::types::Byte;
 use lcd::LCD;
+use crate::GB::cpu::registers::interrupt_registers::InterruptFlagsMask;
 use crate::GB::ppu::pixel::{PixelFifo, PixelFifoPaletteRegister};
 use crate::GB::ppu::pixel_fetcher::{BgFetchingMode, PixelFetcherState};
 
@@ -137,7 +138,9 @@ impl Tick for PPU {
                         }
                     }
                     PpuMode::HBlank => {}
-                    PpuMode::VBlank => {}
+                    PpuMode::VBlank => {
+                        ctx.cpu_mmio.interrupt_registers_mut().set_if_bit(InterruptFlagsMask::VBlank);
+                    }
                 }
             }
 
