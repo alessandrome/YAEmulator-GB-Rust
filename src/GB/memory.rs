@@ -3,6 +3,8 @@ pub mod hram;
 pub mod vram;
 pub mod oam_memory;
 
+pub use self::{wram::WRAM, hram::HRAM, vram::VRAM, oam_memory::OamMemory};
+
 pub const RST_INSTRUCTIONS: usize = 0x0000; // Location in memory for RST instructions (not used on emulation)
 pub const CARTRIDGE_HEADER_ADDRESS: usize = 0x0100; // Location for ROM metadata (as name) (not used on emulation)
 pub const USER_PROGRAM_ADDRESS: usize = 0x0150; // Location User Program (not used on emulation)

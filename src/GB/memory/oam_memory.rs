@@ -5,6 +5,7 @@ use crate::GB::types::address::{Address, AddressRangeInclusive};
 use crate::GB::types::Byte;
 
 const OAM_ITEMS: u8 = 40;
+pub type OamTable = [OAM; OAM_ITEMS as usize];
 
 pub struct OamMemory {
     #[cfg(test)]
@@ -40,6 +41,14 @@ impl OamMemory {
             self.memory[OAM::OAM_BYTES as usize * id as usize + 3],
             Some(id)
         )
+    }
+
+    pub fn oam_table(&self) -> OamTable {
+        let mut oam_vec = Vec::with_capacity(Self::OAM_ITEMS as usize);
+        for i in 0..Self::OAM_ITEMS {
+            oam_vec.push(self.oam(i));
+        }
+        oam_vec.try_into().unwrap()
     }
 }
 

@@ -21,11 +21,12 @@ mod tests;
 
 use crate::GB::cpu::instructions::Instruction;
 use crate::GB::memory::Length;
-use crate::GB::ppu::tile::{GbColor, Tile, TileDataArea, TileMapArea};
+use crate::GB::ppu::tile::{ColoredTile, GbColor, Tile, TileDataArea, TileMapArea};
 use GB::cpu::{CPU};
 use crate::GB::addresses;
 use crate::GB::cpu::{InterruptType, CPU_INTERRUPT_CYCLES};
 use crate::GB::joypad::{JoypadButtonsBits, JoypadDPadBits};
+use crate::GB::memory::oam_memory::OamTable;
 use crate::GB::memory::vram::VRAM;
 use crate::GB::ppu::palette::GbPalette;
 use crate::GB::ppu::PPU;
@@ -97,6 +98,33 @@ fn tile_map_string(tile_map: &[Tile; VRAM::VRAM_TILES_PER_MAP as usize], palette
     vec.join("\n")
 }
 
+fn oam_table_string(oam_table: OamTable, vram: &VRAM, obp0: GbPalette, obp1: GbPalette, doubled: bool) -> String {
+    let mut vec: Vec<String> = Vec::with_capacity(8 * 5);
+    let oam_per_line: usize = 8;
+    let oam_per_column: usize = 5;
+    for i in 0..oam_per_column {
+        let line_oam = &oam_table[(i*oam_per_line)..(i*oam_per_line+oam_per_line)];
+        let line_oam_dots: Vec<[GbColor; 64]> = line_oam
+            .iter()
+            .map(|oam| *oam.colored_tile(vram, obp0, obp1).dots())
+            .collect::<Vec<[GbColor; 64]>>();
+        for oam_row in 0..Tile::TILE_HEIGHT {
+            let mut str_tile_line = "".to_string();
+            for oam_dots in line_oam_dots.iter() {
+                for dot_idx in (oam_row *Tile::TILE_WIDTH)..(oam_row *Tile::TILE_WIDTH+Tile::TILE_WIDTH) {
+                    let dot = &oam_dots[dot_idx as usize];
+                    str_tile_line.push(CONSOLE_PALETTE[&dot]);
+                    if doubled {
+                        str_tile_line.push(CONSOLE_PALETTE[&dot]);
+                    }
+                }
+            }
+            vec.push(str_tile_line);
+        }
+    }
+    vec.join("\n")
+}
+
 fn main() {
     let args = Args::parse();
 
@@ -141,9 +169,21 @@ fn main() {
         let start = Instant::now();
 
         if (cycles % (GB::CYCLES_PER_FRAME)) == 0  {
-            let frame = gb.frame();
-            let frame_str = frame_string(frame, true);
-            println!("\x1B[2J\x1B[H{}", frame_str);
+            // Frame
+            // let frame = gb.frame();
+            // let frame_str = frame_string(frame, true);
+            // println!("\x1B[2J\x1B[H{}", frame_str);
+
+            // OAM Memory
+            let ppu = gb.ppu();
+            let vram = ppu.mmio.vram();
+            let obp0 = ppu.mmio.obp0_view();
+            let obp1 = ppu.mmio.obp1_view();
+            let oam_table = gb.oam_memory().oam_table();
+            let oam_table_str = oam_table_string(oam_table, vram, obp0, obp1, true);
+            println!("\x1B[2J\x1B[H{}", oam_table_str);
+
+            // BG Memory
             // let palette = GbPalette::new(
             //     GbColor::White,
             //     GbColor::LightGray,
@@ -321,7 +361,7 @@ fn log(log_channel: &mut File, gb: &GB::GB, log_line: u64) {
         let cartridge = gb.cartridge().unwrap();
         {
             let formatted = format!("| {:04} |  {:#06X} |  {} |  {}{}|  {} {{}} |  RxM B: {}/{}  |  {{AF: {:04X}, BC: {:04X}, DE: {:04X}, HL: {:04X}, SP: {:04X}}} | IE: {:02X} | IF: {:02X} | IME: {} | STAT: {:02X} | LCDC: {:02X}",
-                                    log_line, addr, s, s_ins, " ".repeat(16 - s_ins.len()), gb.ppu(),
+                                    log_line, addr, s, s_ins, " ".repeat(16 - s_ins.len()), gb.ppu().ppu,
                                     // mem_registers,
                                     cartridge.rom_bank(),
                                     cartridge.ram_bank(),

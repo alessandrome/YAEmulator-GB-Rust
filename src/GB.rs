@@ -223,8 +223,12 @@ impl GB {
         &self.cpu_ctx.cpu
     }
     
-    pub fn ppu(&self) -> &ppu::PPU {
-        &self.ppu_ctx.ppu
+    pub fn ppu(&self) -> &ppu::PpuCtx {
+        &self.ppu_ctx
+    }
+
+    pub fn oam_memory(&self) -> &memory::OamMemory {
+        &self.oam_memory
     }
     
     pub fn vram(&self) -> &VRAM {
