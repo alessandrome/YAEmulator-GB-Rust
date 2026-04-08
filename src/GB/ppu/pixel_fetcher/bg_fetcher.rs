@@ -111,7 +111,7 @@ impl Tick for BackgroundFetcher {
                 let scx = ctx.ppu_mmio.scx();
                 let scy = ctx.ppu_mmio.scy();
 
-                if !lcdc.bg_win_enabled || (lx < wx || ly < wy) {
+                if !lcdc.bg_win_enabled || !lcdc.window_enabled || (lx < wx || ly < wy) {
                     // Background: Get tile map coordinates
                     let bg_map_x = (self.bg_tile_x + (scx / 8)) & 0x1F; // X of tile Map
                     let bg_map_y = ((ly as u16 + scy as u16) & 0xFF) as u8 / 8; // Y of Tile Map
