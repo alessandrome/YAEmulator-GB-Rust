@@ -184,7 +184,7 @@ impl Tick for PPU {
                         let wy = ctx.ppu_mmio.wy();
                         let lx = ctx.ppu_mmio.lx();
                         let ly = ctx.ppu_mmio.ly();
-                        if lcdc.bg_win_enabled && wx.saturating_sub(7) == lx && ly >= wy {
+                        if lcdc.bg_win_enabled && lcdc.window_enabled && wx.saturating_sub(7) == lx && ly >= wy {
                             self.bg_fetcher.set_window_mode();
                             ctx.ppu_mmio.clear_obj_fifo();
                         }

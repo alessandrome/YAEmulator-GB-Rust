@@ -79,16 +79,16 @@ impl VRAM {
     /// Retrieve ID of a tile from the specified Tile Map Are given the ID position in it.
     /// The Id position value is ANDed (&) with 0x3FF value to ensure value between 0-1023
     pub fn tile_id(&self, id: u16, map_area: TileMapArea) -> Byte {
+        let base_index;
         match map_area {
             TileMapArea::MapBlock0 => {
-                let base_index = Self::VRAM_TILE_BLOCK_0_START.as_usize() - Self::VRAM_START_ADDRESS.as_usize();
-                self.memory[base_index + (id & 0x3FF) as usize]
+                base_index = Self::VRAM_TILE_MAP_0_START.as_usize() - Self::VRAM_START_ADDRESS.as_usize();
             }
             TileMapArea::MapBlock1 => {
-                let base_index = Self::VRAM_TILE_BLOCK_1_START.as_usize() - Self::VRAM_START_ADDRESS.as_usize();
-                self.memory[base_index + (id & 0x3FF) as usize]
+                base_index = Self::VRAM_TILE_MAP_1_START.as_usize() - Self::VRAM_START_ADDRESS.as_usize();
             }
         }
+        self.memory[base_index + (id & 0x3FF) as usize]
     }
 
     pub fn tile_id_map(&self, map_area: TileMapArea) -> [u8; Self::VRAM_TILES_PER_MAP as usize] {
@@ -102,7 +102,7 @@ impl VRAM {
             }
         }
         let mut map_id = [0; Self::VRAM_TILES_PER_MAP as usize];
-        let base_offset = map_range.start().as_usize() - Self::VRAM_TILE_BLOCK_0_START.as_usize();
+        let base_offset = map_range.start().as_usize() - Self::VRAM_START_ADDRESS.as_usize();
         for idx in 0..Self::VRAM_TILES_PER_MAP as usize {
             map_id[idx] = self.memory[base_offset + idx];
         }

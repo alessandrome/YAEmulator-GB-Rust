@@ -313,7 +313,7 @@ impl PpuMmio {
         }
 
         let bg_tile_map;
-        if (self.lcdc & LCDCMasks::WinTileMapArea) != 0 {
+        if (self.lcdc & LCDCMasks::BgTileMapArea) != 0 {
             bg_tile_map = TileMapArea::MapBlock1;
         } else {
             bg_tile_map = TileMapArea::MapBlock0;
