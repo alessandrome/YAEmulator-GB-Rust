@@ -148,9 +148,9 @@ impl Tick for PPU {
                 PpuMode::OAMScan => {
                     // Mode 2 - OAM Scan
                     if ctx.ppu_mmio.oam_buffer().len() < Self::OAM_BUFFER as usize {
-                        let oam_id = self.oam_scans * 2 / OAM::OAM_BYTES;
+                        let oam_id = self.oam_scans;
                         let oam_base_addr = OamMemory::OAM_START_ADDRESS + (oam_id * 4) as u16;
-                        let oam_byte_idx0 = ((self.oam_scans * 2) % OAM::OAM_BYTES);
+                        let oam_byte_idx0 = self.oam_loading.len();
                         let oam_byte_idx1 = oam_byte_idx0 + 1;
 
                         // Get OAM Byte 0/1 with oam_scans even, OAM Byte 2/3 if odd
@@ -172,9 +172,10 @@ impl Tick for PPU {
                             if (adj_ly >= oam.y()) && (adj_ly < (oam.y() + obj_height)) {
                                 ctx.ppu_mmio.push_oam_buffer(oam);
                             }
+                            self.oam_loading.clear();
+                            self.oam_scans = self.oam_scans + 1;
                         }
                     }
-                    self.oam_scans = (self.oam_scans + 1) & Self::OAM_BUFFER;
                 }
                 PpuMode::Drawing => {
                     // Mode 3 - Drawing Pixels

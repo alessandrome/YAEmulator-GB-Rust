@@ -65,18 +65,13 @@ impl Tick for SpriteFetcher {
                 self.state = PixelFetcherState::FetchTileT2;
             }
             PixelFetcherState::FetchTileT2 => {
-                let tile_height: u8;
-                if lcdc.obj_size == ObjSize::Single {
-                    tile_height = 8;
-                } else {
-                    tile_height = 16;
-                }
+                let tile_height: u8 = lcdc.obj_size as u8;
 
                 let ly = ctx.ppu_mmio.ly();
                 if self.oam.y_flip() {
-                    self.line_y = tile_height - (self.oam.y() - ly);
-                } else {
                     self.line_y = self.oam.y() - ly - 1;
+                } else {
+                    self.line_y = ly - (self.oam.y() - 16);
                 }
 
                 self.state = PixelFetcherState::FetchTileDataHighT1;
@@ -104,7 +99,7 @@ impl Tick for SpriteFetcher {
                 self.state = PixelFetcherState::PushT1;
             }
             PixelFetcherState::PushT1 => {
-                self.tile_line = TileLine::new(self.line_high_byte, self.line_low_byte);
+                self.tile_line = TileLine::new(self.line_low_byte, self.line_high_byte);
                 if self.oam.x_flip() {
                     self.tile_line = self.tile_line.reverse();
                 }
