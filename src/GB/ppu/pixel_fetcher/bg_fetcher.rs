@@ -135,7 +135,7 @@ impl Tick for BackgroundFetcher {
                         self.tile_id = ctx.ppu_mmio.vram().tile_id(self.tile_map_id, lcdc.window_tile_map);
                     }
                 }
-                self.state = PixelFetcherState::FetchTileDataHighT1;
+                self.state = PixelFetcherState::FetchTileDataLowT1;
             }
             PixelFetcherState::FetchTileDataLowT1 => {
                 let tile_data_area = lcdc.bg_window_tile_area;
@@ -198,7 +198,7 @@ impl Tick for BackgroundFetcher {
                 }
             }
             PixelFetcherState::PushT1 => {
-                self.tile_line = TileLine::new(self.line_high_byte, self.line_low_byte);
+                self.tile_line = TileLine::new(self.line_low_byte, self.line_high_byte);
                 if ctx.ppu_mmio.bg_fifo().is_empty() {
                     for pixel in 0..Tile::TILE_WIDTH {
                         ctx.ppu_mmio.push_bg_pixel(PixelFifo::new(

@@ -74,7 +74,7 @@ impl Tick for SpriteFetcher {
                     self.line_y = ly - (self.oam.y() - 16);
                 }
 
-                self.state = PixelFetcherState::FetchTileDataHighT1;
+                self.state = PixelFetcherState::FetchTileDataLowT1;
             }
             PixelFetcherState::FetchTileDataLowT1 => {
                 self.line_low_byte = ctx.ppu_mmio.vram().tile_line_lsb_byte(
