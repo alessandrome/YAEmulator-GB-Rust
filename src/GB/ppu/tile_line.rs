@@ -8,9 +8,9 @@ pub struct TileLine {
 
 impl TileLine {
     /// Create a new Tile Line. Remember that byte_1 contains lsb values and byte_2 MSB ones.
-    pub fn new(byte_1: Byte, byte_2: Byte) -> Self {
+    pub fn new(lsb_byte: Byte, msb_byte: Byte) -> Self {
         let mut line = [GbPaletteId::Id0; Tile::TILE_WIDTH as usize];
-        let word = (expand_byte_bits(byte_2) << 1) | expand_byte_bits(byte_1);
+        let word = (expand_byte_bits(msb_byte) << 1) | expand_byte_bits(lsb_byte);
         for col in 0_usize..8 {
             line[col] = GbPaletteId::half_nibble_to_palette_map(((word >> ((7 - col) * 2)) as Byte) & 0b11);
         }
