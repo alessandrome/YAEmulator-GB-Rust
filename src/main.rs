@@ -30,6 +30,7 @@ use crate::GB::memory::oam_memory::OamTable;
 use crate::GB::memory::vram::VRAM;
 use crate::GB::ppu::palette::GbPalette;
 use crate::GB::ppu::PPU;
+use crate::GB::ppu::ppu_mode::PpuMode;
 use crate::GB::types::address::Address;
 
 #[derive(Parser, Debug)]
@@ -168,20 +169,21 @@ fn main() {
     'running: loop {
         let start = Instant::now();
 
-        if (cycles % (GB::CYCLES_PER_FRAME)) == 0  {
+        // if (cycles % (GB::CYCLES_PER_FRAME)) == 0  {
+        if gb.ppu().mmio.ppu_mode() == PpuMode::VBlank && (gb.ppu().mmio.prev_ppu_mode() != gb.ppu().mmio.ppu_mode()) {
             // Frame
-            // let frame = gb.frame();
-            // let frame_str = frame_string(frame, true);
-            // println!("\x1B[2J\x1B[H{}", frame_str);
+            let frame = gb.frame();
+            let frame_str = frame_string(frame, true);
+            println!("\x1B[2J\x1B[H{}", frame_str);
 
             // OAM Memory
-            let ppu = gb.ppu();
-            let vram = ppu.mmio.vram();
-            let obp0 = ppu.mmio.obp0_view();
-            let obp1 = ppu.mmio.obp1_view();
-            let oam_table = gb.oam_memory().oam_table();
-            let oam_table_str = oam_table_string(oam_table, vram, obp0, obp1, true);
-            println!("\x1B[2J\x1B[H{}", oam_table_str);
+            // let ppu = gb.ppu();
+            // let vram = ppu.mmio.vram();
+            // let obp0 = ppu.mmio.obp0_view();
+            // let obp1 = ppu.mmio.obp1_view();
+            // let oam_table = gb.oam_memory().oam_table();
+            // let oam_table_str = oam_table_string(oam_table, vram, obp0, obp1, true);
+            // println!("\x1B[2J\x1B[H{}", oam_table_str);
 
             // BG Memory
             // let palette = GbPalette::new(
@@ -192,7 +194,7 @@ fn main() {
             // );
             // let map_str = tile_map_string(&gb.vram().tile_map(TileMapArea::MapBlock0, TileDataArea::DataBlock12), palette, true);
             // println!("\x1B[2J\x1B[H{}", map_str);
-            // println!("{}", gb.get_frame_string(true));
+
             println!("S/f: {:?}", (Instant::now() - time).as_secs_f64());
             println!("C/s: {:?}", cycles as f64/(Instant::now() - time).as_secs_f64());
 
