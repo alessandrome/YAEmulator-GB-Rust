@@ -291,44 +291,7 @@ impl PpuMmio {
 
     #[inline]
     pub fn lcdc_view(&self) -> LCDC {
-        let obj_size;
-        if (self.lcdc & LCDCMasks::ObjSize) != 0 {
-            obj_size = ObjSize::Single
-        } else {
-            obj_size = ObjSize::Double
-        }
-
-        let window_tile_map;
-        if (self.lcdc & LCDCMasks::WinTileMapArea) != 0 {
-            window_tile_map = TileMapArea::MapBlock1;
-        } else {
-            window_tile_map = TileMapArea::MapBlock0;
-        }
-
-        let bg_window_tile_area;
-        if (self.lcdc & LCDCMasks::BgWinTilesArea) != 0 {
-            bg_window_tile_area = TileDataArea::DataBlock01;
-        } else {
-            bg_window_tile_area = TileDataArea::DataBlock12;
-        }
-
-        let bg_tile_map;
-        if (self.lcdc & LCDCMasks::BgTileMapArea) != 0 {
-            bg_tile_map = TileMapArea::MapBlock1;
-        } else {
-            bg_tile_map = TileMapArea::MapBlock0;
-        }
-
-        LCDC {
-            lcd_enabled: (self.lcdc & LCDCMasks::LcdEnabled) != 0,
-            window_tile_map,
-            window_enabled: (self.lcdc & LCDCMasks::WinEnabled) != 0,
-            bg_window_tile_area,
-            bg_tile_map,
-            obj_size,
-            obj_enabled: (self.lcdc & LCDCMasks::ObjEnabled) != 0,
-            bg_win_enabled: (self.lcdc & LCDCMasks::BgWinEnabled) != 0,
-        }
+        LCDC::from_byte(self.lcdc)
     }
 
     #[inline]

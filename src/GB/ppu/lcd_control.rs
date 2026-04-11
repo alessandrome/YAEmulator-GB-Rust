@@ -1,5 +1,6 @@
 use crate::GB::ppu::tile::{TileDataArea, TileMapArea};
 use crate::{default_enum_u8_bit_ops, mask_flag_enum_default_impl};
+use crate::GB::types::Byte;
 
 #[derive(Copy, Clone, Debug)]
 #[repr(u8)]
@@ -32,4 +33,53 @@ pub struct LCDC {
     pub obj_size: ObjSize,
     pub obj_enabled: bool,
     pub bg_win_enabled: bool,
+}
+
+impl LCDC {
+    pub fn from_byte(lcdc: Byte) -> Self {
+        let obj_size;
+        if (lcdc & LCDCMasks::ObjSize) != 0 {
+            obj_size = ObjSize::Double
+        } else {
+            obj_size = ObjSize::Single
+        }
+
+        let window_tile_map;
+        if (lcdc & LCDCMasks::WinTileMapArea) != 0 {
+            window_tile_map = TileMapArea::MapBlock1;
+        } else {
+            window_tile_map = TileMapArea::MapBlock0;
+        }
+
+        let bg_window_tile_area;
+        if (lcdc & LCDCMasks::BgWinTilesArea) != 0 {
+            bg_window_tile_area = TileDataArea::DataBlock01;
+        } else {
+            bg_window_tile_area = TileDataArea::DataBlock12;
+        }
+
+        let bg_tile_map;
+        if (lcdc & LCDCMasks::BgTileMapArea) != 0 {
+            bg_tile_map = TileMapArea::MapBlock1;
+        } else {
+            bg_tile_map = TileMapArea::MapBlock0;
+        }
+
+        Self {
+            lcd_enabled: (lcdc & LCDCMasks::LcdEnabled) != 0,
+            window_tile_map,
+            window_enabled: (lcdc & LCDCMasks::WinEnabled) != 0,
+            bg_window_tile_area,
+            bg_tile_map,
+            obj_size,
+            obj_enabled: (lcdc & LCDCMasks::ObjEnabled) != 0,
+            bg_win_enabled: (lcdc & LCDCMasks::BgWinEnabled) != 0,
+        }
+    }
+}
+
+impl From<Byte> for LCDC {
+    fn from(value: Byte) -> Self {
+        Self::from_byte(value)
+    }
 }
