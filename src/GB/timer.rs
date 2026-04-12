@@ -1,4 +1,8 @@
 use crate::{define_enum_u8, default_enum_u8_bit_ops, mask_flag_enum_default_impl};
+use crate::GB::bus::{Bus, BusDevice, MmioContextWrite};
+use crate::GB::traits::Tick;
+use crate::GB::types::address::{Address, AddressRangeInclusive};
+use crate::GB::types::Byte;
 use crate::utils::{falling_edge as utils, falling_edge};
 
 pub const M256_CLOCK_CYCLES: u64 = 256;
@@ -60,6 +64,16 @@ pub struct TimerRegisters {
 }
 
 impl TimerRegisters {
+    pub const TIMER_DIV_REGISTER_ADDRESS: Address = Address(0xFF04);
+    pub const TIMER_TIMA_REGISTER_ADDRESS: Address = Address(0xFF05);
+    pub const TIMER_TMA_REGISTER_ADDRESS: Address = Address(0xFF06);
+    pub const TIMER_TAC_REGISTER_ADDRESS: Address = Address(0xFF07);
+    pub const TIMER_START_ADDRESS: Address = Self::TIMER_DIV_REGISTER_ADDRESS;
+    pub const TIMER_END_ADDRESS: Address = Self::TIMER_TAC_REGISTER_ADDRESS;
+    pub const TIMER_ADDRESS_RANGE: AddressRangeInclusive = Self::TIMER_START_ADDRESS..=Self::TIMER_END_ADDRESS;
+}
+
+impl TimerRegisters {
     pub fn new() -> Self {
         Self {
             cycles: 0,
@@ -67,21 +81,6 @@ impl TimerRegisters {
             tima: 0,
             tma: 0,
             tac: 0,
-        }
-    }
-
-    pub fn tick(&mut self) {
-        self.cycles = self.cycles.wrapping_add(1);
-        let old_div_counter = self.div_counter;
-        let old_tma = self.tma;
-        self.div_counter = self.div_counter.wrapping_add(1); // Increment DIV
-        if falling_edge(old_div_counter, self.div_counter, TACClock::get_timer_bit_from_u8(self.tac & TACMask::TimerClock)) {
-            // Change/Increment TMA as needed
-            if (self.tima == 0xFF) {
-                self.tima = self.tma;
-            } else {
-                self.tima += 1;
-            }
         }
     }
 
@@ -127,5 +126,32 @@ impl TimerRegisters {
 
     pub fn set_tac_mode(&mut self, mode: TACClock) {
         self.tac |= mode as u8;
+    }
+}
+
+impl Tick for TimerRegisters {
+    fn tick(&mut self, bus: &mut Bus, ctx: &mut MmioContextWrite) {
+        self.cycles = self.cycles.wrapping_add(1);
+        let old_div_counter = self.div_counter;
+        let old_tma = self.tma;
+        self.div_counter = self.div_counter.wrapping_add(1); // Increment DIV
+        if falling_edge(old_div_counter, self.div_counter, TACClock::get_timer_bit_from_u8(self.tac & TACMask::TimerClock)) {
+            // Change/Increment TMA as needed
+            if (self.tima == 0xFF) {
+                self.tima = self.tma;
+            } else {
+                self.tima += 1;
+            }
+        }
+    }
+}
+
+impl BusDevice for TimerRegisters {
+    fn read(&self, address: Address) -> Byte {
+        todo!()
+    }
+
+    fn write(&mut self, address: Address, data: Byte) {
+        todo!()
     }
 }
