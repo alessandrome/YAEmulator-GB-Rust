@@ -135,6 +135,7 @@ impl PpuMmio {
     #[inline]
     pub fn sort_oam_buffer(&mut self) {
         self.oam_buffer.sort();
+        self.oam_buffer.reverse();
     }
 
     #[inline]
