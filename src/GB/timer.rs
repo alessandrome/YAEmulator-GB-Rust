@@ -70,7 +70,7 @@ impl TimerRegisters {
     pub const TIMER_TAC_REGISTER_ADDRESS: Address = Address(0xFF07);
     pub const TIMER_START_ADDRESS: Address = Self::TIMER_DIV_REGISTER_ADDRESS;
     pub const TIMER_END_ADDRESS: Address = Self::TIMER_TAC_REGISTER_ADDRESS;
-    pub const TIMER_ADDRESS_RANGE: AddressRangeInclusive = Self::TIMER_START_ADDRESS..=Self::TIMER_END_ADDRESS;
+    pub const TIMER_REGISTERS_RANGE: AddressRangeInclusive = Self::TIMER_START_ADDRESS..=Self::TIMER_END_ADDRESS;
 }
 
 impl TimerRegisters {
@@ -148,7 +148,13 @@ impl Tick for TimerRegisters {
 
 impl BusDevice for TimerRegisters {
     fn read(&self, address: Address) -> Byte {
-        todo!()
+        match address {
+            Self::TIMER_DIV_REGISTER_ADDRESS => self.div(),
+            Self::TIMER_TIMA_REGISTER_ADDRESS => self.tima(),
+            Self::TIMER_TMA_REGISTER_ADDRESS => self.tma(),
+            Self::TIMER_TAC_REGISTER_ADDRESS => self.tac(),
+            _ => unreachable!(),
+        }
     }
 
     fn write(&mut self, address: Address, data: Byte) {
